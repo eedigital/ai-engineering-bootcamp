@@ -10,7 +10,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: LLM_PROVIDERS
-        value: gemini,groq   # no Ollama on Render: it only exists on your laptop
+        value: groq,gemini   # Groq first: faster and steadier on free tiers. No Ollama on Render (laptop only)
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
