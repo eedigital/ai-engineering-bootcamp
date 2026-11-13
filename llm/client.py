@@ -36,13 +36,13 @@ def _providers() -> dict[str, Provider]:
         "gemini": Provider(
             "gemini",
             "https://generativelanguage.googleapis.com/v1beta/openai",
-            os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
             "GEMINI_API_KEY",
         ),
         "groq": Provider(
             "groq",
             "https://api.groq.com/openai/v1",
-            os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
             "GROQ_API_KEY",
         ),
         "ollama": Provider(
