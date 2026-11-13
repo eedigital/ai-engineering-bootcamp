@@ -8,9 +8,10 @@ def test_health(client):
     assert r.status_code == 200 and r.json()["status"] == "ok"
 
 
-def test_root_redirects_to_docs(client):
-    r = client.get("/", follow_redirects=False)
-    assert r.status_code == 307 and r.headers["location"] == "/docs"
+def test_home_page_is_served(client):
+    r = client.get("/")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"]
+    assert "Get the facts" in r.text
 
 
 def test_happy_path(client, fake_llm):

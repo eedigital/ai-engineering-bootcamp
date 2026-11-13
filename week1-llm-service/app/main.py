@@ -6,12 +6,13 @@ import logging
 import os
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 
 load_dotenv()  # reads .env locally; on Render the dashboard sets env vars (existing vars are never overridden)
-from fastapi.responses import JSONResponse, RedirectResponse
 
 from .extractor import ExtractionError, extract
 from .guardrails import check_input
@@ -42,9 +43,13 @@ def _rate_limited(ip: str) -> bool:
     return False
 
 
+INDEX_HTML = Path(__file__).parent / "static" / "index.html"
+
+
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse("/docs")
+    """The human-friendly page. Developers can still use /docs."""
+    return FileResponse(INDEX_HTML, media_type="text/html")
 
 
 @app.get("/health")

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job ad reader</title>
+<meta name="description" content="Paste a messy job ad and get the facts: role, pay, location and skills.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef1f4;
+    --sheet: #ffffff;
+    --ink: #1d2a3a;
+    --muted: #5d6b7c;
+    --line: #d5dce4;
+    --marker: #f8e46a;
+    --action: #2347c5;
+    --error: #b42318;
+    --radius-sheet: 14px;
+    --radius-small: 6px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif;
+  }
+  main { max-width: 68rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+
+  header { max-width: 46rem; margin-bottom: 2.25rem; }
+  header p { max-width: 40rem; }
+  h1 {
+    font-size: clamp(2.1rem, 5vw, 3.25rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    margin: 0 0 0.75rem;
+  }
+  h1 .hl { white-space: nowrap; background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%); }
+  header p { margin: 0; color: var(--muted); font-size: 1.125rem; }
+
+  .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 52rem) { .workspace { grid-template-columns: 1fr; } }
+
+  .sheet {
+    background: var(--sheet);
+    border-radius: var(--radius-sheet);
+    border: 1px solid var(--line);
+    padding: 1.5rem;
+  }
+  .sheet h2 { font-size: 1rem; font-weight: 700; margin: 0 0 0.75rem; }
+
+  /* Left: the ad */
+  label { display: block; font-weight: 700; margin-bottom: 0.5rem; }
+  textarea, .ad-view {
+    width: 100%;
+    min-height: 15rem;
+    font: inherit;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-small);
+    padding: 0.875rem 1rem;
+    background: #fbfcfd;
+    line-height: 1.6;
+  }
+  textarea { resize: vertical; }
+  textarea:focus { outline: 3px solid color-mix(in srgb, var(--action) 35%, transparent); border-color: var(--action); }
+  .ad-view { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ad-view mark {
+    background: var(--marker);
+    color: inherit;
+    padding: 0 0.12em;
+    border-radius: 2px;
+    animation: ink 380ms ease-out both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+  @keyframes ink { from { background-size: 0 100%; background-color: transparent; } to { background-color: var(--marker); } }
+
+  .examples { margin: 0.875rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; color: var(--muted); font-size: 0.9375rem; }
+  .examples button {
+    font: inherit; font-size: 0.9375rem;
+    background: none; border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.25rem 0.75rem; color: var(--ink); cursor: pointer;
+  }
+  .examples button:hover { border-color: var(--ink); }
+
+  .actions { display: flex; gap: 0.75rem; align-items: center; margin-top: 1.25rem; flex-wrap: wrap; }
+  .primary {
+    font: inherit; font-weight: 700;
+    background: var(--action); color: #fff;
+    border: 0; border-radius: var(--radius-small);
+    padding: 0.75rem 1.4rem; cursor: pointer;
+  }
+  .primary:hover { background: #1b39a3; }
+  .primary[disabled] { opacity: 0.6; cursor: progress; }
+  .secondary {
+    font: inherit; background: none; border: 0; color: var(--action);
+    text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0.5rem 0.25rem;
+  }
+  button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .status { color: var(--muted); font-size: 0.9375rem; }
+
+  /* Right: the job card */
+  .empty { color: var(--muted); min-height: 15rem; display: grid; place-content: center; text-align: center; padding: 1rem; }
+  .empty p { margin: 0; max-width: 20rem; }
+  @media (max-width: 52rem) { .empty { min-height: 6rem; } }
+  .card h3 { font-size: 1.75rem; line-height: 1.15; font-weight: 800; letter-spacing: -0.015em; margin: 0 0 0.25rem; }
+  .card .where { margin: 0 0 1.25rem; color: var(--muted); font-size: 1.0625rem; }
+  .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.6rem 1.25rem; margin: 0 0 1.25rem; padding: 1rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .facts .none { color: var(--muted); font-weight: 400; }
+  .skills { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0.25rem 0 0; }
+  .skills li { background: var(--paper); border-radius: var(--radius-small); padding: 0.2rem 0.65rem; font-size: 0.9375rem; }
+  .meta { margin-top: 1.25rem; color: var(--muted); font-size: 0.875rem; }
+  .meta button { font-size: 0.875rem; }
+  .error { color: var(--error); }
+  .error strong { display: block; margin-bottom: 0.25rem; }
+
+  pre.json {
+    margin: 0.75rem 0 0; padding: 1rem; overflow: auto; max-height: 18rem;
+    background: var(--ink); color: #e8edf3; border-radius: var(--radius-small);
+    font-size: 0.8125rem; line-height: 1.5;
+  }
+
+  footer { margin-top: 3rem; color: var(--muted); font-size: 0.9375rem; max-width: 40rem; }
+  footer a { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { .ad-view mark { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Paste a job ad. <span class="hl">Get the facts.</span></h1>
+    <p>Job ads bury the pay, the location and the real requirements. Paste one in and this pulls them out, then marks where in the ad it found each one.</p>
+  </header>
+
+  <div class="workspace">
+    <section class="sheet" aria-labelledby="ad-label">
+      <form id="form">
+        <label id="ad-label" for="ad">The job ad</label>
+        <textarea id="ad" name="ad" placeholder="Paste the whole ad here, as messy as it is." required></textarea>
+        <div id="ad-view" class="ad-view" hidden tabindex="0" aria-label="The job ad, with the details that were found highlighted"></div>
+        <div class="examples" id="examples">
+          <span>Or try one:</span>
+        </div>
+        <div class="actions">
+          <button class="primary" id="go" type="submit">Get the facts</button>
+          <button class="secondary" id="edit" type="button" hidden>Edit the ad</button>
+          <span class="status" id="status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="sheet" aria-live="polite" id="result">
+      <div class="empty"><p>The job's title, pay, location and skills will appear here.</p></div>
+    </section>
+  </div>
+
+  <footer>
+    <p>Built in week one of a self-taught AI engineering course. The AI's answer is checked against a fixed format before it's shown, and personal details like emails are removed before the ad is sent. <a href="https://github.com/eedigital/ai-engineering-bootcamp">See the code</a> or <a href="/docs">use the API</a>.</p>
+  </footer>
+</main>
+
+<script>
+const EXAMPLES = {
+  "London backend role": "Acme is hiring a Senior Backend Engineer in London (hybrid, 3 days in office). Salary £90k-£110k. You'll work with Python, PostgreSQL and AWS.",
+  "Remote analyst": "Junior Data Analyst - fully remote (EU time zones). Brightline Analytics. SQL, Excel and Looker required, dbt a plus. €38,000-€45,000 per year.",
+  "Startup, vague pay": "We're a 12-person startup looking for our first ML engineer!! Must love PyTorch + MLOps. Based in Austin TX, on-site 5 days. Comp: $150-180k + equity. Email jobs@tinyco.ai",
+};
+
+const $ = (id) => document.getElementById(id);
+const form = $("form"), ad = $("ad"), adView = $("ad-view"), go = $("go"), edit = $("edit"), status = $("status"), result = $("result");
+
+for (const [name, text] of Object.entries(EXAMPLES)) {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = name;
+  b.addEventListener("click", () => { showEditor(); ad.value = text; ad.focus(); });
+  $("examples").append(b);
+}
+
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Words in an ad that signal each work mode, so they can be highlighted too.
+const MODE_WORDS = {
+  remote: ["fully remote", "remote"],
+  hybrid: ["hybrid"],
+  onsite: ["on-site", "onsite", "on site", "in office"],
+};
+
+const WORDS = {
+  work_mode: { remote: "Remote", hybrid: "Hybrid", onsite: "On-site" },
+  seniority: { intern: "Intern", junior: "Junior", mid: "Mid-level", senior: "Senior", lead: "Lead" },
+};
+
+function money(n, cur) {
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || "USD", maximumFractionDigits: 0 }).format(n); }
+  catch { return n.toLocaleString(); }
+}
+function salary(d) {
+  const { salary_min: lo, salary_max: hi, currency: c } = d;
+  if (lo == null && hi == null) return null;
+  if (lo != null && hi != null && lo !== hi) return `${money(lo, c)} to ${money(hi, c)}`;
+  return money(lo ?? hi, c);
+}
+
+// Find where each extracted value appears in the ad, so it can be highlighted.
+function findRanges(text, d) {
+  const terms = [d.title, d.company, d.location, ...(d.skills || []), ...(MODE_WORDS[d.work_mode] || [])].filter(Boolean);
+  const lower = text.toLowerCase(), ranges = [];
+  for (const t of terms) {
+    const needle = t.toLowerCase();
+    let i = lower.indexOf(needle);
+    while (i !== -1) { ranges.push([i, i + needle.length]); i = lower.indexOf(needle, i + needle.length); }
+  }
+  // Salary figures: any run like 90k, £90,000, 150-180k
+  for (const m of text.matchAll(/[£$€]?\s?\d[\d,.]*\s?k?\s?(?:-|–|to)\s?[£$€]?\s?\d[\d,.]*\s?k?|[£$€]\s?\d[\d,.]*\s?k?/gi)) {
+    ranges.push([m.index, m.index + m[0].length]);
+  }
+  ranges.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  const merged = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r[0] <= last[1]) last[1] = Math.max(last[1], r[1]); else merged.push([...r]);
+  }
+  return merged;
+}
+
+function highlighted(text, d) {
+  let out = "", pos = 0;
+  findRanges(text, d).forEach(([a, b], i) => {
+    out += esc(text.slice(pos, a)) + `<mark style="--i:${i}">${esc(text.slice(a, b))}</mark>`;
+    pos = b;
+  });
+  return out + esc(text.slice(pos));
+}
+
+function fact(label, value) {
+  return `<dt>${label}</dt><dd>${value ? esc(value) : '<span class="none">Not stated</span>'}</dd>`;
+}
+
+function renderCard(body) {
+  const d = body.data;
+  const where = [d.company, d.location].filter(Boolean).join(", ");
+  const ms = body.latency_ms;
+  const took = ms == null ? "" : ms < 1000 ? " in under a second" : ` in ${(ms / 1000).toFixed(1)} seconds`;
+  result.innerHTML = `
+    <article class="card">
+      <h3>${esc(d.title)}</h3>
+      <p class="where">${where ? esc(where) : "Company and location not stated"}</p>
+      <dl class="facts">
+        ${fact("Pay", salary(d))}
+        ${fact("Where you work", WORDS.work_mode[d.work_mode])}
+        ${fact("Level", WORDS.seniority[d.seniority])}
+      </dl>
+      <h2>Skills asked for</h2>
+      ${d.skills.length ? `<ul class="skills">${d.skills.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : '<p class="none">None listed</p>'}
+      <p class="meta">Read by ${esc(body.provider || "the AI")}${took}${body.redactions ? `. Removed ${body.redactions} personal detail${body.redactions > 1 ? "s" : ""} before sending` : ""}.
+        <button class="secondary" type="button" id="show-json" aria-expanded="false">Show the raw data</button></p>
+      <pre class="json" id="json" hidden>${esc(JSON.stringify(d, null, 2))}</pre>
+    </article>`;
+  $("show-json").addEventListener("click", (e) => {
+    const pre = $("json"), open = pre.hidden;
+    pre.hidden = !open; e.target.setAttribute("aria-expanded", String(open));
+    e.target.textContent = open ? "Hide the raw data" : "Show the raw data";
+  });
+}
+
+function renderError(title, detail) {
+  result.innerHTML = `<div class="error"><strong>${esc(title)}</strong>${esc(detail)}</div>`;
+}
+
+function showEditor() {
+  adView.hidden = true; ad.hidden = false; edit.hidden = true;
+}
+
+edit.addEventListener("click", () => { showEditor(); ad.focus(); });
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = ad.value.trim();
+  if (!text) { ad.focus(); return; }
+  go.disabled = true; status.textContent = "Reading the ad…";
+  const slow = setTimeout(() => { status.textContent = "Waking the server up. The first request after a quiet spell takes up to a minute."; }, 6000);
+  try {
+    const r = await fetch("/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok && body.ok) {
+      renderCard(body);
+      adView.innerHTML = highlighted(text, body.data);
+      ad.hidden = true; adView.hidden = false; edit.hidden = false;
+      status.textContent = "Highlighted: where each detail came from.";
+      if (window.matchMedia("(max-width: 52rem)").matches) {
+        result.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      }
+    } else if (r.status === 422) {
+      renderError("That ad can't be read.", body.error ? ` Reason: ${body.error}.` : " Check it's a job ad of at least a sentence.");
+      status.textContent = "";
+    } else if (r.status === 429) {
+      renderError("Too many tries in a minute.", " Wait a minute, then try again.");
+      status.textContent = "";
+    } else {
+      renderError("The AI services are busy right now.", " Try again in a minute. Your ad is still in the box.");
+      status.textContent = "";
+    }
+  } catch {
+    renderError("Couldn't reach the server.", " Check your connection and try again.");
+    status.textContent = "";
+  } finally {
+    clearTimeout(slow); go.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
