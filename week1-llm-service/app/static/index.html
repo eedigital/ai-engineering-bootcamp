@@ -286,7 +286,7 @@ form.addEventListener("submit", async (e) => {
   const text = ad.value.trim();
   if (!text) { ad.focus(); return; }
   go.disabled = true; status.textContent = "Reading the ad…";
-  const slow = setTimeout(() => { status.textContent = "Waking the server up. The first request after a quiet spell takes up to a minute."; }, 6000);
+  const slow = setTimeout(() => { status.textContent = "Still reading. A long ad, a busy AI service or a server that was asleep can make this take up to a minute."; }, 6000);
   try {
     const r = await fetch("/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
     const body = await r.json().catch(() => ({}));
