@@ -2,10 +2,10 @@
 
 A live LLM service: messy job-post text in, validated JSON out, with guardrails on both sides.
 
-**Live:** `https://<your-app>.onrender.com/docs` ← replace once deployed
+**Live:** https://week1-job-extractor.onrender.com/docs
 
 ```bash
-curl -X POST https://<your-app>.onrender.com/extract \
+curl -X POST https://week1-job-extractor.onrender.com/extract \
   -H "Content-Type: application/json" \
   -d '{"text": "Acme is hiring a Senior Backend Engineer in London (hybrid). £90k-£110k. Python, PostgreSQL."}'
 ```
@@ -38,7 +38,7 @@ curl -X POST https://<your-app>.onrender.com/extract \
 python -m venv .venv && source .venv/bin/activate
 pip install -r week1-llm-service/requirements.txt pytest
 cp .env.example .env          # add at least one free key
-pytest -q                      # 26 tests, no key needed
+pytest -q                      # 27 tests, no key needed
 PYTHONPATH=. uvicorn --app-dir week1-llm-service app.main:app --reload
 # open http://localhost:8000/docs
 ```
