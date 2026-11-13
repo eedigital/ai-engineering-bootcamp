@@ -38,7 +38,7 @@ curl -X POST https://week1-job-extractor.onrender.com/extract \
 python -m venv .venv && source .venv/bin/activate
 pip install -r week1-llm-service/requirements.txt pytest
 cp .env.example .env          # add at least one free key
-pytest -q                      # 27 tests, no key needed
+pytest -q                      # 31 tests, no key needed
 PYTHONPATH=. uvicorn --app-dir week1-llm-service app.main:app --reload
 # open http://localhost:8000/docs
 ```

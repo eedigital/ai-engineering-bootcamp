@@ -93,6 +93,7 @@ def _call_fake(messages: list[dict]) -> LLMResult:
 # --- real providers --------------------------------------------------------
 
 RETRYABLE = {408, 429, 500, 502, 503, 504}
+BUSY = {429, 503}  # "rate limited" / "high demand": skip straight to a backup if there is one
 
 
 def _error_detail(r: httpx.Response) -> str:
@@ -116,6 +117,7 @@ def _call_provider(
     temperature: float,
     timeout_s: float,
     max_retries: int,
+    has_fallback: bool = False,
 ) -> LLMResult:
     headers = {"Content-Type": "application/json"}
     if p.api_key_env:
@@ -159,9 +161,11 @@ def _call_provider(
                 return result
             errors.append(f"{p.name} attempt {attempt}: HTTP {r.status_code} {_error_detail(r)}".strip())
             if r.status_code not in RETRYABLE:
-                break  # 400/401/403: retrying won't help
+                break  # 400/401/403/404: retrying won't help
+            if r.status_code in BUSY and has_fallback:
+                break  # busy or rate limited: a backup answers faster than waiting
             if r.status_code == 429 and attempt > 1:
-                break  # still rate limited after a backoff: move to the next provider
+                break  # still rate limited after a backoff
         if attempt <= max_retries:
             time.sleep(min(2 ** (attempt - 1), 8))  # 1s, 2s, 4s, 8s
     raise LLMError("; ".join(errors))
@@ -186,7 +190,7 @@ def complete(
     ]
     table = _providers()
     failures: list[str] = []
-    for name in order:
+    for i, name in enumerate(order):
         if name == "fake":
             return _call_fake(messages)
         p = table.get(name)
@@ -197,6 +201,7 @@ def complete(
             return _call_provider(
                 p, messages, json_mode=json_mode, temperature=temperature,
                 timeout_s=timeout_s, max_retries=max_retries,
+                has_fallback=i < len(order) - 1,  # only the last provider waits and retries
             )
         except LLMError as e:
             log.warning("provider failed, trying next: %s", e)
