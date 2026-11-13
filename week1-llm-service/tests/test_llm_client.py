@@ -63,3 +63,19 @@ def test_missing_model_is_not_retried(fake_http):
     with pytest.raises(LLMError, match="model not found"):
         complete([], providers=["gemini"])
     assert calls == ["gemini"] and sleeps == []
+
+
+def test_hanging_provider_hands_over_immediately(fake_http, monkeypatch):
+    script, calls, sleeps = fake_http
+    script["groq"] = [(200, OK_BODY)]
+    real_post = llm_client.httpx.post
+
+    def post(url, **kwargs):
+        if "googleapis" in url:
+            calls.append("gemini")
+            raise httpx.ReadTimeout("no reply", request=httpx.Request("POST", url))
+        return real_post(url, **kwargs)
+
+    monkeypatch.setattr(llm_client.httpx, "post", post)
+    assert complete([], providers=["gemini", "groq"]).provider == "groq"
+    assert calls == ["gemini", "groq"] and sleeps == []

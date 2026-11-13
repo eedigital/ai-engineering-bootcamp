@@ -139,6 +139,8 @@ def _call_provider(
             )
         except httpx.HTTPError as e:  # network error / timeout
             errors.append(f"{p.name} attempt {attempt}: {type(e).__name__}")
+            if has_fallback:
+                break  # a provider that hangs is as good as down: don't wait on it twice
         else:
             latency = (time.perf_counter() - start) * 1000
             if r.status_code == 200:
@@ -176,7 +178,7 @@ def complete(
     *,
     json_mode: bool = False,
     temperature: float = 0.0,
-    timeout_s: float = 30.0,
+    timeout_s: float | None = None,
     max_retries: int = 2,
     providers: list[str] | None = None,
 ) -> LLMResult:
@@ -189,6 +191,8 @@ def complete(
         s.strip() for s in os.getenv("LLM_PROVIDERS", "gemini,groq,ollama").split(",") if s.strip()
     ]
     table = _providers()
+    if timeout_s is None:
+        timeout_s = float(os.getenv("LLM_TIMEOUT_S", "20"))  # seconds to wait for one reply
     failures: list[str] = []
     for i, name in enumerate(order):
         if name == "fake":
