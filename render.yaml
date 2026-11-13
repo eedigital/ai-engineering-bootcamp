@@ -1,0 +1,19 @@
+# Render Blueprint: New > Blueprint in the Render dashboard, then pick this repo.
+# You'll be asked for the keys marked sync: false. Never commit them.
+services:
+  - type: web
+    name: week1-job-extractor
+    runtime: docker
+    plan: free
+    dockerfilePath: ./week1-llm-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: gemini,groq   # no Ollama on Render: it only exists on your laptop
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RATE_LIMIT_PER_MIN
+        value: "20"
