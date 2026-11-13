@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 
 load_dotenv()  # reads .env locally; on Render the dashboard sets env vars (existing vars are never overridden)
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from .extractor import ExtractionError, extract
 from .guardrails import check_input
@@ -40,6 +40,11 @@ def _rate_limited(ip: str) -> bool:
         return True
     q.append(now)
     return False
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/docs")
 
 
 @app.get("/health")
