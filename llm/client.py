@@ -95,6 +95,19 @@ def _call_fake(messages: list[dict]) -> LLMResult:
 RETRYABLE = {408, 429, 500, 502, 503, 504}
 
 
+def _error_detail(r: httpx.Response) -> str:
+    """The provider's own error message (e.g. 'API key not valid'), shortened."""
+    try:
+        body = r.json()
+        if isinstance(body, list) and body:
+            body = body[0]
+        err = body.get("error", body)
+        msg = err.get("message", "") if isinstance(err, dict) else str(err)
+    except Exception:
+        msg = r.text
+    return f"({msg.strip()[:160]})" if msg and msg.strip() else ""
+
+
 def _call_provider(
     p: Provider,
     messages: list[dict],
@@ -144,7 +157,7 @@ def _call_provider(
                     p.name, p.model, latency, result.input_tokens, result.output_tokens, attempt,
                 )
                 return result
-            errors.append(f"{p.name} attempt {attempt}: HTTP {r.status_code}")
+            errors.append(f"{p.name} attempt {attempt}: HTTP {r.status_code} {_error_detail(r)}".strip())
             if r.status_code not in RETRYABLE:
                 break  # 400/401/403: retrying won't help
             if r.status_code == 429 and attempt > 1:

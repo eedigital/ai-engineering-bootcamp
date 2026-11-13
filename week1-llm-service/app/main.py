@@ -71,9 +71,11 @@ def extract_endpoint(req: ExtractRequest, request: Request):
     except ExtractionError as e:
         # Safe fallback: a clear error, never a stack trace or a half-valid object.
         log.warning("extraction_failed attempts=%d error=%s", e.attempts, e)
+        # Say which stage failed. Provider errors are status codes only, never keys.
+        msg = str(e) if str(e).startswith("model unavailable") else "model output failed validation"
         return JSONResponse(
             status_code=502,
-            content=ExtractResponse(ok=False, error="could not extract a valid result", attempts=e.attempts).model_dump(),
+            content=ExtractResponse(ok=False, error=msg, attempts=e.attempts).model_dump(),
         )
 
     return ExtractResponse(ok=True, data=posting, redactions=guard.redactions, **meta)
