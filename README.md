@@ -5,6 +5,7 @@ Four deployable AI projects in four weeks, using only free tools.
 | Week | Project | Status |
 | --- | --- | --- |
 | 1 | [LLM service with structured outputs and guardrails](week1-llm-service/) | Live: [try it](https://week1-job-extractor.onrender.com/docs) |
+| + | [Grant Finder: eligible US federal grants, with reasons and a first draft](grants-finder/) | Built: deploying |
 | 2 | [RAG pipeline: measured, broken, fixed](week2-rag/) | Not started |
 | 3 | [Agent from the raw loop up, then ADK or LangGraph with MCP](week3-agent/) | Not started |
 | 4 | [TRACE evals and an agent with memory](week4-evals-memory/) | Not started |
@@ -20,6 +21,7 @@ Four deployable AI projects in four weeks, using only free tools.
 ```
 llm/                 shared client used by every week
 week1-llm-service/   FastAPI service, guardrails, tests, Dockerfile
+grants-finder/       grant search, eligibility checks, application drafts
 week2-rag/ ...       one folder per week
 render.yaml          Render deploy config
 ```

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grant Finder</title>
+<meta name="description" content="Describe your organization once. See which US federal grants you can apply for, why, and get a first draft.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef1f4; --sheet: #fff; --ink: #1d2a3a; --muted: #5d6b7c; --line: #d5dce4;
+    --marker: #f8e46a; --action: #2347c5;
+    --yes: #17734a; --yes-bg: #e3f4ea; --maybe: #8a5a00; --maybe-bg: #fdf1d8; --no: #a3301f; --no-bg: #fbe6e2;
+    --r-sheet: 14px; --r-small: 6px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+  main { max-width: 72rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  header { margin-bottom: 2rem; }
+  h1 { font-size: clamp(2.1rem, 5vw, 3.25rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.75rem; max-width: 46rem; }
+  h1 .hl { background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%); }
+  header p { margin: 0; color: var(--muted); font-size: 1.125rem; max-width: 42rem; }
+
+  .layout { display: grid; grid-template-columns: 24rem 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 60rem) { .layout { grid-template-columns: 1fr; } }
+  .sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 1.5rem; }
+  h2 { font-size: 1.25rem; font-weight: 800; margin: 0 0 1rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+
+  /* profile form */
+  form .field { margin-bottom: 1rem; }
+  label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+  .hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.9375rem; margin-top: -0.2rem; margin-bottom: 0.4rem; }
+  input, select, textarea {
+    width: 100%; font: inherit; color: var(--ink); background: #fbfcfd;
+    border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.6rem 0.75rem;
+  }
+  textarea { min-height: 6.5rem; resize: vertical; line-height: 1.5; }
+  input:focus, select:focus, textarea:focus { outline: 3px solid color-mix(in srgb, var(--action) 35%, transparent); border-color: var(--action); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .primary { font: inherit; font-weight: 700; background: var(--action); color: #fff; border: 0; border-radius: var(--r-small); padding: 0.75rem 1.4rem; cursor: pointer; }
+  .primary:hover { background: #1b39a3; }
+  .primary[disabled] { opacity: 0.6; cursor: progress; }
+  .link { font: inherit; background: none; border: 0; color: var(--action); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .form-actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+  .saved { color: var(--muted); font-size: 0.875rem; margin-top: 0.75rem; }
+
+  /* results */
+  .status-line { color: var(--muted); margin: 0 0 1rem; }
+  .status-line strong { color: var(--ink); }
+  .empty { color: var(--muted); padding: 2rem 0.5rem; }
+  .empty ol { padding-left: 1.25rem; margin: 0.75rem 0 0; }
+  .grants { display: grid; gap: 1rem; }
+  .grant { border: 1px solid var(--line); border-radius: var(--r-small); padding: 1.1rem 1.25rem; background: var(--sheet); }
+  .grant.not-eligible { background: #f7f8fa; }
+  .grant.not-eligible .g-title { color: var(--muted); }
+  .g-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+  .g-title { font-size: 1.125rem; font-weight: 700; line-height: 1.3; margin: 0; }
+  .g-meta { color: var(--muted); font-size: 0.9375rem; margin: 0.3rem 0 0; }
+  .verdict { flex: none; font-weight: 700; font-size: 0.875rem; border-radius: 999px; padding: 0.2rem 0.7rem; white-space: nowrap; }
+  .verdict.strong_match { background: var(--yes-bg); color: var(--yes); }
+  .verdict.possible_match { background: var(--maybe-bg); color: var(--maybe); }
+  .verdict.not_eligible { background: var(--no-bg); color: var(--no); }
+  .verdict.checking { background: var(--paper); color: var(--muted); font-weight: 500; }
+  .fit { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0; font-size: 0.9375rem; color: var(--muted); }
+  .bar { width: 7rem; height: 0.4rem; background: var(--paper); border-radius: 999px; overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--ink); }
+  .g-summary { margin: 0.6rem 0 0; }
+  .g-actions { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 0.85rem; font-size: 0.9375rem; }
+  .g-actions a { color: var(--ink); }
+  details { margin-top: 0.75rem; }
+  summary { cursor: pointer; color: var(--action); font-size: 0.9375rem; }
+  .reqs { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.75rem; }
+  .reqs li { display: grid; grid-template-columns: 1.5rem 1fr; gap: 0.5rem; }
+  .mark { font-weight: 800; text-align: center; line-height: 1.55; }
+  .mark.met { color: var(--yes); } .mark.not_met { color: var(--no); } .mark.unknown { color: var(--maybe); }
+  .req-name { font-weight: 700; }
+  .req-why { color: var(--muted); }
+  q.evidence { display: block; quotes: none; margin-top: 0.25rem; font-size: 0.9375rem; }
+  q.evidence span { background: var(--marker); padding: 0 0.15em; border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .unverified { display: block; color: var(--no); font-size: 0.875rem; margin-top: 0.2rem; }
+  .questions { margin: 0.5rem 0 0; padding-left: 1.25rem; }
+  .rule-notes { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); font-size: 0.9375rem; }
+
+  /* draft */
+  dialog { border: 0; border-radius: var(--r-sheet); padding: 0; width: min(46rem, 94vw); max-height: 90vh; color: var(--ink); }
+  dialog::backdrop { background: rgb(29 42 58 / 0.45); }
+  .d-inner { padding: 1.75rem; overflow: auto; max-height: 90vh; }
+  .d-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+  .d-section { border-top: 1px solid var(--line); padding-top: 0.75rem; margin-top: 1rem; }
+  .d-section h3 { margin: 0 0 0.4rem; display: flex; justify-content: space-between; align-items: baseline; }
+  .d-section p { margin: 0; white-space: pre-wrap; }
+  .placeholder { background: var(--marker); border-radius: 2px; padding: 0 0.15em; }
+  .verify { background: var(--maybe-bg); border-radius: var(--r-small); padding: 0.9rem 1.1rem; margin-top: 1.25rem; }
+  .verify h3 { margin-top: 0; }
+  .verify ul { margin: 0; padding-left: 1.25rem; }
+  .d-note { color: var(--muted); font-size: 0.875rem; margin-top: 1rem; }
+
+  .error { color: var(--no); }
+  footer { margin-top: 3rem; color: var(--muted); font-size: 0.9375rem; max-width: 46rem; }
+  footer a { color: var(--ink); }
+  @media (max-width: 36rem) {
+    .sheet { padding: 1.1rem; }
+    .grant { padding: 1rem; }
+    .g-head { flex-direction: column-reverse; gap: 0.5rem; }
+  }
+  @media (prefers-reduced-motion: no-preference) { .grant { transition: background-color 200ms; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Find federal grants <span class="hl">you can actually get.</span></h1>
+    <p>Describe your organization once. Grant Finder searches open US federal grants, checks each one's rules against yours, quotes the grant to show why, and writes a first draft of the application.</p>
+  </header>
+
+  <div class="layout">
+    <section class="sheet" aria-labelledby="you">
+      <h2 id="you">About you</h2>
+      <form id="profile">
+        <div class="field">
+          <label for="org_name">Organization name</label>
+          <input id="org_name" name="org_name" required maxlength="120" autocomplete="organization">
+        </div>
+        <div class="field">
+          <label for="org_type">Type of organization</label>
+          <select id="org_type" name="org_type" required>
+            <option value="nonprofit_501c3">Nonprofit with 501(c)(3) status</option>
+            <option value="nonprofit_other">Nonprofit without 501(c)(3) status</option>
+            <option value="small_business">Small business</option>
+            <option value="for_profit">For-profit company (not a small business)</option>
+            <option value="individual">Individual</option>
+            <option value="tribal">Tribal government or organization</option>
+            <option value="local_government">City, county or local government</option>
+            <option value="higher_ed">College or university</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="state">State</label>
+            <select id="state" name="state" required></select>
+          </div>
+          <div class="field">
+            <label for="amount_needed">Amount needed ($)</label>
+            <input id="amount_needed" name="amount_needed" type="number" min="0" step="1000" inputmode="numeric">
+          </div>
+        </div>
+        <div class="field">
+          <label for="about">What you do</label>
+          <span class="hint" id="about-hint">Who you serve, where, and how big you are.</span>
+          <textarea id="about" name="about" required minlength="20" maxlength="1500" aria-describedby="about-hint"></textarea>
+        </div>
+        <div class="field">
+          <label for="project">What the money is for</label>
+          <span class="hint" id="project-hint">The project, who benefits and what changes.</span>
+          <textarea id="project" name="project" required minlength="20" maxlength="1500" aria-describedby="project-hint"></textarea>
+        </div>
+        <div class="field">
+          <label for="keywords">Search words (optional)</label>
+          <span class="hint" id="kw-hint">Separate with commas. Leave empty and the AI picks them.</span>
+          <input id="keywords" name="keywords" maxlength="200" aria-describedby="kw-hint">
+        </div>
+        <div class="form-actions">
+          <button class="primary" id="find" type="submit">Find grants</button>
+          <button class="link" id="example" type="button">Fill in an example</button>
+        </div>
+        <p class="saved" id="saved" hidden>Saved on this device, so you won't have to type it again. <button class="link" type="button" id="forget">Forget it</button></p>
+      </form>
+    </section>
+
+    <section class="sheet" aria-labelledby="matches" aria-live="polite">
+      <h2 id="matches">Matching grants</h2>
+      <div id="results">
+        <div class="empty">
+          <p>Your matches will appear here, best first. For each grant you'll see:</p>
+          <ol>
+            <li>whether you're eligible, checked rule by rule,</li>
+            <li>the grant's own words for each rule,</li>
+            <li>what to find out before applying,</li>
+            <li>a first draft of your application, on request.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <p>Grant data comes live from the Grants.gov API. This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services. Matches and drafts are written by AI and can be wrong: always read the full notice on Grants.gov before applying. <a href="https://github.com/eedigital/ai-engineering-bootcamp">See the code</a>.</p>
+  </footer>
+</main>
+
+<dialog id="draft" aria-labelledby="draft-title">
+  <div class="d-inner" id="draft-body"></div>
+</dialog>
+
+<script>
+const STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Puerto Rico","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming","Guam","U.S. Virgin Islands"];
+const EXAMPLE = {
+  org_name: "Hill Country Makers", org_type: "nonprofit_501c3", state: "Texas", amount_needed: 120000,
+  about: "We're a 501(c)(3) makerspace and small-business incubator in a rural Texas town of about 4,000 people. Three staff and 40 volunteers; we've helped 25 local businesses start since 2021.",
+  project: "A 12-month program that trains and mentors 30 rural entrepreneurs starting food and craft businesses, with shared kitchen equipment and help selling online.",
+  keywords: "",
+};
+const VERDICT = { strong_match: "Strong match", possible_match: "Possible match", not_eligible: "Not eligible" };
+const RANK = { strong_match: 0, possible_match: 1, checking: 2, error: 3, not_eligible: 4 };
+const STORE = "grant-finder-profile";
+const PARALLEL = 2;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (n) => "$" + Number(n).toLocaleString("en-US");
+const form = $("profile"), results = $("results");
+
+for (const s of STATES) form.state.add(new Option(s, s));
+
+// --- profile memory (this device only) ---
+function readForm() {
+  const f = Object.fromEntries(new FormData(form));
+  f.amount_needed = f.amount_needed ? Number(f.amount_needed) : null;
+  f.keywords = f.keywords || null;
+  return f;
+}
+function fillForm(p) {
+  for (const [k, v] of Object.entries(p)) if (form[k] && v != null) form[k].value = v;
+}
+function save(p) { try { localStorage.setItem(STORE, JSON.stringify(p)); $("saved").hidden = false; } catch {} }
+try { const p = JSON.parse(localStorage.getItem(STORE) || "null"); if (p) { fillForm(p); $("saved").hidden = false; } } catch {}
+$("forget").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} form.reset(); $("saved").hidden = true; });
+$("example").addEventListener("click", () => fillForm(EXAMPLE));
+
+// --- talking to the server ---
+async function post(path, body, tries = 3) {
+  for (let i = 1; ; i++) {
+    let r;
+    try { r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+    catch { if (i >= tries) throw new Error("Couldn't reach the server. Check your connection."); await wait(2000); continue; }
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return data;
+    if ((r.status === 429 || r.status === 502) && i < tries) { await wait(3000 * i); continue; }
+    throw new Error(data.error || (r.status === 422 ? "Some details are missing or too short." : "Something went wrong."));
+  }
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// --- results ---
+let state = { profile: null, grants: [] };
+
+function daysLeft(iso) {
+  if (!iso) return null;
+  return Math.round((new Date(iso + "T23:59:59") - new Date()) / 864e5);
+}
+function closesText(iso) {
+  const d = daysLeft(iso);
+  if (d == null) return "No deadline listed";
+  const when = new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d <= 14 ? `Closes ${when}, in ${d} day${d === 1 ? "" : "s"}` : `Closes ${when}`;
+}
+function awardText(g) {
+  if (g.award_floor && g.award_ceiling) return `${money(g.award_floor)} to ${money(g.award_ceiling)}`;
+  if (g.award_ceiling) return `Up to ${money(g.award_ceiling)}`;
+  return null;
+}
+
+function card(item) {
+  const g = item.grant || item.hit;
+  const a = item.assessment;
+  const v = item.status === "done" ? a.verdict : item.status;
+  const meta = [g.agency, closesText(g.close_date), awardText(g)].filter(Boolean).map(esc).join(". ");
+  let body = "";
+  if (item.status === "checking") body = `<p class="g-summary" style="color:var(--muted)">Reading the grant and checking its rules against yours…</p>`;
+  if (item.status === "error") body = `<p class="g-summary error">${esc(item.error)} <button class="link" data-retry="${g.id}">Try again</button></p>`;
+  if (item.status === "done") {
+    const reqs = (a.requirements || []).map((r) => `
+      <li><span class="mark ${r.status}" aria-label="${{ met: "Met", not_met: "Not met", unknown: "Unknown" }[r.status]}">${{ met: "✓", not_met: "✗", unknown: "?" }[r.status]}</span>
+        <div><span class="req-name">${esc(r.requirement)}.</span> <span class="req-why">${esc(r.why)}</span>
+        ${r.evidence ? `<q class="evidence"><span>${esc(r.evidence)}</span></q>` : ""}
+        ${r.evidence && !r.evidence_found ? `<span class="unverified">This quote isn't in the grant text. Check the notice yourself.</span>` : ""}</div></li>`).join("");
+    const notes = (item.rules?.reasons || []).map((x) => `<li>${esc(x)}</li>`).join("");
+    const qs = (a.questions || []).map((x) => `<li>${esc(x)}</li>`).join("");
+    body = `
+      ${v !== "not_eligible" ? `<div class="fit"><span class="bar" aria-hidden="true"><span style="width:${a.fit_score}%"></span></span>Fit with your project: ${a.fit_score} out of 100</div>` : ""}
+      <p class="g-summary">${esc(a.summary)}</p>
+      ${reqs || notes || qs ? `<details><summary>Why${qs ? ", and what to check" : ""}</summary>
+        ${notes ? `<ul class="rule-notes">${notes}</ul>` : ""}
+        ${reqs ? `<ul class="reqs">${reqs}</ul>` : ""}
+        ${qs ? `<h3>Find out before applying</h3><ul class="questions">${qs}</ul>` : ""}
+      </details>` : ""}`;
+  }
+  const actions = `<div class="g-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a>
+    ${item.status === "done" && v !== "not_eligible" ? `<button class="link" data-draft="${g.id}">Draft my application</button>` : ""}</div>`;
+  return `<article class="grant ${v === "not_eligible" ? "not-eligible" : ""}">
+    <div class="g-head"><div><h3 class="g-title">${esc(g.title)}</h3><p class="g-meta">${meta}</p></div>
+    <span class="verdict ${v}">${v === "checking" ? "Checking" : v === "error" ? "Not checked" : VERDICT[v]}</span></div>
+    ${body}${actions}</article>`;
+}
+
+function render(note) {
+  const items = [...state.grants].sort((x, y) => {
+    const vx = x.status === "done" ? x.assessment.verdict : x.status, vy = y.status === "done" ? y.assessment.verdict : y.status;
+    return RANK[vx] - RANK[vy] || (y.assessment?.fit_score ?? 0) - (x.assessment?.fit_score ?? 0);
+  });
+  const done = state.grants.filter((g) => g.status !== "checking").length;
+  const good = state.grants.filter((g) => g.status === "done" && g.assessment.verdict !== "not_eligible").length;
+  results.innerHTML = `<p class="status-line">${note || (done < state.grants.length
+    ? `Checked ${done} of ${state.grants.length} grants…`
+    : `<strong>${good} of ${state.grants.length}</strong> open grants look worth a closer look.`)}</p>
+    <div class="grants">${items.map(card).join("")}</div>`;
+}
+
+async function check(item) {
+  item.status = "checking"; render();
+  try {
+    const r = await post("/api/assess", { profile: state.profile, grant_id: item.hit.id });
+    Object.assign(item, { status: "done", grant: r.grant, rules: r.rules, assessment: r.assessment });
+  } catch (e) { Object.assign(item, { status: "error", error: e.message }); }
+  render();
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const profile = readForm();
+  save(profile);
+  state = { profile, grants: [] };
+  $("find").disabled = true;
+  results.innerHTML = `<p class="status-line">Searching open grants on Grants.gov…</p>`;
+  if (matchMedia("(max-width: 60rem)").matches) results.scrollIntoView({ behavior: "smooth", block: "start" });
+  try {
+    const s = await post("/api/search", { profile });
+    if (!s.candidates.length) {
+      results.innerHTML = `<div class="empty"><p>No open grants matched <strong>${esc(s.queries.join(", "))}</strong>. Try broader search words, like the field you work in.</p></div>`;
+      return;
+    }
+    state.grants = s.candidates.map((hit) => ({ hit, status: "checking" }));
+    render(`Found ${s.total_found} open grants for <strong>${esc(s.queries.join(", "))}</strong>. Checking the ${s.candidates.length} closest…`);
+    const queue = [...state.grants];
+    await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await check(queue.shift()); }));
+  } catch (err) {
+    results.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  } finally { $("find").disabled = false; }
+});
+
+results.addEventListener("click", async (e) => {
+  const retry = e.target.closest("[data-retry]"), drafting = e.target.closest("[data-draft]");
+  if (retry) check(state.grants.find((g) => g.hit.id === retry.dataset.retry));
+  if (drafting) openDraft(drafting.dataset.draft);
+});
+
+// --- draft ---
+const dlg = $("draft"), dbody = $("draft-body");
+const withPlaceholders = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<span class="placeholder">[$1]</span>');
+
+async function openDraft(id) {
+  const item = state.grants.find((g) => g.hit.id === id);
+  dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Drafting your application…</h2><button class="link" data-close>Close</button></div>
+    <p class="status-line">Writing from your details and this grant's priorities. This takes up to a minute.</p>`;
+  dlg.showModal();
+  try {
+    const { draft: d } = await post("/api/draft", { profile: state.profile, grant_id: id });
+    const sec = (title, text) => `<div class="d-section"><h3>${title} <button class="link" data-copy>Copy</button></h3><p>${withPlaceholders(text)}</p></div>`;
+    dbody.innerHTML = `<div class="d-head"><div><h2 id="draft-title">${esc(d.project_title)}</h2>
+      <p class="g-meta">First draft for ${esc(item.grant.title)}</p></div><button class="link" data-close>Close</button></div>
+      ${sec("Project summary", d.summary)}${sec("Statement of need", d.need)}${sec("How this fits the grant", d.fit)}${sec("Budget outline", d.budget)}
+      ${d.to_verify.length ? `<div class="verify"><h3>Check or fill in before submitting</h3><ul>${d.to_verify.map((x) => `<li>${withPlaceholders(x)}</li>`).join("")}</ul></div>` : ""}
+      <p class="d-note">Highlighted brackets are facts only you can supply. Read the full notice for the exact sections and page limits this grant asks for.</p>`;
+  } catch (err) {
+    dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Couldn't write the draft</h2><button class="link" data-close>Close</button></div><p class="error">${esc(err.message)}</p>`;
+  }
+}
+dlg.addEventListener("click", (e) => {
+  if (e.target === dlg || e.target.closest("[data-close]")) dlg.close();
+  const copy = e.target.closest("[data-copy]");
+  if (copy) {
+    const text = copy.closest(".d-section").querySelector("p").innerText;
+    navigator.clipboard?.writeText(text).then(() => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy"), 1500); });
+  }
+});
+</script>
+</body>
+</html>

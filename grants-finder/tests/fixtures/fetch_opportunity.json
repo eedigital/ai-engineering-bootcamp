@@ -1,0 +1,32 @@
+{
+  "errorcode": 0,
+  "msg": "Webservice Succeeds",
+  "token": "x",
+  "data": {
+    "id": 360001,
+    "revision": 0,
+    "opportunityNumber": "USDA-RBCS-RBDG-2027",
+    "opportunityTitle": "Rural Business Development Grants &amp; Technical Assistance",
+    "owningAgencyCode": "USDA-RBCS",
+    "listed": "L",
+    "publisherUid": "",
+    "synopsis": {
+      "opportunityId": 360001,
+      "agencyCode": "USDA-RBCS",
+      "agencyName": "Rural Business-Cooperative Service",
+      "responseDate": "Mar 02, 2099 12:00:00 AM EST",
+      "responseDateDesc": "Electronic applications due by 11:59 pm ET",
+      "awardCeiling": "500000",
+      "awardFloor": "10000",
+      "estimatedFunding": "37000000",
+      "costSharing": false,
+      "applicantTypes": [
+        {"id": "12", "description": "Nonprofits having a 501(c)(3) status with the IRS, other than institutions of higher education"},
+        {"id": "07", "description": "Native American tribal governments (Federally recognized)"},
+        {"id": "02", "description": "City or township governments"}
+      ],
+      "applicantEligibilityDesc": "<p>Eligible applicants must be located in a <b>rural area</b> of 50,000 people or fewer. For-profit businesses are not eligible.</p>",
+      "synopsisDesc": "<p>Grants support targeted technical assistance, training and other activities leading to the development or expansion of small and emerging private businesses in rural areas.</p>"
+    }
+  }
+}

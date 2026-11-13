@@ -28,10 +28,17 @@ class Provider:
     base_url: str
     model: str
     api_key_env: str | None  # None = no key needed (Ollama)
+    extra: dict = field(default_factory=dict)  # provider-specific request fields
 
 
 def _providers() -> dict[str, Provider]:
     # Read at call time so env changes (and tests) take effect without a restart.
+    groq_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+    groq_extra = (
+        # gpt-oss "thinks" before answering; low effort keeps it fast and inside free token limits.
+        {"reasoning_effort": os.getenv("GROQ_REASONING_EFFORT", "low")}
+        if groq_model.startswith("openai/gpt-oss") else {}
+    )
     return {
         "gemini": Provider(
             "gemini",
@@ -42,8 +49,9 @@ def _providers() -> dict[str, Provider]:
         "groq": Provider(
             "groq",
             "https://api.groq.com/openai/v1",
-            os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+            groq_model,
             "GROQ_API_KEY",
+            groq_extra,
         ),
         "ollama": Provider(
             "ollama",
@@ -126,7 +134,7 @@ def _call_provider(
             raise LLMError(f"{p.name}: {p.api_key_env} is not set")
         headers["Authorization"] = f"Bearer {key}"
 
-    body: dict = {"model": p.model, "messages": messages, "temperature": temperature}
+    body: dict = {"model": p.model, "messages": messages, "temperature": temperature, **p.extra}
     if json_mode:
         body["response_format"] = {"type": "json_object"}
 

@@ -17,3 +17,20 @@ services:
         sync: false
       - key: RATE_LIMIT_PER_MIN
         value: "20"
+
+  - type: web
+    name: grant-finder
+    runtime: docker
+    plan: free
+    dockerfilePath: ./grants-finder/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: groq,gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MAX_CANDIDATES
+        value: "10"
