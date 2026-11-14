@@ -655,7 +655,7 @@ function xCard(i) {
   const mentions = (i.mentions || []).map((m) => `<li><span class="mk met">✓</span><div>Mentions ${esc(m.label.toLowerCase())}<blockquote>${esc(m.quote)}</blockquote></div></li>`).join("");
   const briefBit = i.brief ? `<p style="margin:0">${esc(i.brief.summary)}</p>`
     : i.briefState === "loading" ? `<p class="muted" style="margin:0">Summarizing the notice…</p>`
-    : i.briefState === "failed" ? `<p class="muted" style="margin:0">Couldn't summarize right now. The facts above are still accurate.</p>` : "";
+    : i.briefState === "failed" ? `<p class="muted" style="margin:0">The free AI is busy, so no summary right now. The facts above are still accurate. <button class="link" type="button" data-rebrief="${g.id}">Try again</button></p>` : "";
   return `<article class="card">
     ${topRow(i, badge)}
     <h3 class="c-title">${esc(g.title)}</h3>
@@ -804,8 +804,9 @@ updateSavedButton();
 // --- card interactions ---
 const findItem = (id) => results.items.find((x) => (x.grant || x.hit).id === id);
 $("cards").addEventListener("click", async (e) => {
-  const el = e.target.closest("[data-retry],[data-draft],[data-save],[data-list],[data-ics]");
+  const el = e.target.closest("[data-retry],[data-draft],[data-save],[data-list],[data-ics],[data-rebrief]");
   if (!el) return;
+  if (el.dataset.rebrief) { const it = findItem(el.dataset.rebrief); it.briefState = null; loadBrief(it); return; }
   if (el.dataset.retry) { const it = findItem(el.dataset.retry); results.kind === "o" ? oLoad(it) : xLoad(it); }
   if (el.dataset.draft) openDraft(el.dataset.draft);
   if (el.dataset.save) { toggleSave(findItem(el.dataset.save)); draw(); }

@@ -9,6 +9,7 @@ code except the plain-English summary, which the AI writes and we fact-check.
 from __future__ import annotations
 
 import re
+import time
 
 from .ai import AIError, DATA_RULE, _norm, ask_json, grant_block
 from .schemas import CRITERIA, FOCUS_AREAS, Grant, GrantBrief
@@ -112,11 +113,29 @@ BRIEF_SYSTEM = f"""You explain a US federal grant to someone deciding whether it
 {DATA_RULE}"""
 
 
+# One AI answer per grant, shared by everyone, so the free quota goes much further.
+_ai_cache: dict[tuple[str, str], tuple[float, object]] = {}
+AI_CACHE_SECONDS = 24 * 3600
+
+
+def _cached(kind: str, grant_id: str):
+    hit = _ai_cache.get((kind, grant_id))
+    return hit[1] if hit and time.time() - hit[0] < AI_CACHE_SECONDS else None
+
+
+def _remember(kind: str, grant_id: str, value):
+    _ai_cache[(kind, grant_id)] = (time.time(), value)
+    return value
+
+
 def brief(grant: Grant) -> tuple[GrantBrief, str]:
+    if (hit := _cached("brief", grant.id)) is not None:
+        return hit, "cache"
     b, provider = ask_json(BRIEF_SYSTEM, grant_block(grant), GrantBrief)
     source = _norm(" ".join([grant.title, grant.eligibility_text, grant.description, *grant.applicant_types]))
     for r in b.requirements:
         r.evidence_found = (not r.evidence) or (_norm(r.evidence) in source)
+    _remember("brief", grant.id, b)
     return b, provider
 
 
@@ -145,11 +164,13 @@ CHECKLIST_SYSTEM = f"""You list what an applicant must prepare for one specific 
 
 def checklist(grant: Grant):
     from .schemas import Checklist
+    if (hit := _cached("checklist", grant.id)) is not None:
+        return hit
     c, _ = ask_json(CHECKLIST_SYSTEM, grant_block(grant), Checklist)
     source = _norm(" ".join([grant.title, grant.eligibility_text, grant.description, *grant.applicant_types]))
     for it in c.items:
         it.evidence_found = (not it.evidence) or (_norm(it.evidence) in source)
-    return c  # unverified quotes stay, flagged, so the page can warn instead of silently dropping
+    return _remember("checklist", grant.id, c)  # unverified quotes stay, flagged, so the page can warn
 
 
 __all__ = ["AIError", "who_can_apply", "queries_for", "criteria_mentions", "amount_note", "brief", "applicant_labels"]

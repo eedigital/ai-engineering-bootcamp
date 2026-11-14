@@ -79,3 +79,20 @@ def test_hanging_provider_hands_over_immediately(fake_http, monkeypatch):
     monkeypatch.setattr(llm_client.httpx, "post", post)
     assert complete([], providers=["gemini", "groq"]).provider == "groq"
     assert calls == ["gemini", "groq"] and sleeps == []
+
+
+def test_waits_once_and_retries_when_every_provider_is_rate_limited(fake_http):
+    script, calls, sleeps = fake_http
+    script["groq"] = [(429, {}), (200, OK_BODY)]
+    script["gemini"] = [(429, {}), (429, {})]  # the last provider gets one backoff retry of its own
+    result = complete([], providers=["groq", "gemini"])
+    assert result.provider == "groq" and calls == ["groq", "gemini", "gemini", "groq"]
+    assert sleeps == [1, llm_client.RATE_LIMIT_WAIT_S]
+
+
+def test_gives_up_after_the_second_try(fake_http):
+    script, calls, sleeps = fake_http
+    script["groq"] = [(429, {}), (429, {})]
+    with pytest.raises(LLMError):
+        complete([], providers=["groq"], max_retries=0)
+    assert calls == ["groq", "groq"]

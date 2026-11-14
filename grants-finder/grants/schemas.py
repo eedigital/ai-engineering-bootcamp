@@ -134,6 +134,19 @@ class Grant(BaseModel):
 
 
 # --- What the AI returns -----------------------------------------------------
+# Models sometimes write a bit too much. Trim to the limit instead of throwing the whole answer away.
+
+def _trim(limit: int):
+    def f(v):
+        return v[: limit - 1].rstrip() + "…" if isinstance(v, str) and len(v) > limit else v
+    return f
+
+
+def _first_n(n: int):
+    def f(v):
+        return v[:n] if isinstance(v, list) else v
+    return f
+
 
 
 class Requirement(BaseModel):
@@ -143,6 +156,9 @@ class Requirement(BaseModel):
     why: str = Field(max_length=300)
     evidence_found: bool = True  # set by our own check, not the AI
 
+    _t1 = field_validator("requirement", mode="before")(_trim(200))
+    _t3 = field_validator("why", mode="before")(_trim(300))
+
 
 class Assessment(BaseModel):
     verdict: Literal["strong_match", "possible_match", "not_eligible"]
@@ -150,6 +166,10 @@ class Assessment(BaseModel):
     summary: str = Field(max_length=500)
     requirements: list[Requirement] = Field(default_factory=list, max_length=8)
     questions: list[str] = Field(default_factory=list, max_length=5)
+
+    _ts = field_validator("summary", mode="before")(_trim(500))
+    _tr = field_validator("requirements", mode="before")(_first_n(8))
+    _tq = field_validator("questions", mode="before")(_first_n(5))
 
 
 class SearchQueries(BaseModel):
@@ -211,6 +231,7 @@ class ExploreGrantRequest(BaseModel):
 
 class EligibilityPoint(BaseModel):
     requirement: str = Field(max_length=200)
+    _t = field_validator("requirement", mode="before")(_trim(200))
     evidence: str = Field(default="", max_length=400, description="Exact words from the grant")
     evidence_found: bool = True  # set by our own check, not the AI
 
@@ -219,15 +240,20 @@ class GrantBrief(BaseModel):
     summary: str = Field(max_length=500, description="What the grant pays for, in plain words")
     requirements: list[EligibilityPoint] = Field(default_factory=list, max_length=6)
 
+    _ts = field_validator("summary", mode="before")(_trim(500))
+    _tr = field_validator("requirements", mode="before")(_first_n(6))
+
 
 class ChecklistItem(BaseModel):
     item: str = Field(max_length=200, description="One thing to prepare or do, as an instruction")
+    _t = field_validator("item", mode="before")(_trim(200))
     evidence: str = Field(default="", max_length=400, description="Exact words from the grant")
     evidence_found: bool = True
 
 
 class Checklist(BaseModel):
     items: list[ChecklistItem] = Field(default_factory=list, max_length=10)
+    _tr = field_validator("items", mode="before")(_first_n(10))
 
 
 class ChecklistRequest(BaseModel):

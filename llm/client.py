@@ -181,6 +181,9 @@ def _call_provider(
     raise LLMError("; ".join(errors))
 
 
+RATE_LIMIT_WAIT_S = float(os.getenv("LLM_RATE_LIMIT_WAIT_S", "6"))
+
+
 def complete(
     messages: list[dict],
     *,
@@ -189,6 +192,7 @@ def complete(
     timeout_s: float | None = None,
     max_retries: int = 2,
     providers: list[str] | None = None,
+    _second_try: bool = False,
 ) -> LLMResult:
     """Send a chat to the first provider that answers.
 
@@ -218,6 +222,12 @@ def complete(
         except LLMError as e:
             log.warning("provider failed, trying next: %s", e)
             failures.append(str(e))
+    # Free tiers limit tokens per minute. If every provider said "slow down", wait once and retry.
+    if not _second_try and any("HTTP 429" in f for f in failures) and RATE_LIMIT_WAIT_S > 0:
+        log.warning("all providers rate limited; waiting %.0fs for one more try", RATE_LIMIT_WAIT_S)
+        time.sleep(RATE_LIMIT_WAIT_S)
+        return complete(messages, json_mode=json_mode, temperature=temperature, timeout_s=timeout_s,
+                        max_retries=0, providers=order, _second_try=True)
     raise LLMError(" | ".join(failures) or "no providers configured")
 
 

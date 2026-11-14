@@ -139,6 +139,8 @@ def test_user_keywords_skip_the_ai():
 def client(monkeypatch):
     main._hits.clear()
     grantsgov._cache.clear()
+    from grants import explore as _explore
+    _explore._ai_cache.clear()
     monkeypatch.setattr(grantsgov, "_post", lambda path, body: FIXTURE if path == "fetchOpportunity" else {
         "data": {"oppHits": [
             {"id": 360001, "number": "A", "title": "Rural Business Development", "agencyName": "USDA", "closeDate": "03/02/2099"},
@@ -394,3 +396,20 @@ def test_checklist_still_gives_standard_steps_when_ai_is_down(client):
     set_fake_handler(lambda m: "not json")
     body = client.post("/api/checklist", json={"grant_id": "360001"}).json()
     assert body["standard"] and body["specific"] == [] and body["ai_ok"] is False
+
+
+# --- resilience: trim long answers, reuse answers per grant -----------------------
+
+def test_overlong_ai_answer_is_trimmed_not_rejected():
+    from grants.schemas import GrantBrief
+    b = GrantBrief.model_validate({"summary": "x" * 900, "requirements": [{"requirement": "r", "evidence": ""}] * 9})
+    assert len(b.summary) == 500 and b.summary.endswith("…") and len(b.requirements) == 6
+
+
+def test_brief_is_reused_for_the_same_grant(client):
+    explore._ai_cache.clear()
+    calls = []
+    set_fake_handler(lambda m: (calls.append(1), json.dumps({"summary": "Pays for rural training.", "requirements": []}))[1])
+    for _ in range(3):
+        client.post("/api/explore/grant", json={"grant_id": "360001", "brief": True})
+    assert len(calls) == 1
