@@ -173,7 +173,7 @@ METHODS = {
 def recommend_payment(d: Deal) -> dict:
     score = {"new": 2, "some": 1, "established": 0}[d.relationship]
     score += {"low": 0, "medium": 1, "high": 2, "unsure": 1}[d.destination_risk]
-    if d.value and d.value >= 250_000:
+    if d.value and d.value >= 100_000:
         score += 1
     notes: list[str] = []
 

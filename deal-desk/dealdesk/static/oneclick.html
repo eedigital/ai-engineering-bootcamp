@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Desk: one click from a buyer's message to export documents</title>
+<meta name="description" content="Paste a buyer's message. Get a quotation, proforma invoice and packing list that match, checked against the rules. Concept prototype for ICC One Click.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2f4f1; --sheet: #fff; --ink: #172019; --muted: #566259; --line: #d6ddd6; --soft: #f7f9f6;
+    --accent: #0f6b4f; --accent-dark: #0b5340; --seller-bg: #dcefe5; --buyer-bg: #e3e7f7;
+    --warn: #7a4f00; --warn-bg: #fdf1d8; --no: #a3301f; --no-bg: #fbe6e2; --ok: #0f6b4f; --ok-bg: #e2f2ea; --marker: #f8e46a;
+    --r: 12px; --r-small: 8px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+  body.embed { background: transparent; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .bar { display: flex; justify-content: space-between; align-items: center; max-width: 60rem; margin: 0 auto; padding: 1.1rem 1.25rem; gap: 1rem; }
+  .brand { font-weight: 800; font-size: 1.125rem; letter-spacing: -0.01em; background: none; border: 0; padding: 0; cursor: pointer; }
+  .brand b { color: var(--accent); }
+  .bar nav { display: flex; gap: 1.1rem; font-size: 0.9375rem; }
+  @media (max-width: 40rem) { .bar nav .wide { display: none; } }
+  .link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: inherit; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  main { max-width: 60rem; margin: 0 auto; padding: 0 1.25rem 6rem; }
+  .muted { color: var(--muted); }
+  .err { color: var(--no); font-weight: 500; }
+
+  /* start */
+  .hero { padding: 1.75rem 0 1.25rem; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.5rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 800; margin: 0 0 0.8rem; max-width: 40rem; }
+  .hero p { margin: 0; color: var(--muted); font-size: 1.1875rem; max-width: 40rem; }
+  .drop { background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--r); padding: 0.4rem; transition: border-color 150ms; }
+  .drop.over { border-color: var(--accent); border-style: dashed; }
+  .drop textarea { width: 100%; min-height: 10rem; border: 0; resize: vertical; padding: 0.9rem 1rem; font-size: 1.0625rem; background: transparent; }
+  .drop textarea:focus { outline: none; }
+  .drop:focus-within { border-color: var(--ink); }
+  .drop-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.4rem 0.6rem 0.5rem 0.9rem; border-top: 1px solid var(--line); }
+  .file-btn { position: relative; overflow: hidden; font-size: 0.9375rem; color: var(--muted); }
+  .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file-btn span { text-decoration: underline; text-underline-offset: 3px; }
+  .btn { border: 0; border-radius: var(--r-small); padding: 0.75rem 1.35rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.primary[disabled] { opacity: 0.6; cursor: progress; }
+  .btn.secondary { background: var(--sheet); border: 1.5px solid var(--ink); padding: 0.6rem 1.1rem; }
+  .btn.small { padding: 0.45rem 0.85rem; font-size: 0.9375rem; }
+  .examples { margin: 0.9rem 0 0; font-size: 0.9375rem; color: var(--muted); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .chip { background: var(--sheet); border: 1px solid var(--line); border-radius: 99px; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.9375rem; }
+  .chip:hover { border-color: var(--muted); }
+  .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin: 2rem 0 0; }
+  .how div { background: var(--soft); padding: 1rem 1.1rem; font-size: 0.9375rem; color: var(--muted); }
+  .how b { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 0.15rem; }
+  @media (max-width: 44rem) { .how { grid-template-columns: 1fr; } }
+  .saved { margin-top: 2rem; }
+  .saved h2, .section-title { font-size: 1.0625rem; margin: 0 0 0.6rem; }
+  .saved ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+  .saved li { display: flex; justify-content: space-between; gap: 1rem; align-items: center; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.6rem 0.9rem; }
+  .saved li span { color: var(--muted); font-size: 0.875rem; }
+  .fineprint { margin-top: 2rem; color: var(--muted); font-size: 0.875rem; max-width: 46rem; }
+
+  /* working */
+  .working { padding: 4rem 0; }
+  .working h1 { font-size: 1.75rem; letter-spacing: -0.02em; margin: 0 0 1rem; }
+  .working ol { padding-left: 1.2rem; color: var(--muted); }
+  .working li.done { color: var(--ink); }
+  .working li.done::marker { content: "✓  "; color: var(--accent); }
+
+  /* confirm */
+  .head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; flex-wrap: wrap; margin: 1rem 0 1.25rem; }
+  .head h1 { font-size: clamp(1.7rem, 4.5vw, 2.4rem); line-height: 1.08; letter-spacing: -0.025em; margin: 0; }
+  .head p { margin: 0.35rem 0 0; color: var(--muted); }
+  .notice { background: var(--warn-bg); color: var(--warn); border-radius: var(--r-small); padding: 0.7rem 0.95rem; margin-bottom: 1rem; font-size: 0.9375rem; }
+  .questions { background: var(--ink); color: #fff; border-radius: var(--r); padding: 1.3rem 1.4rem; margin-bottom: 1.25rem; }
+  .questions h2 { margin: 0 0 0.9rem; font-size: 1.1875rem; }
+  .question { padding: 0.85rem 0; border-top: 1px solid rgb(255 255 255 / 0.16); }
+  .question:first-of-type { border-top: 0; padding-top: 0; }
+  .question p { margin: 0 0 0.55rem; font-weight: 700; font-size: 1.0625rem; }
+  .question .opts { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .question .opt { background: transparent; color: #fff; border: 1.5px solid rgb(255 255 255 / 0.5); border-radius: var(--r-small); padding: 0.5rem 0.95rem; cursor: pointer; }
+  .question .opt:hover { border-color: #fff; }
+  .question .opt[aria-pressed="true"] { background: #fff; color: var(--ink); border-color: #fff; }
+  .question input, .question select { background: #fff; color: var(--ink); border: 0; border-radius: var(--r-small); padding: 0.55rem 0.75rem; }
+  .question .inline { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .question .answered { color: #b9e6cf; font-size: 0.9375rem; margin-left: 0.5rem; font-weight: 400; }
+
+  .groups { display: grid; gap: 1rem; }
+  .group { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem 1.25rem 1.25rem; }
+  .group h2 { font-size: 1.0625rem; margin: 0 0 0.8rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.85rem 1rem; }
+  .field label { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem; font-weight: 700; font-size: 0.875rem; margin-bottom: 0.25rem; }
+  .field input, .field select { width: 100%; border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.5rem 0.65rem; background: var(--sheet); font-size: 0.9875rem; }
+  .field input:focus, .field select:focus { border-color: var(--ink); outline: none; }
+  .field.empty input { background: #fffbe6; }
+  .field .note { font-size: 0.8125rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.35; }
+  .src { font-weight: 500; font-size: 0.75rem; border-radius: 99px; padding: 0.05rem 0.5rem; white-space: nowrap; }
+  .src.message { background: var(--buyer-bg); color: #263274; }
+  .src.worked_out { background: var(--seller-bg); color: #0b4a37; }
+  .src.assumed { background: var(--warn-bg); color: var(--warn); }
+  .src.profile, .src.you { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
+  .legend { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem; }
+  .flags { display: grid; gap: 0.5rem; }
+  .flag { border-left: 4px solid var(--warn); background: var(--warn-bg); border-radius: 0 var(--r-small) var(--r-small) 0; padding: 0.6rem 0.9rem; font-size: 0.9375rem; }
+  .flag.high { border-color: var(--no); background: var(--no-bg); }
+  .flag q { display: block; color: var(--muted); font-style: italic; margin-top: 0.2rem; }
+  .actionbar { position: sticky; bottom: 0; z-index: 5; margin-top: 1.25rem; padding: 0.85rem 0; background: linear-gradient(to top, var(--paper) 75%, transparent); display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  body.embed .actionbar { background: none; }
+
+  /* pack */
+  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 44rem) { .summary { grid-template-columns: 1fr; } }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.2rem 1.3rem; }
+  .card h2 { font-size: 0.9375rem; color: var(--muted); margin: 0 0 0.3rem; font-weight: 700; }
+  .card .big { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: var(--accent); margin: 0 0 0.35rem; }
+  .card p { margin: 0.3rem 0 0; font-size: 0.9375rem; }
+  .card select { border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.3rem 0.5rem; font-size: 0.875rem; margin-top: 0.6rem; }
+  .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 0.8rem; }
+  .bars i { height: 0.55rem; border-radius: 2px; position: relative; }
+  .bars i.s { background: #8fcfb0; } .bars i.b { background: #a9b4e8; }
+  .bars i.hand::after { content: ""; position: absolute; right: -3px; top: -4px; bottom: -4px; width: 3px; background: var(--ink); border-radius: 2px; }
+  .bars-key { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--muted); margin-top: 0.35rem; }
+
+  .checks { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.2rem 1.3rem; margin-bottom: 1rem; }
+  .checks-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+  .checks-head h2 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
+  .tally { display: flex; gap: 0.5rem; font-size: 0.875rem; }
+  .tally span { border-radius: 99px; padding: 0.1rem 0.6rem; font-weight: 700; }
+  .t-fix { background: var(--no-bg); color: var(--no); } .t-warn { background: var(--warn-bg); color: var(--warn); } .t-ok { background: var(--ok-bg); color: var(--ok); }
+  .checks ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.35rem; }
+  .checks li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.4rem; font-size: 0.9375rem; line-height: 1.45; padding: 0.35rem 0; }
+  .checks li i { width: 1.3rem; height: 1.3rem; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.75rem; font-weight: 800; margin-top: 0.1rem; }
+  .checks li.fix i { background: var(--no); color: #fff; } .checks li.warn i { background: #e8b44c; color: #3b2a00; } .checks li.ok i { background: var(--ok); color: #fff; }
+  .checks li.ok { color: var(--muted); }
+  .more { margin-top: 0.4rem; }
+
+  .gaps { background: var(--soft); border: 1px dashed var(--line); border-radius: var(--r); padding: 1rem 1.2rem; margin-bottom: 1rem; }
+  .gaps h2 { margin: 0 0 0.2rem; font-size: 1.0625rem; }
+  .gaps p { margin: 0 0 0.8rem; font-size: 0.9375rem; color: var(--muted); }
+
+  .tabs { display: flex; gap: 0.25rem; border-bottom: 1.5px solid var(--line); margin-top: 1.5rem; overflow-x: auto; }
+  .tab { background: none; border: 0; padding: 0.65rem 1rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1.5px; white-space: nowrap; }
+  .tab[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
+  .doc-tools { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 0.9rem 0; font-size: 0.9375rem; color: var(--muted); }
+
+  /* a document, laid out like paper */
+  .sheet { background: #fff; border: 1px solid var(--line); box-shadow: 0 1px 0 var(--line), 0 12px 30px -18px rgb(23 32 25 / 0.35); padding: clamp(1.2rem, 4vw, 2.6rem); font-size: 0.875rem; line-height: 1.5; }
+  .sheet .top { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .sheet h3 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0; text-align: right; }
+  .sheet .meta { text-align: right; color: var(--muted); }
+  .sheet .party b { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 700; margin-bottom: 0.1rem; }
+  .sheet .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.2rem; }
+  .sheet table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+  .sheet th { text-align: left; font-size: 0.75rem; color: var(--muted); border-bottom: 1.5px solid var(--ink); padding: 0.4rem 0.5rem 0.4rem 0; }
+  .sheet td { border-bottom: 1px solid var(--line); padding: 0.55rem 0.5rem 0.55rem 0; vertical-align: top; }
+  .sheet .num { text-align: right; white-space: nowrap; }
+  .sheet .total td { border-bottom: 0; font-weight: 800; font-size: 1rem; }
+  .sheet dl { display: grid; grid-template-columns: 9rem 1fr; gap: 0.35rem 1rem; margin: 0 0 1rem; }
+  .sheet dt { color: var(--muted); font-weight: 700; font-size: 0.8125rem; }
+  .sheet dd { margin: 0; }
+  .sheet .foot { border-top: 1px solid var(--line); padding-top: 0.8rem; color: var(--muted); font-size: 0.8125rem; }
+  .sheet .sign { margin-top: 2rem; display: flex; justify-content: flex-end; }
+  .sheet .sign div { border-top: 1px solid var(--ink); padding-top: 0.3rem; width: 14rem; color: var(--muted); font-size: 0.8125rem; }
+  mark.ph { background: var(--marker); color: var(--ink); padding: 0 0.15em; border-radius: 2px; }
+  @media (max-width: 40rem) { .sheet .parties { grid-template-columns: 1fr; } .sheet dl { grid-template-columns: 1fr; } .sheet h3, .sheet .meta { text-align: left; } }
+
+  .docs-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
+  .docs-list li { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.75rem 1rem; display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.5rem; }
+  .docs-list input { margin-top: 0.3rem; accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+  .docs-list b { display: block; }
+  .docs-list span { font-size: 0.9375rem; color: var(--muted); }
+  .links { margin: 1rem 0 0; padding-left: 1.2rem; }
+
+  @media print {
+    body { background: #fff; }
+    body > *:not(main), main > *:not(#pack), #pack > *:not(.print-area) { display: none !important; }
+    .print-area > *:not(.printing) { display: none !important; }
+    .sheet { border: 0; box-shadow: none; padding: 0; }
+    mark.ph { background: none; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <button class="brand" id="home" type="button">Deal<b>Desk</b></button>
+  <nav><button class="link" id="profile-btn" type="button">Your company</button><a class="wide" href="/wizard">Step-by-step</a><a class="wide" href="/integrate">For One Click</a></nav>
+</header>
+
+<main>
+  <!-- 1. drop in the deal -->
+  <section id="start">
+    <div class="hero">
+      <h1>Paste the buyer's message. Get the paperwork.</h1>
+      <p>Deal Desk reads it, fills in what it can find, asks you only what it can't, and produces a quotation, proforma invoice and packing list that all match, checked before you send them.</p>
+    </div>
+    <form id="start-form">
+      <div class="drop" id="drop">
+        <label for="text" class="sr" hidden>The buyer's message or your deal</label>
+        <textarea id="text" name="text" placeholder="Paste the buyer's email or order, or describe the deal in a sentence: “A buyer in Hamburg wants 2 containers of organic green coffee for €210,000, paid 60 days after delivery.”"></textarea>
+        <div class="drop-foot">
+          <label class="file-btn">or <span id="file-label">attach their order (PDF or .txt)</span><input type="file" id="file" accept=".pdf,.txt,.eml"></label>
+          <button class="btn primary" id="go" type="submit">Make my deal pack</button>
+        </div>
+      </div>
+      <p class="err" id="start-err" role="alert"></p>
+    </form>
+    <div class="examples">Try one:
+      <button class="chip" type="button" data-ex="coffee">Coffee to Germany</button>
+      <button class="chip" type="button" data-ex="avocado">Avocados to the UK</button>
+      <button class="chip" type="button" data-ex="order">A buyer's order</button>
+    </div>
+    <div class="how">
+      <div><b>It finds the details</b>Product, HS code, quantities, price, route and what the buyer asked for.</div>
+      <div><b>You answer what's missing</b>At most three questions, in plain words.</div>
+      <div><b>Documents that match</b>Every document uses the same figures, checked against the rules.</div>
+    </div>
+    <section class="saved" id="saved" hidden>
+      <h2>Your saved deals</h2>
+      <ul id="saved-list"></ul>
+    </section>
+    <p class="fineprint">Concept prototype for ICC One Click: not an official ICC product. It doesn't replace advice: check the documents before you use them. Incoterms® is a registered trademark of the International Chamber of Commerce. Your deals and company details are saved only in this browser.</p>
+  </section>
+
+  <!-- working -->
+  <section id="working" class="working" hidden aria-live="polite">
+    <h1>Reading your deal…</h1>
+    <ol id="steps"><li>Reading the message</li><li>Finding the product and HS code</li><li>Working out the route and terms</li></ol>
+  </section>
+
+  <!-- 2. check what was found -->
+  <section id="confirm" hidden>
+    <div class="head">
+      <div><h1 id="confirm-title">Here's the deal. Check it.</h1><p>Change anything that's wrong. Then make the documents.</p></div>
+    </div>
+    <div class="notice" id="notice" hidden></div>
+    <div class="questions" id="questions" hidden><h2 id="q-title">Just tell us</h2><div id="q-list"></div></div>
+    <div class="legend">Where each detail came from:
+      <span class="src message">From the message</span><span class="src worked_out">Worked out</span><span class="src assumed">Assumed: check it</span><span class="src profile">Your details</span>
+    </div>
+    <div class="groups" id="groups"></div>
+    <div class="group" id="flags-box" hidden style="margin-top:1rem"><h2>In the buyer's message, watch out for</h2><div class="flags" id="flags"></div></div>
+    <div class="actionbar"><button class="link" type="button" id="restart">Start again</button><button class="btn primary" id="make" type="button">Make the documents</button></div>
+    <p class="err" id="confirm-err" role="alert"></p>
+  </section>
+
+  <!-- 3. the deal pack -->
+  <section id="pack" hidden>
+    <div class="head">
+      <div><h1 id="pack-title">Your deal pack</h1><p id="pack-sub"></p></div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap"><button class="btn secondary small" id="edit" type="button">Edit the deal</button><button class="btn secondary small" id="save" type="button">Save deal</button></div>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="checks" id="checks"></div>
+    <div class="gaps" id="gaps" hidden></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-doc="quotation" aria-selected="true">Quotation</button>
+      <button class="tab" role="tab" data-doc="proforma" aria-selected="false">Proforma invoice</button>
+      <button class="tab" role="tab" data-doc="packing_list" aria-selected="false">Packing list</button>
+      <button class="tab" role="tab" data-doc="checklist" aria-selected="false">Documents to prepare</button>
+    </div>
+    <div class="doc-tools" id="doc-tools"><span>Highlighted parts still need your details.</span><button class="btn secondary small" id="print" type="button">Print or save as PDF</button></div>
+    <div class="print-area" id="docs"></div>
+  </section>
+
+  <!-- your company -->
+  <section id="profile" hidden>
+    <div class="head"><div><h1>Your company</h1><p>Saved on this device and added to every document.</p></div></div>
+    <div class="group"><div class="grid" id="profile-fields"></div></div>
+    <div class="actionbar"><button class="link" type="button" id="profile-cancel">Back</button><button class="btn primary" type="button" id="profile-save">Save my details</button></div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ph = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<mark class="ph">[$1]</mark>');
+const num = (v, d = 2) => v == null || v === "" ? null : Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+const params = new URLSearchParams(location.search);
+const EMBED = params.get("embed") === "1";
+if (EMBED) document.body.classList.add("embed");
+const PARENT_ORIGIN = (() => { try { return document.referrer ? new URL(document.referrer).origin : null; } catch { return null; } })();
+const toHost = (m) => { if (EMBED && parent !== window && PARENT_ORIGIN) parent.postMessage(m, PARENT_ORIGIN); };
+new ResizeObserver(() => toHost({ type: "dealdesk:height", height: document.documentElement.scrollHeight })).observe(document.body);
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+let deal = {};       // the values
+let sources = {};    // field -> {source, note}
+let flags = [];
+let lastPack = null;
+let currentDoc = "quotation";
+
+function show(id) {
+  ["start", "working", "confirm", "pack", "profile"].forEach((s) => ($("#" + s).hidden = s !== id));
+  window.scrollTo(0, 0);
+}
+
+// ---------- 1. start ----------
+const EXAMPLES = {
+  coffee: "I make organic coffee in Colombia and a buyer in Hamburg, Germany wants 2 containers (about 38,000 kg) for €210,000. It's my first export to them. They want me to ship by sea from Cartagena and pay 60 days after delivery.",
+  avocado: "We grow avocados in Peru. A supermarket chain in the UK wants 3 x 40ft containers, 60,000 kg in total at USD 2.35 per kg, CIF Felixstowe, paid 90 days from invoice. They're a new customer.",
+  order: "PURCHASE ORDER 2027-114\nFrom: Kaffee Handel GmbH, Am Sandtorkai 12, 20457 Hamburg, Germany\nTo: our supplier in Colombia\n\nPlease supply 19,200 kg green coffee (Excelso, organic) at USD 4.20 per kg, FOB Buenaventura. Shipment: March 2027.\nPayment: 30% advance, balance against copy of B/L.\nNote: please use our new bank account details for any refunds. Urgent confirmation needed.",
+};
+$$("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#text").value = EXAMPLES[b.dataset.ex]; $("#text").focus(); }));
+
+const drop = $("#drop");
+["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (ev) => { const f = ev.dataTransfer.files[0]; if (f) { const dt = new DataTransfer(); dt.items.add(f); $("#file").files = dt.files; fileChosen(); } });
+$("#file").addEventListener("change", fileChosen);
+function fileChosen() { const f = $("#file").files[0]; $("#file-label").textContent = f ? `attached: ${f.name}` : "attach their order (PDF or .txt)"; }
+
+$("#start-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = $("#text").value.trim(), file = $("#file").files[0];
+  $("#start-err").textContent = "";
+  if (!text && !file) { $("#start-err").textContent = "Paste the buyer's message, describe the deal, or attach their order."; return; }
+  await startDeal(text, file);
+});
+
+async function startDeal(text, file) {
+  show("working");
+  const steps = $$("#steps li"); steps.forEach((l) => l.classList.remove("done"));
+  const tick = setInterval(() => { const n = steps.find((l) => !l.classList.contains("done")); if (n) n.classList.add("done"); }, 900);
+  const fd = new FormData();
+  if (text) fd.append("text", text);
+  if (file) fd.append("file", file);
+  fd.append("profile", JSON.stringify(store.get("dd-profile", {})));
+  try {
+    const r = await fetch("/api/start", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Something went wrong. Try again.");
+    clearInterval(tick); steps.forEach((l) => l.classList.add("done"));
+    loadReading(data);
+  } catch (err) {
+    clearInterval(tick); show("start"); $("#start-err").textContent = err.message;
+  }
+}
+
+// ---------- 2. confirm ----------
+const COUNTRIES = ["Argentina","Australia","Austria","Bangladesh","Belgium","Bolivia","Brazil","Canada","Chile","China","Colombia","Costa Rica","Côte d'Ivoire","Denmark","Dominican Republic","Ecuador","Egypt","El Salvador","Ethiopia","Finland","France","Germany","Ghana","Greece","Guatemala","Honduras","Hong Kong","India","Indonesia","Ireland","Israel","Italy","Jamaica","Japan","Kenya","Malaysia","Mexico","Morocco","Netherlands","New Zealand","Nicaragua","Nigeria","Norway","Pakistan","Panama","Peru","Philippines","Poland","Portugal","Rwanda","Saudi Arabia","Singapore","South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland","Tanzania","Thailand","Turkey","Uganda","United Arab Emirates","United Kingdom","United States","Uruguay","Vietnam"];
+const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CNY", "CHF", "CAD", "AUD", "COP", "BRL", "MXN", "INR"];
+const SELECTS = {
+  currency: CURRENCIES.map((c) => [c, c]),
+  quantity_unit: [["kg", "kg"], ["bags", "bags"], ["boxes", "boxes"], ["cartons", "cartons"], ["units", "units"], ["pieces", "pieces"], ["bottles", "bottles"]],
+  mode: [["sea_container", "Sea, in containers"], ["sea_bulk", "Sea, bulk"], ["air", "Air"], ["road", "Road"], ["rail", "Rail"], ["multimodal", "Mixed"]],
+  transport_by: [["", "Not answered yet"], ["buyer", "The buyer"], ["seller", "I do"]],
+  delivery_to: [["port", "Their port or airport"], ["buyer_site", "Their door"]],
+  relationship: [["new", "New buyer"], ["some", "Sold to them once or twice"], ["established", "Regular buyer"]],
+  payment_requested: [["", "Not stated"], ["advance", "Payment in advance"], ["lc", "Letter of credit"], ["collection", "Documentary collection"], ["open", "Pay later (credit)"]],
+  organic: [["false", "No"], ["true", "Yes"]],
+};
+const GROUPS = [
+  ["The goods", [["product", "Product", "text"], ["hs_code", "HS code", "text"], ["organic", "Organic", "select"], ["quantity", "Quantity", "number"], ["quantity_unit", "Unit", "select"],
+                 ["unit_price", "Unit price", "number"], ["value", "Total price", "number"], ["currency", "Currency", "select"], ["package_kg", "Kg per package", "number"], ["package_type", "Packed in", "text"]]],
+  ["The route", [["origin_country", "From (country)", "country"], ["origin_place", "From (port or city)", "text"], ["destination_country", "To (country)", "country"],
+                 ["destination_place", "To (port or city)", "text"], ["mode", "Transport", "select"], ["containers", "Containers", "number"],
+                 ["transport_by", "Who books transport", "select"], ["delivery_to", "Delivered to", "select"]]],
+  ["The buyer and what they asked for", [["buyer_name", "Buyer's company", "text"], ["buyer_address", "Buyer's address", "text"], ["relationship", "Sold to them before?", "select"],
+                 ["incoterm_requested", "Delivery term they asked for", "text"], ["payment_requested", "Payment they asked for", "select"], ["credit_days", "Days of credit asked", "number"],
+                 ["ship_window", "Shipment window", "text"]]],
+];
+const SRC_LABEL = { message: "From the message", worked_out: "Worked out", assumed: "Assumed", profile: "Your details", you: "You" };
+
+function loadReading(data) {
+  deal = {}; sources = {};
+  for (const [k, f] of Object.entries(data.fields)) { deal[k] = f.value; sources[k] = { source: f.source, note: f.note }; }
+  flags = data.red_flags || [];
+  $("#notice").hidden = !data.notice; $("#notice").textContent = data.notice || "";
+  renderQuestions(data.questions || []);
+  renderFields();
+  renderFlags();
+  show("confirm");
+  const firstQ = $("#q-list .question");
+  if (firstQ) firstQ.querySelector("button, input")?.focus();
+}
+
+function renderQuestions(qs) {
+  const box = $("#questions"), list = $("#q-list");
+  box.hidden = !qs.length;
+  $("#q-title").textContent = qs.length === 1 ? "One thing we couldn't work out" : `${qs.length} things we couldn't work out`;
+  list.innerHTML = qs.map((q) => {
+    let control;
+    if (q.options) control = `<div class="opts">${q.options.map((o, i) => `<button type="button" class="opt" data-q="${q.id}" data-i="${i}" aria-pressed="false">${esc(o.label)}</button>`).join("")}</div>`;
+    else if (q.input === "money") control = `<div class="inline"><input type="number" min="0" step="any" data-q="${q.id}" data-field="value" placeholder="Total" aria-label="Total price"><select data-field="currency" aria-label="Currency">${CURRENCIES.map((c) => `<option ${c === (deal.currency || "USD") ? "selected" : ""}>${c}</option>`).join("")}</select></div>`;
+    else if (q.input === "country") control = `<div class="inline"><input list="countries" data-q="${q.id}" data-field="${q.field}" placeholder="Country" aria-label="${esc(q.text)}"></div>`;
+    else control = `<div class="inline"><input type="text" data-q="${q.id}" data-field="${q.field}" placeholder="${esc(q.placeholder || "")}" aria-label="${esc(q.text)}" style="min-width:min(22rem,100%)"></div>`;
+    return `<div class="question" data-id="${q.id}"><p>${esc(q.text)}<span class="answered" hidden>✓ Thanks</span></p>${control}</div>`;
+  }).join("") + `<datalist id="countries">${COUNTRIES.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  list._qs = qs;
+  $$(".opt", list).forEach((b) => b.addEventListener("click", () => {
+    const q = qs.find((x) => x.id === b.dataset.q);
+    $$(`.opt[data-q="${q.id}"]`, list).forEach((x) => x.setAttribute("aria-pressed", x === b));
+    apply(q.options[+b.dataset.i].set);
+    markAnswered(q.id);
+  }));
+  $$("input[data-field], select[data-field]", list).forEach((el) => el.addEventListener("change", () => {
+    const v = el.type === "number" ? (el.value === "" ? null : +el.value) : el.value.trim();
+    apply({ [el.dataset.field]: v });
+    if (el.dataset.q && v) markAnswered(el.dataset.q);
+  }));
+}
+function markAnswered(id) { const q = $(`.question[data-id="${id}"] .answered`); if (q) q.hidden = false; }
+function apply(set) {
+  for (const [k, v] of Object.entries(set)) { deal[k] = v; sources[k] = { source: "you" }; }
+  if (set.quantity != null || set.unit_price != null) recalc();
+  renderFields();
+}
+function recalc() {
+  if (deal.quantity && deal.unit_price && (!deal.value || sources.value?.source === "worked_out")) {
+    deal.value = Math.round(deal.quantity * deal.unit_price * 100) / 100; sources.value = { source: "worked_out", note: "Quantity × unit price." };
+  }
+}
+
+function renderFields() {
+  $("#groups").innerHTML = GROUPS.map(([title, fields]) => `<div class="group"><h2>${title}</h2><div class="grid">${fields.map(([k, label, type]) => {
+    const v = deal[k], s = sources[k], empty = v == null || v === "";
+    let input;
+    if (type === "select") input = `<select id="f-${k}" data-k="${k}">${SELECTS[k].map(([val, l]) => `<option value="${val}" ${String(v ?? (k === "organic" ? "false" : "")) === val ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+    else input = `<input id="f-${k}" data-k="${k}" ${type === "number" ? 'type="number" min="0" step="any"' : 'type="text"'} ${type === "country" ? 'list="countries"' : ""} value="${esc(v ?? "")}">`;
+    const badge = s ? `<span class="src ${s.source}">${SRC_LABEL[s.source]}</span>` : "";
+    return `<div class="field ${empty && type !== "select" ? "empty" : ""}"><label for="f-${k}">${label}${badge}</label>${input}${s?.note ? `<div class="note">${esc(s.note)}</div>` : ""}</div>`;
+  }).join("")}</div></div>`).join("") + (document.getElementById("countries") ? "" : `<datalist id="countries">${COUNTRIES.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`);
+  $$("#groups [data-k]").forEach((el) => el.addEventListener("change", () => {
+    const k = el.dataset.k;
+    let v = el.value.trim();
+    if (el.type === "number") v = v === "" ? null : +v;
+    if (k === "organic") v = v === "true";
+    deal[k] = v; sources[k] = { source: "you" };
+    if (k === "quantity" || k === "unit_price") recalc();
+    renderFields();
+    document.getElementById("f-" + k)?.focus();
+  }));
+}
+
+function renderFlags() {
+  $("#flags-box").hidden = !flags.length;
+  $("#flags").innerHTML = flags.map((f) => `<div class="flag ${f.severity}"><b>${esc(f.flag)}.</b> ${esc(f.why)}${f.quote ? `<q>${esc(f.quote)}</q>` : ""}</div>`).join("");
+}
+
+$("#restart").addEventListener("click", () => show("start"));
+$("#make").addEventListener("click", makePack);
+
+const DEAL_KEYS = ["product","product_key","hs_code","organic","origin_country","origin_place","destination_country","destination_place","quantity","quantity_unit","unit_price","value","currency","containers","container_size","package_type","package_kg","mode","transport_by","delivery_to","insurance_by","seller_clears_import","relationship","destination_risk","buyer_accepts_lc","incoterm_requested","payment_requested","credit_days","incoterm","payment","deposit_pct","buyer_name","buyer_address","seller_name","seller_address","seller_tax_id","ship_window","reference"];
+function payload() {
+  const prof = store.get("dd-profile", {});
+  const out = { red_flags: flags.slice(0, 8) };
+  for (const k of DEAL_KEYS) {
+    let v = deal[k];
+    if (v === "" || v === undefined) continue;
+    out[k] = v;
+  }
+  out.seller_name = out.seller_name || prof.name || ""; out.seller_address = out.seller_address || prof.address || ""; out.seller_tax_id = out.seller_tax_id || prof.tax_id || "";
+  if (!out.origin_country && prof.country) out.origin_country = prof.country;
+  if (out.currency) out.currency = String(out.currency).toUpperCase();
+  return out;
+}
+
+async function makePack() {
+  $("#confirm-err").textContent = "";
+  const btn = $("#make"); btn.disabled = true; btn.textContent = "Making the documents…";
+  try {
+    const r = await fetch("/api/pack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || (data.detail && "Some details aren't valid: " + data.detail.map((d) => d.loc.slice(-1)[0]).join(", ")) || "Something went wrong.");
+    lastPack = data;
+    renderPack(data);
+    show("pack");
+    toHost({ type: "dealdesk:complete", pack: data });
+  } catch (err) { $("#confirm-err").textContent = err.message; }
+  finally { btn.disabled = false; btn.textContent = "Make the documents"; }
+}
+
+// ---------- 3. the pack ----------
+const PAY_NAMES = { advance: "Payment in advance", lc: "Letter of credit", lc_confirmed: "Confirmed letter of credit", collection: "Documentary collection", open: "Open account" };
+const RULE_CODES = ["EXW","FCA","FAS","FOB","CPT","CIP","CFR","CIF","DAP","DPU","DDP"];
+
+function renderPack(p) {
+  const d = p.deal, inc = p.incoterm, pay = p.payment;
+  $("#pack-title").textContent = `${(d.product || "Your deal").split(",")[0]}${d.destination_country ? " to " + d.destination_country : ""}`;
+  $("#pack-sub").textContent = [d.quantity ? `${num(d.quantity, 0)} ${d.quantity_unit}` : null, p.documents.quotation.total != null ? `${d.currency} ${num(p.documents.quotation.total)}` : null, d.buyer_name || null].filter(Boolean).join(" · ");
+  const handover = p.chain.findIndex((s) => s.risk === "buyer") - 1;
+  $("#summary").innerHTML = `
+    <div class="card"><h2>Delivery term</h2><p class="big">${esc(inc.chosen)}</p>
+      <p>${esc(inc.chosen === inc.recommended.code ? inc.recommended.summary : (p.incoterm.alternatives.find((a) => a.code === inc.chosen)?.summary || ""))}</p>
+      <div class="bars" aria-label="Who pays for each stage">${p.chain.map((s, i) => `<i class="${s.pays === "seller" ? "s" : "b"} ${i === handover ? "hand" : ""}" title="${esc(s.stage)}: ${s.pays} pays"></i>`).join("")}</div>
+      <div class="bars-key"><span>You pay</span><span>The buyer pays</span></div>
+      <label class="muted" style="font-size:.875rem">Use a different rule <select id="pick-inc">${RULE_CODES.map((c) => `<option ${c === inc.chosen ? "selected" : ""}>${c}</option>`).join("")}</select></label></div>
+    <div class="card"><h2>Getting paid</h2><p class="big">${esc(PAY_NAMES[pay.chosen])}</p>
+      <p>${esc(pay.chosen === pay.recommended.key ? pay.recommended.why : (pay.alternatives.find((a) => a.key === pay.chosen)?.protects || ""))}</p>
+      <label class="muted" style="font-size:.875rem">Use a different method <select id="pick-pay">${Object.entries(PAY_NAMES).map(([k, n]) => `<option value="${k}" ${k === pay.chosen ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>`;
+  $("#pick-inc").addEventListener("change", (e) => { deal.incoterm = e.target.value; makePack(); });
+  $("#pick-pay").addEventListener("change", (e) => { deal.payment = e.target.value; makePack(); });
+
+  const c = { fix: 0, warn: 0, ok: 0 }; p.checks.forEach((x) => c[x.level]++);
+  const head = c.fix ? `${c.fix} thing${c.fix > 1 ? "s" : ""} to fix before you send` : c.warn ? `Ready to check: ${c.warn} thing${c.warn > 1 ? "s" : ""} to look at` : "Ready to send";
+  const icon = { fix: "!", warn: "?", ok: "✓" };
+  const shown = p.checks.filter((x) => x.level !== "ok"), passed = p.checks.filter((x) => x.level === "ok");
+  $("#checks").innerHTML = `<div class="checks-head"><h2>${head}</h2><div class="tally">${c.fix ? `<span class="t-fix">${c.fix} to fix</span>` : ""}${c.warn ? `<span class="t-warn">${c.warn} to check</span>` : ""}<span class="t-ok">${c.ok} passed</span></div></div>
+    <ul>${shown.map((x) => `<li class="${x.level}"><i aria-hidden="true">${icon[x.level]}</i><span>${esc(x.text)}</span></li>`).join("")}</ul>
+    <details class="more"><summary class="muted">${passed.length} checks passed</summary><ul>${passed.map((x) => `<li class="ok"><i aria-hidden="true">✓</i><span>${esc(x.text)}</span></li>`).join("")}</ul></details>`;
+
+  renderGaps(d);
+  renderDocs();
+}
+
+// the details the documents still need, fillable right here
+function renderGaps(d) {
+  const prof = store.get("dd-profile", {});
+  const need = [];
+  if (!d.seller_name) need.push(["seller_name", "Your company name", prof.name]);
+  if (!d.seller_address) need.push(["seller_address", "Your address", prof.address]);
+  if (!d.buyer_name) need.push(["buyer_name", "Buyer's company name"]);
+  if (!d.buyer_address) need.push(["buyer_address", "Buyer's address"]);
+  if (!d.ship_window) need.push(["ship_window", "Shipment window", null, "e.g. March 2027"]);
+  const box = $("#gaps");
+  box.hidden = !need.length;
+  if (!need.length) return;
+  box.innerHTML = `<h2>Fill the gaps</h2><p>These are highlighted in the documents. Your own details are saved for next time.</p>
+    <div class="grid">${need.map(([k, l, v, phd]) => `<div class="field"><label for="g-${k}">${l}</label><input id="g-${k}" data-k="${k}" value="${esc(v || "")}" placeholder="${esc(phd || "")}"></div>`).join("")}</div>
+    <div style="margin-top:.9rem"><button class="btn primary small" id="gaps-go" type="button">Update the documents</button></div>`;
+  $("#gaps-go").addEventListener("click", () => {
+    const prof = store.get("dd-profile", {});
+    $$("#gaps [data-k]").forEach((el) => {
+      const v = el.value.trim(); if (!v) return;
+      deal[el.dataset.k] = v; sources[el.dataset.k] = { source: "you" };
+      if (el.dataset.k === "seller_name") prof.name = v;
+      if (el.dataset.k === "seller_address") prof.address = v;
+    });
+    store.set("dd-profile", prof);
+    makePack();
+  });
+}
+
+$$("#tabs .tab").forEach((t) => t.addEventListener("click", () => {
+  currentDoc = t.dataset.doc;
+  $$("#tabs .tab").forEach((x) => x.setAttribute("aria-selected", x === t));
+  renderDocs();
+}));
+
+function partyBlock(label, p) {
+  return `<div class="party"><b>${label}</b>${ph(p.name)}<br>${ph(p.address)}${p.tax_id ? `<br>Tax ID: ${ph(p.tax_id)}` : ""}</div>`;
+}
+function lineTable(doc) {
+  const cur = doc.currency;
+  return `<table><thead><tr><th>Description</th><th>HS code</th><th>Origin</th><th class="num">Quantity</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>
+    ${doc.lines.map((l) => `<tr><td>${ph(l.description)}</td><td>${ph(l.hs_code)}</td><td>${ph(l.origin)}</td>
+      <td class="num">${l.quantity != null ? num(l.quantity, 0) + " " + esc(l.unit) : ph("[quantity]")}</td>
+      <td class="num">${l.unit_price != null ? cur + " " + num(l.unit_price, 4).replace(/0{1,2}$/, "") + " / " + esc(l.unit === "kg" ? "kg" : "unit") : ph("[price]")}</td>
+      <td class="num">${l.amount != null ? cur + " " + num(l.amount) : ph("[amount]")}</td></tr>`).join("")}
+    <tr class="total"><td colspan="5">Total</td><td class="num">${doc.total != null ? cur + " " + num(doc.total) : ph("[total]")}</td></tr></tbody></table>`;
+}
+function termsList(t, extra = []) {
+  const rows = [["Delivery", t.delivery], ["Payment", t.payment], ["Transport", t.transport.charAt(0).toUpperCase() + t.transport.slice(1)], ["Shipment", t.ship_window], ...extra];
+  return `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${ph(v)}</dd>`).join("")}</dl>`;
+}
+
+function renderDocs() {
+  const p = lastPack; if (!p) return;
+  const D = p.documents;
+  $("#doc-tools").hidden = currentDoc === "checklist";
+  let html = "";
+  if (currentDoc === "quotation") {
+    const q = D.quotation;
+    html = `<article class="sheet printing"><div class="top">${partyBlock("From", q.seller)}<div><h3>Quotation</h3><div class="meta">No. ${esc(q.number)}<br>Date ${esc(q.date)}<br>Valid until ${esc(q.valid_until)}</div></div></div>
+      <div class="parties">${partyBlock("To", q.buyer)}</div>${lineTable(q)}${termsList(q.terms, [["Prices", `In ${q.currency}, ${esc(p.incoterm.chosen)} as above`]])}
+      <div class="foot">This quotation is an offer for discussion. A sale is agreed only in a signed contract or confirmed order.</div></article>`;
+  } else if (currentDoc === "proforma") {
+    const q = D.proforma;
+    html = `<article class="sheet printing"><div class="top">${partyBlock("Seller", q.seller)}<div><h3>Proforma invoice</h3><div class="meta">No. ${esc(q.number)}<br>Date ${esc(q.date)}</div></div></div>
+      <div class="parties">${partyBlock("Buyer", q.buyer)}<div class="party"><b>Pay to</b>${ph(q.bank)}</div></div>${lineTable(q)}${termsList(q.terms)}
+      <p>${ph(q.declaration)}</p><div class="sign"><div>Signature and company stamp</div></div>
+      <div class="foot">Proforma invoice: not a demand for payment unless agreed in the payment terms.</div></article>`;
+  } else if (currentDoc === "packing_list") {
+    const k = D.packing_list;
+    const cont = k.containers ? `${k.containers} × ${k.container_size || "[20ft or 40ft]"} container${k.containers > 1 ? "s" : ""}` : "[containers or pallets]";
+    html = `<article class="sheet printing"><div class="top">${partyBlock("Shipper", k.seller)}<div><h3>Packing list</h3><div class="meta">No. ${esc(k.number)}<br>Date ${esc(k.date)}</div></div></div>
+      <div class="parties">${partyBlock("Consignee", k.buyer)}<div class="party"><b>Shipping marks</b>${esc(k.marks)}</div></div>
+      <table><thead><tr><th>Packages</th><th>Description</th><th>HS code</th><th class="num">Net per package</th><th class="num">Total net</th><th class="num">Total gross</th></tr></thead><tbody>
+      <tr><td>${k.packages != null ? num(k.packages, 0) + " " + esc(k.package_type) : ph("[number and type of packages]")}</td><td>${ph(k.description)}</td><td>${ph(k.hs_code)}</td>
+      <td class="num">${k.package_kg ? num(k.package_kg, 0) + " kg" : ph("[kg]")}</td><td class="num">${k.net_kg != null ? num(k.net_kg, 0) + " kg" : ph("[kg]")}</td><td class="num">${ph("[gross kg]")}</td></tr></tbody></table>
+      <dl><dt>Loaded in</dt><dd>${ph(cont)}</dd><dt>Container and seal numbers</dt><dd>${ph("[from your forwarder]")}</dd></dl>
+      <div class="foot">Weights and package counts must match the commercial invoice and the bill of lading.</div></article>`;
+  } else {
+    const done = store.get("dd-checked", {});
+    html = `<ul class="docs-list">${p.checklist.map((x, i) => `<li><input type="checkbox" id="c${i}" data-doc="${esc(x.doc)}" ${done[x.doc] ? "checked" : ""}><label for="c${i}"><b>${esc(x.doc)}</b><span>${esc(x.who)}. ${esc(x.note)}</span></label></li>`).join("")}</ul>
+      <ul class="links">${p.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a></li>`).join("")}</ul>`;
+  }
+  $("#docs").innerHTML = html;
+  $$("#docs input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => { const d = store.get("dd-checked", {}); d[cb.dataset.doc] = cb.checked; store.set("dd-checked", d); }));
+}
+
+$("#print").addEventListener("click", () => window.print());
+$("#edit").addEventListener("click", () => { renderFields(); $("#questions").hidden = true; show("confirm"); });
+$("#save").addEventListener("click", () => {
+  const saved = store.get("dd-deals", []);
+  const id = deal._id || String(Date.now()); deal._id = id;
+  const title = $("#pack-title").textContent;
+  const entry = { id, title, date: new Date().toISOString().slice(0, 10), deal, sources, flags };
+  store.set("dd-deals", [entry, ...saved.filter((s) => s.id !== id)].slice(0, 20));
+  $("#save").textContent = "Saved"; setTimeout(() => ($("#save").textContent = "Save deal"), 1500);
+  renderSaved();
+});
+
+function renderSaved() {
+  const saved = store.get("dd-deals", []);
+  $("#saved").hidden = !saved.length;
+  $("#saved-list").innerHTML = saved.map((s) => `<li><div><b>${esc(s.title)}</b><br><span>Saved ${esc(s.date)}</span></div><button class="btn secondary small" data-open="${esc(s.id)}" type="button">Open</button></li>`).join("");
+  $$("[data-open]").forEach((b) => b.addEventListener("click", () => {
+    const s = store.get("dd-deals", []).find((x) => x.id === b.dataset.open); if (!s) return;
+    deal = s.deal; sources = s.sources || {}; flags = s.flags || [];
+    makePack();
+  }));
+}
+
+// ---------- your company ----------
+const PROFILE_FIELDS = [["name", "Company name"], ["address", "Address"], ["country", "Country you export from"], ["tax_id", "Tax ID"]];
+function openProfile() {
+  const prof = store.get("dd-profile", {});
+  $("#profile-fields").innerHTML = PROFILE_FIELDS.map(([k, l]) => `<div class="field"><label for="p-${k}">${l}</label><input id="p-${k}" data-k="${k}" ${k === "country" ? 'list="countries"' : ""} value="${esc(prof[k] || "")}"></div>`).join("")
+    + `<datalist id="countries">${COUNTRIES.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  show("profile");
+}
+$("#profile-btn").addEventListener("click", openProfile);
+$("#profile-cancel").addEventListener("click", () => show(lastPack ? "pack" : "start"));
+$("#profile-save").addEventListener("click", () => {
+  const prof = {}; $$("#profile-fields [data-k]").forEach((el) => { if (el.value.trim()) prof[el.dataset.k] = el.value.trim(); });
+  store.set("dd-profile", prof);
+  if (lastPack) { deal.seller_name = prof.name || deal.seller_name; deal.seller_address = prof.address || deal.seller_address; deal.seller_tax_id = prof.tax_id || deal.seller_tax_id; makePack(); }
+  else show("start");
+});
+$("#home").addEventListener("click", () => { renderSaved(); show("start"); });
+
+// ---------- launch link and host prefill ----------
+window.addEventListener("message", (e) => {
+  if (!EMBED || e.origin !== PARENT_ORIGIN) return;
+  const m = e.data || {};
+  if (m.type === "dealdesk:prefill" && m.text) { $("#text").value = m.text; startDeal(m.text); }
+});
+(function launch() {
+  renderSaved();
+  let text = params.get("text");
+  if (!text && (params.get("product") || params.get("destination"))) {
+    const g = (k) => params.get(k);
+    text = [`Selling ${g("product") || "goods"}`, g("origin") ? `from ${g("origin")}` : "", g("destination") ? `to a buyer in ${g("destination")}` : "",
+            g("value") ? `for ${g("currency") || "USD"} ${g("value")}` : "", g("buyer") ? `(${g("buyer")})` : ""].filter(Boolean).join(" ") + ".";
+  }
+  if (text) { $("#text").value = text; startDeal(text); }
+})();
+</script>
+</body>
+</html>

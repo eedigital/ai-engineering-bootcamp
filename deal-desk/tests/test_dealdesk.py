@@ -195,7 +195,7 @@ def test_read_when_ai_is_down(client):
 def test_tools_endpoint_for_ai_assistants(client):
     body = client.get("/api/tools").json()
     names = [t["function"]["name"] for t in body["tools"]]
-    assert names == ["deal_desk_plan", "deal_desk_read"]
+    assert names == ["deal_desk_plan", "deal_desk_pack", "deal_desk_read"]
     assert "destination_country" in body["tools"][0]["function"]["parameters"]["properties"]
 
 

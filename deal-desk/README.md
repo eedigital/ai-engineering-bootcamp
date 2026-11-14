@@ -4,6 +4,20 @@
 
 **Live:** https://deal-desk-gzud.onrender.com · **Integration guide:** `/integrate` · **API reference:** `/docs`
 
+## One click
+
+The home page works like accounting software for exporting: the rules are public, but people pay not to make mistakes.
+
+1. **Drop in what you have.** Paste the buyer's email or order, attach their PDF, or describe the deal in one sentence.
+2. **It finds and works out the rest.** Product and a suggested HS code (`dealdesk/products.py`), quantities, price, unit price, route and ports, containers, bags, what the buyer asked for, and the risky terms. Every field shows where it came from: from the message, worked out, assumed, or your saved details.
+3. **At most three questions,** in plain words, only for what it can't find ("Green or roasted?", "Who books the transport?"). Anything else is assumed, safely, and marked.
+4. **One set of figures, three documents:** a quotation, proforma invoice and packing list, printable or saved as PDF, with gaps highlighted and fillable in place.
+5. **Checks before sending:** totals that don't add up, overloaded containers, part-full packages, FOB asked for container cargo, credit for a new buyer, letters of credit with FCA, insurance at 110% for CIF/CIP, the EU Deforestation Regulation, organic certificates in TRACES, trade-agreement proof of origin.
+
+It works even when the AI is busy: a plain-code reader (`dealdesk/extract.py`) fills in most of the deal, and the AI only adds what needs judgement. Company details and saved deals stay in the browser. The original step-by-step planner is at `/wizard`.
+
+## What the advice covers
+
 An SME describes one deal, or pastes the buyer's order or email, and gets a deal pack:
 
 1. **Delivery terms:** the Incoterms® 2020 rule that fits, why, how to write it, and a visual of which stages each side pays for and exactly where risk passes to the buyer. Alternatives and warnings (FOB/CFR/CIF for containers, DDP import taxes, the early risk transfer under CPT/CIP, the on-board bill of lading option under FCA).
@@ -25,7 +39,8 @@ One Click has no public API, so Deal Desk offers the four standard ways a platfo
 | One Click today | Deal Desk connects by |
 | --- | --- |
 | Trade Action Plan (shipping and payment steps) | **Embed:** `<script src="/embed.js" data-target="#deal-desk" data-destination="Germany">`; the deal pack comes back as a `dealdesk:complete` event to save to the plan |
-| AI assistant | **Tool definitions** at `GET /api/tools` for `deal_desk_plan` and `deal_desk_read` |
+| AI assistant | **Tool definitions** at `GET /api/tools` for `deal_desk_plan`, `deal_desk_pack` and `deal_desk_read` |
+| The chat itself | **Launch link:** `/?text=<the SME's message>` opens Deal Desk with the deal already read |
 | SME Trade Catalogue | **Launch link:** `/?product=…&origin=…&destination=…&value=…&currency=…&mode=…&buyer=…` |
 | Chambers | Certificate-of-origin handoff in every deal pack |
 
@@ -33,7 +48,7 @@ The embed only exchanges messages with the page that embedded it. For production
 
 ## Tests
 
-`pytest -q` from the repo root. 40 tests: every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
+`pytest -q` from the repo root. 40 tests for the planner and 41 for one click (product lookup, the plain-code reader, what's asked and assumed, one set of figures across documents, and each check). Planner tests cover every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
 
 ## Run locally
 

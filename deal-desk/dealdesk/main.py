@@ -1,15 +1,16 @@
 """Deal Desk: get one export deal right. A concept prototype built to plug into ICC One Click.
 
 Integration points (see /integrate and the README):
-- Launch link:  /?product=...&origin=...&destination=...&value=...&currency=...&mode=...&buyer=...
+- Launch link:  /?text=<the SME's message>  (or the older /?product=...&destination=... fields)
 - Embed:        <script src="https://<host>/embed.js" data-target="#deal-desk"></script>
 - AI tools:     GET /api/tools returns function definitions an AI assistant can call
-- API:          POST /api/plan (rules only, no AI), POST /api/read (AI reads buyer text)
+- API:          POST /api/start (read a message), POST /api/pack (documents and checks), POST /api/plan, POST /api/read
 """
 
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import time
@@ -23,7 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 load_dotenv()
 
-from . import ai, rules  # noqa: E402
+from . import ai, oneclick, rules  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("dealdesk")
@@ -61,6 +62,13 @@ def _error(status: int, message: str) -> JSONResponse:
 
 @app.get("/", include_in_schema=False)
 def home():
+    """One click: drop in the buyer's message, get a checked deal pack."""
+    return FileResponse(STATIC / "oneclick.html", media_type="text/html")
+
+
+@app.get("/wizard", include_in_schema=False)
+def wizard():
+    """The original step-by-step planner."""
     return FileResponse(STATIC / "index.html", media_type="text/html")
 
 
@@ -87,11 +95,8 @@ def plan(deal: rules.Deal, request: Request):
     return rules.plan(deal)
 
 
-@app.post("/api/read")
-async def read(request: Request, text: str | None = Form(default=None), file: UploadFile | None = File(default=None)):
-    """Read a buyer's order, quote or email (pasted text, PDF or .txt) and return the deal it describes plus red flags."""
-    if (r := _limited(request, "ai", AI_LIMIT)):
-        return r
+async def _body(text: str | None, file: UploadFile | None, min_len: int = 20) -> str | JSONResponse:
+    """The message as text, from the form field or an uploaded PDF or text file."""
     body = (text or "").strip()
     if file is not None:
         data = await file.read()
@@ -108,8 +113,56 @@ async def read(request: Request, text: str | None = Form(default=None), file: Up
             body = data.decode("utf-8", errors="replace")
         else:
             return _error(422, "Upload a PDF or a .txt file, or paste the text.")
-    if len(body) < 20:
-        return _error(422, "Paste the buyer's message or order: at least a sentence or two.")
+    if len(body) < min_len:
+        return _error(422, "Tell us about the deal: at least a sentence, or paste the buyer's message.")
+    return body[:ai.MAX_CHARS]
+
+
+@app.post("/api/start")
+async def start(request: Request, text: str | None = Form(default=None), file: UploadFile | None = File(default=None),
+                profile: str | None = Form(default=None), use_ai: bool = Form(default=True)):
+    """One click, step 1: read the message, fill in what can be found or worked out, and ask at most three questions.
+    Works without AI too: if the AI is busy, plain-code reading still fills in most of the deal."""
+    if (r := _limited(request, "start", 60)):
+        return r
+    body = await _body(text, file, min_len=12)
+    if isinstance(body, JSONResponse):
+        return body
+    try:
+        prof = json.loads(profile) if profile else {}
+        prof = prof if isinstance(prof, dict) else {}
+    except ValueError:
+        prof = {}
+    reading, notice = None, None
+    if use_ai and _limited(request, "ai", AI_LIMIT) is None:
+        try:
+            reading = ai.read(body).model_dump()
+        except ai.StructuredError as e:
+            log.warning("start_ai_unavailable error=%s", e)
+            notice = "The AI reader is busy, so this was filled in by our built-in reader. Check the details below."
+    result = oneclick.start(body, prof, reading)
+    if notice:
+        result["notice"] = notice
+    return result
+
+
+@app.post("/api/pack")
+def make_pack(deal: oneclick.OneDeal, request: Request):
+    """One click, step 2: the quotation, proforma invoice and packing list from one set of figures, plus the
+    document checklist and the checks. Plain rules, no AI, instant."""
+    if (r := _limited(request, "plan", 120)):
+        return r
+    return oneclick.pack(deal)
+
+
+@app.post("/api/read")
+async def read(request: Request, text: str | None = Form(default=None), file: UploadFile | None = File(default=None)):
+    """Read a buyer's order, quote or email (pasted text, PDF or .txt) and return the deal it describes plus red flags."""
+    if (r := _limited(request, "ai", AI_LIMIT)):
+        return r
+    body = await _body(text, file)
+    if isinstance(body, JSONResponse):
+        return body
     try:
         reading = ai.read(body)
     except ai.StructuredError as e:
@@ -131,10 +184,17 @@ def tools(request: Request):
                                "one export deal. Deterministic rules, not AI. Use when an SME asks how to ship, price or get paid for a specific deal.",
                 "parameters": deal_schema}},
             {"type": "function", "function": {
+                "name": "deal_desk_pack",
+                "description": "Make the export documents for one deal: a quotation, proforma invoice and packing list from one set of "
+                               "figures, the documents to prepare, and checks for mistakes. Deterministic rules, not AI.",
+                "parameters": oneclick.OneDeal.model_json_schema()}},
+            {"type": "function", "function": {
                 "name": "deal_desk_read",
                 "description": "Read a foreign buyer's order, quote or email and return the deal details it states plus risky terms, each quoted from the text.",
                 "parameters": {"type": "object", "properties": {"text": {"type": "string", "description": "The buyer's message or order"}}, "required": ["text"]}}},
         ],
-        "endpoints": {"deal_desk_plan": f"POST {base}/api/plan (JSON body)", "deal_desk_read": f"POST {base}/api/read (form field 'text')"},
-        "launch_link": f"{base}/?product=&origin=&destination=&value=&currency=&mode=&buyer=",
+        "endpoints": {"deal_desk_plan": f"POST {base}/api/plan (JSON body)", "deal_desk_pack": f"POST {base}/api/pack (JSON body)",
+                      "deal_desk_read": f"POST {base}/api/read (form field 'text')",
+                      "one_click_start": f"POST {base}/api/start (form field 'text', optional 'file' and 'profile')"},
+        "launch_link": f"{base}/?text=<the user's message, URL-encoded>",
     }

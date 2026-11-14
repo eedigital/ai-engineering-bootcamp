@@ -30,6 +30,26 @@ class DealDraft(BaseModel):
     incoterm_mentioned: str | None = Field(default=None, max_length=60, description="Any delivery term the text names, e.g. 'FOB Shanghai'")
     payment_terms_mentioned: str | None = Field(default=None, max_length=200)
     delivery_date: str | None = Field(default=None, max_length=80)
+    # extra details for the one-click flow
+    quantity: float | None = Field(default=None, ge=0, description="Quantity of goods as a number")
+    quantity_unit: str | None = Field(default=None, max_length=20, description="kg, tonne, bags, boxes, units...")
+    unit_price: float | None = Field(default=None, ge=0)
+    price_unit: str | None = Field(default=None, max_length=20, description="What the unit price is per, e.g. kg")
+    containers: int | None = Field(default=None, ge=0, le=500)
+    origin_place: str | None = Field(default=None, max_length=80, description="Port or city goods leave from")
+    destination_place: str | None = Field(default=None, max_length=80, description="Port or city goods go to")
+    organic: bool | None = None
+    first_order: bool | None = Field(default=None, description="True if the text says it's a first order or new buyer")
+    hs_code_guess: str | None = Field(default=None, max_length=12, description="Your best 6-digit HS code for the product")
+
+    _t2 = field_validator("quantity_unit", "price_unit", mode="before")(_trim(20))
+    _t3 = field_validator("origin_place", "destination_place", "delivery_date", mode="before")(_trim(80))
+
+    @field_validator("hs_code_guess", mode="before")
+    @classmethod
+    def hs_digits(cls, v):
+        d = re.sub(r"\D", "", str(v or ""))
+        return d[:6] if len(d) >= 4 else None
 
     _t = field_validator("product", "payment_terms_mentioned", mode="before")(_trim(200))
 
@@ -61,7 +81,9 @@ class Reading(BaseModel):
 
 
 SYSTEM = """You help a small exporter read a message, order or quote from a foreign buyer.
-1. deal: fill in what the text states. Use null for anything it doesn't say. Never guess a value or country.
+1. deal: fill in what the text states. Use null for anything it doesn't say. Never guess a value, quantity or country.
+   The text may be the buyer's message or the seller describing the deal. Origin is where the goods leave from; destination is the buyer's country.
+   hs_code_guess is the one exception: give your best 6-digit HS code for the product described.
 2. red_flags: terms that put the seller at risk, up to 8, most serious first. Look for:
    - payment risks: long credit, paying only after the buyer resells, paying to a third party, partial payment only after delivery
    - fraud signals: changed or new bank details, urgency pressure, overpayment with a refund request, free samples shipped before payment
