@@ -2,7 +2,7 @@
 
 Answer four quick questions, or pick your nonprofit from IRS records. Grant Finder searches open US federal grants on Grants.gov, checks each one's eligibility rules against yours, quotes the grant to show why, ranks the matches, and drafts the core of an application.
 
-**Live:** https://grant-finder.onrender.com ← confirm once deployed
+**Live:** https://grant-finder-fhuv.onrender.com
 
 ## Two ways to search
 

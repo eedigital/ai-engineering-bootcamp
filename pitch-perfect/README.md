@@ -2,7 +2,7 @@
 
 Upload a startup pitch deck (PDF or PowerPoint). Get an investor's section-by-section review, a numbers check, and practice the questions investors will ask.
 
-**Live:** https://pitch-perfect.onrender.com ← confirm once deployed
+**Live:** https://pitch-perfect-j6rj.onrender.com
 
 ## What it does
 
