@@ -82,7 +82,7 @@ PRODUCTS: list[Product] = [
     P("olive_oil", "Extra virgin olive oil", "150920", ("olive", "oil"), food=True, package="cartons"),
     P("palm_oil", "Crude palm oil", "151110", ("palm", "oil"), food=True, eudr="palm", package="flexitanks"),
     P("soybeans", "Soya beans", "120190", ("soy",), plant=True, food=True, eudr="soy", package="tonnes in bulk"),
-    P("wine", "Wine in bottles of 2 litres or less", "220421", ("wine",), food=True, package="cases"),
+    P("wine", "Wine, in bottles of 2 litres or less", "220421", ("wine",), food=True, package="cases"),
     P("rum", "Rum", "220840", ("rum",), food=True, package="cases"),
     P("shrimp", "Shrimps and prawns, frozen", "030617", ("shrimp",), animal=True, food=True, package="cartons"),
     P("prawns", "Shrimps and prawns, frozen", "030617", ("prawn",), animal=True, food=True, package="cartons"),

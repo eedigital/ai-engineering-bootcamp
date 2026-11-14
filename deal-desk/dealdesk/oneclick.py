@@ -35,6 +35,7 @@ class OneDeal(BaseModel):
     product: str = Field(default="", max_length=200)
     product_key: str | None = None
     hs_code: str = Field(default="", max_length=12)
+    hs_confirmed: bool = Field(default=False, description="True when the code came from the buyer's order or the seller confirmed it")
     organic: bool = False
     origin_country: str = Field(default="", max_length=60)
     origin_place: str = Field(default="", max_length=80)
@@ -106,7 +107,7 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
     for n in ("origin_country", "destination_country", "origin_place", "destination_place", "value", "currency",
               "unit_price", "quantity", "quantity_unit", "containers", "mode", "incoterm_mentioned", "buyer_name"):
         take(n)
-    for n in ("buyer_address", "ship_window"):
+    for n in ("buyer_address", "ship_window", "seller_name", "seller_address"):
         if plain.get(n):
             fields[n] = _f(plain[n], "message")
     if not fields.get("ship_window") and ai.get("delivery_date"):
@@ -147,6 +148,11 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
         fields["product"] = _f(ai["product"], "message")
         if ai.get("hs_code_guess"):
             fields["hs_code"] = _f(ai["hs_code_guess"], "worked_out", "The AI's suggestion. Confirm it with customs or your broker.")
+
+    # an HS code written in the order beats our suggestion
+    if plain.get("hs_code"):
+        fields["hs_code"] = _f(plain["hs_code"], "message", "From the order.")
+        fields["hs_confirmed"] = _f(True, "message")
 
     # money: fill the gap between quantity, unit price and total
     qty = (fields.get("quantity") or {}).get("value")
@@ -275,6 +281,9 @@ def pack(d: OneDeal) -> dict:
 
     # one set of figures for every document
     packages = math.ceil(d.quantity / d.package_kg) if d.quantity and d.package_kg and d.quantity_unit == "kg" else None
+    package_type = d.package_type
+    if packages is None and d.quantity and d.quantity_unit in ("cases", "cartons", "boxes", "bags", "sacks", "bales", "drums", "pallets"):
+        packages, package_type = d.quantity, d.quantity_unit
     unit_price = d.unit_price if d.unit_price is not None else (round(d.value / d.quantity, 4) if d.value and d.quantity else None)
     total = d.value if d.value is not None else (round(d.quantity * d.unit_price, 2) if d.quantity and d.unit_price else None)
     ref = d.reference or f"DD-{date.today():%Y%m%d}"
@@ -296,7 +305,7 @@ def pack(d: OneDeal) -> dict:
                      "declaration": f"We declare that the goods are of {d.origin_country or '[country]'} origin."},
         "packing_list": {"title": "Packing list", "number": f"PL-{ref}", "date": str(today), **parties,
                          "description": line["description"], "hs_code": line["hs_code"],
-                         "packages": packages, "package_type": d.package_type, "package_kg": d.package_kg,
+                         "packages": packages, "package_type": package_type, "package_kg": d.package_kg,
                          "net_kg": d.quantity if d.quantity_unit == "kg" else None, "gross_kg": None,
                          "containers": d.containers, "container_size": d.container_size,
                          "marks": f"{(d.buyer_name or 'BUYER').upper()[:20]} / {d.destination_place or d.destination_country or 'DESTINATION'} / {ref}"},
@@ -363,6 +372,8 @@ def _checks(d: OneDeal, code, rec_code, pay, rec_pay, plan, p, total, unit_price
         add("warn", f"{d.quantity:,.0f} kg doesn't divide evenly into {d.package_kg:g} kg {d.package_type}: the last one would be part-full.")
     if not d.hs_code:
         add("warn", "Add the HS code. Customs, the buyer and the duty rate all depend on it.")
+    elif d.hs_confirmed:
+        add("ok", f"HS code {d.hs_code} as given in the order. The same code is on every document.")
     else:
         add("warn", f"Confirm HS code {d.hs_code} with customs or your broker, and add your country's extra digits.")
 

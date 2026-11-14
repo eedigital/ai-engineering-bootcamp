@@ -242,6 +242,23 @@ def buyer_name(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def parties(text: str) -> tuple[str | None, str | None]:
+    """(buyer, seller) from labelled lines. 'Buyer:'/'Seller:' first; in a purchase order, 'From:' is the buyer and 'To:' the seller."""
+    def labelled(labels: str) -> str | None:
+        m = re.search(rf"^\s*(?:{labels})\s*:\s*((?:[A-Z][\w&'\-]*\s){{0,4}}[A-Z][\w&'\-]*\s{COMPANY})(?![\w])", text, re.M)
+        return m.group(1).strip() if m else None
+    buyer, seller = labelled("Buyer|Customer|Importer|Consignee"), labelled("Seller|Supplier|Exporter|Vendor|Shipper")
+    if re.search(r"purchase order|\bP\.?O\.?\b", text, re.I):
+        buyer, seller = buyer or labelled("From"), seller or labelled("To")
+    return buyer, seller
+
+
+def hs_code(text: str) -> str | None:
+    """An HS code written in the text, e.g. 'HS code 2204.21' -> '220421'."""
+    m = re.search(r"\b(?:HS|H\.S\.|tariff)\s*(?:code|no\.?|number)?\s*[:#]?\s*(\d{4}(?:[.\s]?\d{2}){1,3})\b", text, re.I)
+    return re.sub(r"\D", "", m.group(1)) if m else None
+
+
 def buyer_address(text: str, name: str | None) -> str | None:
     """The rest of the line after the buyer's company name, when it looks like an address ('Am Sandtorkai 12, 20457 Hamburg')."""
     if not name:
@@ -304,8 +321,10 @@ def read(text: str, home_country: str | None = None) -> dict:
         "quantity": qty, "quantity_unit": qty_unit, "containers": n_containers, "container_size": size,
         "mode": mode(text) or ("sea_container" if n_containers or re.search(r"\b(FOB|CFR|CIF|FAS)\b|bill of lading|\bB/L\b", text) else None),
         "incoterm_mentioned": incoterm(text), "payment_kind": pay["kind"], "credit_days": pay["credit_days"],
-        "payment_terms_mentioned": pay["mentioned"], "relationship": rel, "buyer_name": (bn := buyer_name(text)),
-        "buyer_address": buyer_address(text, bn), "ship_window": ship_window(text),
+        "payment_terms_mentioned": pay["mentioned"], "relationship": rel,
+        "buyer_name": (bn := (labelled := parties(text))[0] or buyer_name(text)), "buyer_address": buyer_address(text, bn),
+        "seller_name": labelled[1], "seller_address": buyer_address(text, labelled[1]),
+        "ship_window": ship_window(text), "hs_code": hs_code(text),
         "organic": bool(re.search(r"\borganic\b", text, re.I)),
         "red_flags": risks(text, pay["credit_days"], rel),
     }

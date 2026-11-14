@@ -236,6 +236,7 @@
       <button class="chip" type="button" data-ex="coffee">Coffee to Germany</button>
       <button class="chip" type="button" data-ex="avocado">Avocados to the UK</button>
       <button class="chip" type="button" data-ex="order">A buyer's order</button>
+      <button class="chip" type="button" data-ex="wine">A complete repeat order</button>
     </div>
     <div class="how">
       <div><b>It finds the details</b>Product, HS code, quantities, price, route and what the buyer asked for.</div>
@@ -332,6 +333,7 @@ function show(id) {
 const EXAMPLES = {
   coffee: "I make organic coffee in Colombia and a buyer in Hamburg, Germany wants 2 containers (about 38,000 kg) for €210,000. It's my first export to them. They want me to ship by sea from Cartagena and pay 60 days after delivery.",
   avocado: "We grow avocados in Peru. A supermarket chain in the UK wants 3 x 40ft containers, 60,000 kg in total at USD 2.35 per kg, CIF Felixstowe, paid 90 days from invoice. They're a new customer.",
+  wine: "PURCHASE ORDER NW-2027-031\nFrom: Nordic Wines AB, Hamngatan 5, 411 06 Gothenburg, Sweden\nTo: Viña Los Andes SpA, Avenida Apoquindo 3000, Las Condes, Santiago, Chile\n\nRepeat order from our regular customer account. Please supply 1,200 cases of Cabernet Sauvignon red wine (12 x 750 ml bottles per case), HS code 2204.21, at EUR 38.50 per case.\nDelivery: CIP Gothenburg, Incoterms 2020, in 1 x 40ft container shipped from San Antonio to Gothenburg.\nShipment: April 2027.\nPayment: 30 days after invoice, as usual.",
   order: "PURCHASE ORDER 2027-114\nFrom: Kaffee Handel GmbH, Am Sandtorkai 12, 20457 Hamburg, Germany\nTo: our supplier in Colombia\n\nPlease supply 19,200 kg green coffee (Excelso, organic) at USD 4.20 per kg, FOB Buenaventura. Shipment: March 2027.\nPayment: 30% advance, balance against copy of B/L.\nNote: please use our new bank account details for any refunds. Urgent confirmation needed.",
 };
 $$("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#text").value = EXAMPLES[b.dataset.ex]; $("#text").focus(); }));
@@ -460,6 +462,7 @@ function renderFields() {
     if (el.type === "number") v = v === "" ? null : +v;
     if (k === "organic") v = v === "true";
     deal[k] = v; sources[k] = { source: "you" };
+    if (k === "hs_code") deal.hs_confirmed = !!v;
     if (k === "quantity" || k === "unit_price") recalc();
     renderFields();
     document.getElementById("f-" + k)?.focus();
@@ -474,7 +477,7 @@ function renderFlags() {
 $("#restart").addEventListener("click", () => show("start"));
 $("#make").addEventListener("click", makePack);
 
-const DEAL_KEYS = ["product","product_key","hs_code","organic","origin_country","origin_place","destination_country","destination_place","quantity","quantity_unit","unit_price","value","currency","containers","container_size","package_type","package_kg","mode","transport_by","delivery_to","insurance_by","seller_clears_import","relationship","destination_risk","buyer_accepts_lc","incoterm_requested","payment_requested","credit_days","incoterm","payment","deposit_pct","buyer_name","buyer_address","seller_name","seller_address","seller_tax_id","ship_window","reference"];
+const DEAL_KEYS = ["product","product_key","hs_code","hs_confirmed","organic","origin_country","origin_place","destination_country","destination_place","quantity","quantity_unit","unit_price","value","currency","containers","container_size","package_type","package_kg","mode","transport_by","delivery_to","insurance_by","seller_clears_import","relationship","destination_risk","buyer_accepts_lc","incoterm_requested","payment_requested","credit_days","incoterm","payment","deposit_pct","buyer_name","buyer_address","seller_name","seller_address","seller_tax_id","ship_window","reference"];
 function payload() {
   const prof = store.get("dd-profile", {});
   const out = { red_flags: flags.slice(0, 8) };
@@ -532,7 +535,7 @@ function renderPack(p) {
   const shown = p.checks.filter((x) => x.level !== "ok"), passed = p.checks.filter((x) => x.level === "ok");
   $("#checks").innerHTML = `<div class="checks-head"><h2>${head}</h2><div class="tally">${c.fix ? `<span class="t-fix">${c.fix} to fix</span>` : ""}${c.warn ? `<span class="t-warn">${c.warn} to check</span>` : ""}<span class="t-ok">${c.ok} passed</span></div></div>
     <ul>${shown.map((x) => `<li class="${x.level}"><i aria-hidden="true">${icon[x.level]}</i><span>${esc(x.text)}</span></li>`).join("")}</ul>
-    <details class="more"><summary class="muted">${passed.length} checks passed</summary><ul>${passed.map((x) => `<li class="ok"><i aria-hidden="true">✓</i><span>${esc(x.text)}</span></li>`).join("")}</ul></details>`;
+    <details class="more" ${shown.length ? "" : "open"}><summary class="muted">${passed.length} checks passed</summary><ul>${passed.map((x) => `<li class="ok"><i aria-hidden="true">✓</i><span>${esc(x.text)}</span></li>`).join("")}</ul></details>`;
 
   const pb = $("#passbadge");
   pb.hidden = p.locked || !p.pass;
@@ -576,15 +579,16 @@ $$("#tabs .tab").forEach((t) => t.addEventListener("click", () => {
   renderDocs();
 }));
 
-function partyBlock(label, p) {
-  return `<div class="party"><b>${label}</b>${ph(p.name)}<br>${ph(p.address)}${p.tax_id ? `<br>Tax ID: ${ph(p.tax_id)}` : ""}</div>`;
+function partyBlock(label, p, taxRequired = false) {
+  const tax = p.tax_id && (taxRequired || !p.tax_id.startsWith("[")) ? `<br>Tax ID: ${ph(p.tax_id)}` : "";
+  return `<div class="party"><b>${label}</b>${ph(p.name)}<br>${ph(p.address)}${tax}</div>`;
 }
 function lineTable(doc) {
   const cur = doc.currency;
   return `<table><thead><tr><th>Description</th><th>HS code</th><th>Origin</th><th class="num">Quantity</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead><tbody>
     ${doc.lines.map((l) => `<tr><td>${ph(l.description)}</td><td>${ph(l.hs_code)}</td><td>${ph(l.origin)}</td>
       <td class="num">${l.quantity != null ? num(l.quantity, 0) + " " + esc(l.unit) : ph("[quantity]")}</td>
-      <td class="num">${l.unit_price != null ? cur + " " + num(l.unit_price, 4).replace(/0{1,2}$/, "") + " / " + esc(l.unit === "kg" ? "kg" : "unit") : ph("[price]")}</td>
+      <td class="num">${l.unit_price != null ? cur + " " + num(l.unit_price, 4).replace(/0{1,2}$/, "") + " / " + esc(l.unit === "kg" ? "kg" : ({ cases: "case", cartons: "carton", boxes: "box", bags: "bag", bottles: "bottle", pieces: "piece", units: "unit" }[l.unit] || "unit")) : ph("[price]")}</td>
       <td class="num">${l.amount != null ? cur + " " + num(l.amount) : ph("[amount]")}</td></tr>`).join("")}
     <tr class="total"><td colspan="5">Total</td><td class="num">${doc.total != null ? cur + " " + num(doc.total) : ph("[total]")}</td></tr></tbody></table>`;
 }
@@ -606,7 +610,7 @@ function renderDocs() {
       <div class="foot">This quotation is an offer for discussion. A sale is agreed only in a signed contract or confirmed order.</div></article>`;
   } else if (currentDoc === "proforma") {
     const q = D.proforma;
-    html = `<article class="sheet printing"><div class="top">${partyBlock("Seller", q.seller)}<div><h3>Proforma invoice</h3><div class="meta">No. ${esc(q.number)}<br>Date ${esc(q.date)}</div></div></div>
+    html = `<article class="sheet printing"><div class="top">${partyBlock("Seller", q.seller, true)}<div><h3>Proforma invoice</h3><div class="meta">No. ${esc(q.number)}<br>Date ${esc(q.date)}</div></div></div>
       <div class="parties">${partyBlock("Buyer", q.buyer)}<div class="party"><b>Pay to</b>${ph(q.bank)}</div></div>${lineTable(q)}${termsList(q.terms)}
       <p>${ph(q.declaration)}</p><div class="sign"><div>Signature and company stamp</div></div>
       <div class="foot">Proforma invoice: not a demand for payment unless agreed in the payment terms.</div></article>`;

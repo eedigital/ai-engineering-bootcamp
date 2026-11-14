@@ -272,3 +272,32 @@ def test_paywall_can_be_switched_off(client, monkeypatch):
     from dealdesk import paywall
     monkeypatch.setattr(paywall, "ENABLED", False)
     assert client.post("/api/pack", json=DEAL).json()["documents"]["quotation"]["total"] == 4000
+
+
+WINE = ("PURCHASE ORDER NW-2027-031\nFrom: Nordic Wines AB, Hamngatan 5, 411 06 Gothenburg, Sweden\n"
+        "To: Viña Los Andes SpA, Avenida Apoquindo 3000, Las Condes, Santiago, Chile\n\n"
+        "Repeat order from our regular customer account. Please supply 1,200 cases of Cabernet Sauvignon red wine "
+        "(12 x 750 ml bottles per case), HS code 2204.21, at EUR 38.50 per case.\n"
+        "Delivery: CIP Gothenburg, Incoterms 2020, in 1 x 40ft container shipped from San Antonio to Gothenburg.\n"
+        "Shipment: April 2027.\nPayment: 30 days after invoice, as usual.")
+
+
+def test_a_complete_order_needs_no_questions_and_passes_every_check():
+    r = oneclick.start(WINE)
+    assert r["questions"] == [] and r["red_flags"] == []
+    f = r["fields"]
+    assert (f["buyer_name"]["value"], f["seller_name"]["value"]) == ("Nordic Wines AB", "Viña Los Andes SpA")
+    assert f["hs_code"]["value"] == "220421" and f["hs_confirmed"]["value"] is True
+    p = oneclick.pack(oneclick.OneDeal(**{k: v["value"] for k, v in f.items() if k in oneclick.OneDeal.model_fields}))
+    assert {c["level"] for c in p["checks"]} == {"ok"}
+    assert p["documents"]["packing_list"]["packages"] == 1200 and p["documents"]["packing_list"]["package_type"] == "cases"
+
+
+def test_profile_beats_the_seller_named_in_an_order():
+    f = oneclick.start(WINE, {"name": "My Winery Ltd"})["fields"]
+    assert f["seller_name"] == {"value": "My Winery Ltd", "source": "profile"}
+
+
+def test_suggested_hs_code_still_needs_confirming():
+    p = oneclick.pack(coffee_deal())
+    assert any("Confirm HS code" in t for t in levels(p, "warn"))
