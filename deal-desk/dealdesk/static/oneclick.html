@@ -105,6 +105,12 @@
   .src.assumed { background: var(--warn-bg); color: var(--warn); }
   .src.profile, .src.you { background: var(--soft); color: var(--muted); border: 1px solid var(--line); }
   .legend { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem; }
+  .hs-tools { grid-column: 1 / -1; background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.8rem 0.9rem; }
+  .hs-tools input { width: 100%; border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.5rem 0.65rem; }
+  .hs-list { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.3rem; max-height: 18rem; overflow: auto; }
+  .hs-list button { width: 100%; text-align: left; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.45rem 0.65rem; cursor: pointer; font-size: 0.9375rem; display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.5rem; }
+  .hs-list button:hover, .hs-list button[aria-current="true"] { border-color: var(--accent); }
+  .hs-list b { font-variant-numeric: tabular-nums; }
   .flags { display: grid; gap: 0.5rem; }
   .flag { border-left: 4px solid var(--warn); background: var(--warn-bg); border-radius: 0 var(--r-small) var(--r-small) 0; padding: 0.6rem 0.9rem; font-size: 0.9375rem; }
   .flag.high { border-color: var(--no); background: var(--no-bg); }
@@ -454,19 +460,60 @@ function renderFields() {
     if (type === "select") input = `<select id="f-${k}" data-k="${k}">${SELECTS[k].map(([val, l]) => `<option value="${val}" ${String(v ?? (k === "organic" ? "false" : "")) === val ? "selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
     else input = `<input id="f-${k}" data-k="${k}" ${type === "number" ? 'type="number" min="0" step="any"' : 'type="text"'} ${type === "country" ? 'list="countries"' : ""} value="${esc(v ?? "")}">`;
     const badge = s ? `<span class="src ${s.source}">${SRC_LABEL[s.source]}</span>` : "";
-    return `<div class="field ${empty && type !== "select" ? "empty" : ""}"><label for="f-${k}">${label}${badge}</label>${input}${s?.note ? `<div class="note">${esc(s.note)}</div>` : ""}</div>`;
+    const find = k === "hs_code" ? ` <button class="link" type="button" id="hs-find" style="font-size:.8125rem">${s?.options?.length ? "See other matches" : "Find a code"}</button>` : "";
+    return `<div class="field ${empty && type !== "select" ? "empty" : ""}"><label for="f-${k}">${label}${badge}</label>${input}${s?.note ? `<div class="note">${esc(s.note)}</div>` : ""}${find}</div>`
+      + (k === "hs_code" ? `<div class="hs-tools" id="hs-tools" hidden></div>` : "");
   }).join("")}</div></div>`).join("") + (document.getElementById("countries") ? "" : `<datalist id="countries">${COUNTRIES.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`);
+  $("#hs-find")?.addEventListener("click", openHsSearch);
   $$("#groups [data-k]").forEach((el) => el.addEventListener("change", () => {
     const k = el.dataset.k;
     let v = el.value.trim();
     if (el.type === "number") v = v === "" ? null : +v;
     if (k === "organic") v = v === "true";
     deal[k] = v; sources[k] = { source: "you" };
-    if (k === "hs_code") deal.hs_confirmed = !!v;
+    if (k === "hs_code") { deal.hs_confirmed = !!v; if (v) describeHs(v); }
     if (k === "quantity" || k === "unit_price") recalc();
     renderFields();
     document.getElementById("f-" + k)?.focus();
   }));
+}
+
+// ---------- HS codes: all 5,600 six-digit codes ----------
+let hsTimer;
+function openHsSearch() {
+  const box = $("#hs-tools");
+  box.hidden = false;
+  const opts = sources.hs_code?.options || [];
+  box.innerHTML = `<label for="hs-q" style="font-weight:700;font-size:.875rem">Search all HS codes (HS 2022)</label>
+    <input id="hs-q" placeholder="Describe the product, e.g. leather handbags, or type a code" value="${esc((deal.product || "").split(",")[0])}">
+    <ul class="hs-list" id="hs-results"></ul>`;
+  const show = (list) => {
+    $("#hs-results").innerHTML = list.length ? list.map((x) => `<li><button type="button" data-code="${esc(x.code)}" aria-current="${x.code === deal.hs_code}"><b>${esc(x.code)}</b><span>${esc(x.description)}</span></button></li>`).join("")
+      : `<li class="muted" style="font-size:.9375rem">No matches. Try other words, or the material it's made of.</li>`;
+    $$("#hs-results [data-code]").forEach((b) => b.addEventListener("click", () => pickHs(b.dataset.code, b.querySelector("span").textContent)));
+  };
+  const run = async () => {
+    const q = $("#hs-q").value.trim();
+    if (q.length < 2) return show(opts);
+    try { const r = await fetch("/api/hs?q=" + encodeURIComponent(q)); show((await r.json()).results || []); } catch { /* keep the last list */ }
+  };
+  $("#hs-q").addEventListener("input", () => { clearTimeout(hsTimer); hsTimer = setTimeout(run, 250); });
+  if (opts.length) show(opts); else run();
+  $("#hs-q").focus();
+}
+function pickHs(code, description) {
+  deal.hs_code = code; deal.hs_confirmed = true;
+  if (!deal.product_key || String(deal.product_key).startsWith("hs")) deal.product_key = "hs" + code;
+  sources.hs_code = { source: "you", note: `You chose it. HS 2022: ${description}`, options: sources.hs_code?.options };
+  renderFields();
+}
+async function describeHs(code) {
+  try {
+    const r = await fetch("/api/hs?q=" + encodeURIComponent(code));
+    const x = ((await r.json()).results || [])[0];
+    sources.hs_code = { ...sources.hs_code, source: "you", note: x ? `HS 2022: ${x.description}` : "This code isn't in the HS 2022 list. Use “Find a code”." };
+    renderFields();
+  } catch {}
 }
 
 function renderFlags() {

@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from . import extract, products, rules
+from . import extract, hs, products, rules
 
 LOW_RISK = {"Germany", "France", "Netherlands", "Belgium", "Austria", "Denmark", "Sweden", "Finland", "Ireland", "Luxembourg",
             "Spain", "Italy", "Portugal", "United Kingdom", "Switzerland", "Norway", "United States", "Canada", "Japan",
@@ -139,19 +139,28 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
 
     # the product: our table first (reliable), then the AI's description and HS guess
     p = products.find(ai.get("product") or "") or products.find(text)
+    phrase = ai.get("product") or plain.get("product_phrase")
     if p:
         fields["product_key"] = _f(p.key, "worked_out")
         name = p.name if not fields.get("organic") else f"Organic {p.name[0].lower()}{p.name[1:]}"
         fields["product"] = _f(ai.get("product") or name, "message" if ai.get("product") else "worked_out")
-        fields["hs_code"] = _f(p.hs, "worked_out", "Suggested from the product. Confirm the full code for your country with customs or your broker.")
-    elif ai.get("product"):
-        fields["product"] = _f(ai["product"], "message")
-        if ai.get("hs_code_guess"):
-            fields["hs_code"] = _f(ai["hs_code_guess"], "worked_out", "The AI's suggestion. Confirm it with customs or your broker.")
+        fields["hs_code"] = _f(p.hs, "worked_out", _hs_note(p.hs, "Suggested from the product."))
+    elif phrase:
+        # anything else: search the full HS list, and check the AI's guess is a real code
+        fields["product"] = _f(phrase[0].upper() + phrase[1:], "message")
+        found = hs.search(phrase, 5)
+        guess = ai.get("hs_code_guess")
+        if guess and hs.valid(guess) and len(guess) == 6:
+            found = [{"code": guess, "description": hs.describe(guess)}] + [x for x in found if x["code"] != guess][:4]
+        if found:
+            top = found[0]["code"]
+            fields["hs_code"] = _f(top, "worked_out", _hs_note(top, "Best match in the HS list. Pick another if it's not right."))
+            fields["hs_code"]["options"] = [{"code": x["code"], "description": x["description"]} for x in found]
+            fields["product_key"] = _f(f"hs{top}", "worked_out")
 
     # an HS code written in the order beats our suggestion
-    if plain.get("hs_code"):
-        fields["hs_code"] = _f(plain["hs_code"], "message", "From the order.")
+    if plain.get("hs_code") and hs.valid(plain["hs_code"]):
+        fields["hs_code"] = _f(plain["hs_code"], "message", _hs_note(plain["hs_code"], "From the order."))
         fields["hs_confirmed"] = _f(True, "message")
 
     # money: fill the gap between quantity, unit price and total
@@ -223,6 +232,11 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
     return {"fields": fields, "questions": asked, "red_flags": flags, "reader": "ai" if ai_reading else "rules"}
 
 
+def _hs_note(code: str, lead: str) -> str:
+    d = hs.describe(code)
+    return f"{lead} {hs.EDITION}: {d}" if d else lead
+
+
 def _product_set(key: str, fields: dict) -> dict:
     p = products.BY_KEY[key]
     organic = bool((fields.get("organic") or {}).get("value"))
@@ -277,7 +291,7 @@ def pack(d: OneDeal) -> dict:
     pay = d.payment if d.payment in rules.METHODS else rec_pay
     place = named_place(d, code)
     delivery = f"{code} {place}, Incoterms® 2020"
-    p = products.BY_KEY.get(d.product_key or "") or products.find(d.product)
+    p = products.BY_KEY.get(d.product_key or "") or products.find(d.product) or (products.from_hs(d.hs_code, d.product) if d.hs_code else None)
 
     # one set of figures for every document
     packages = math.ceil(d.quantity / d.package_kg) if d.quantity and d.package_kg and d.quantity_unit == "kg" else None
@@ -372,8 +386,10 @@ def _checks(d: OneDeal, code, rec_code, pay, rec_pay, plan, p, total, unit_price
         add("warn", f"{d.quantity:,.0f} kg doesn't divide evenly into {d.package_kg:g} kg {d.package_type}: the last one would be part-full.")
     if not d.hs_code:
         add("warn", "Add the HS code. Customs, the buyer and the duty rate all depend on it.")
+    elif not hs.valid(d.hs_code):
+        add("fix", f"HS code {d.hs_code} isn't in the {hs.EDITION} list. Search for the right one.")
     elif d.hs_confirmed:
-        add("ok", f"HS code {d.hs_code} as given in the order. The same code is on every document.")
+        add("ok", f"HS code {d.hs_code} confirmed: {(hs.describe(d.hs_code) or '')[:90]}. The same code is on every document.")
     else:
         add("warn", f"Confirm HS code {d.hs_code} with customs or your broker, and add your country's extra digits.")
 

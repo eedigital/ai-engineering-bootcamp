@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-from . import ai, oneclick, paywall, rules  # noqa: E402
+from . import ai, hs, oneclick, paywall, rules  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("dealdesk")
@@ -146,6 +146,19 @@ async def start(request: Request, text: str | None = Form(default=None), file: U
     if notice:
         result["notice"] = notice
     return result
+
+
+@app.get("/api/hs")
+def hs_search(q: str = "", request: Request = None):
+    """Search all 5,600 six-digit HS 2022 codes by plain words ('green coffee', 'laptop'), or look up a code."""
+    if request is not None and (r := _limited(request, "hs", 120)):
+        return r
+    q = q.strip()[:100]
+    digits = "".join(c for c in q if c.isdigit())
+    if digits and len(digits) >= 4 and len(digits) == len(q.replace(".", "").replace(" ", "")):
+        d = hs.describe(digits)
+        return {"edition": hs.EDITION, "results": [{"code": digits[:6], "description": d}] if d else []}
+    return {"edition": hs.EDITION, "results": hs.search(q, 8) if len(q) >= 2 else []}
 
 
 @app.post("/api/pack")

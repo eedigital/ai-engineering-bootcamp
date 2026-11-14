@@ -301,3 +301,58 @@ def test_profile_beats_the_seller_named_in_an_order():
 def test_suggested_hs_code_still_needs_confirming():
     p = oneclick.pack(coffee_deal())
     assert any("Confirm HS code" in t for t in levels(p, "warn"))
+
+
+# --- the full HS list ---------------------------------------------------------------------------
+
+from dealdesk import hs  # noqa: E402
+
+
+def test_the_full_hs_2022_list_is_loaded():
+    six = [c for c in hs.table() if len(c) == 6]
+    assert len(six) > 5000 and hs.describe("854143").startswith("Electrical apparatus; photosensitive")
+    assert not hs.valid("999999") and hs.valid("0901.11") and hs.valid("0901110000")
+
+
+@pytest.mark.parametrize("query,code", [
+    ("green coffee", "090111"), ("laptop", "847130"), ("solar panels", "854143"), ("frozen shrimp", "030617"),
+    ("smartphones", "851713"), ("lithium-ion batteries", "850760"), ("cotton t-shirts", "610910"), ("quinoa", "100850"),
+    ("leather shoes", "640510"), ("fresh salmon", "030214"), ("leather wallets", "420231"), ("sunglasses", "900410"),
+])
+def test_hs_search_finds_everyday_products(query, code):
+    assert hs.search(query, 3)[0]["code"] == code
+
+
+def test_hs_needs_come_from_the_chapter():
+    assert hs.needs("080440")["plant"] and hs.needs("030617")["animal"] and hs.needs("180631")["eudr"] == "cocoa"
+    assert hs.needs("847130") == {"plant": False, "animal": False, "food": False, "eudr": None}
+
+
+def test_products_outside_our_list_get_a_code_and_alternatives():
+    f = oneclick.start("We manufacture solar panels in Vietnam. A buyer in Spain wants 2 x 40ft containers for USD 180,000.")["fields"]
+    assert f["product"]["value"] == "Solar panels" and f["hs_code"]["value"] == "854143"
+    assert len(f["hs_code"]["options"]) >= 3 and "photovoltaic" in f["hs_code"]["note"]
+
+
+def test_the_ais_hs_guess_is_used_only_if_it_is_a_real_code():
+    real = {"deal": {"product": "ceramic mugs", "hs_code_guess": "691200"}, "red_flags": []}
+    fake = {"deal": {"product": "ceramic mugs", "hs_code_guess": "123456"}, "red_flags": []}
+    assert oneclick.start("Selling mugs to a buyer in Japan", None, real)["fields"]["hs_code"]["value"] == "691200"
+    assert oneclick.start("Selling mugs to a buyer in Japan", None, fake)["fields"]["hs_code"]["value"] != "123456"
+
+
+def test_a_code_that_does_not_exist_must_be_fixed():
+    p = oneclick.pack(oneclick.OneDeal(product="Widgets", hs_code="123456", destination_country="Japan", value=1000))
+    assert any("isn't in the HS 2022 list" in t for t in levels(p, "fix"))
+
+
+def test_hs_endpoint(client):
+    assert client.get("/api/hs?q=green coffee").json()["results"][0]["code"] == "090111"
+    assert client.get("/api/hs?q=0901.11").json()["results"][0]["description"].startswith("Coffee; not roasted")
+    assert client.get("/api/hs?q=x").json()["results"] == []
+
+
+def test_price_each_is_a_unit_price():
+    assert extract.money("400 pieces at USD 85 each")[2] == 85
+    f = oneclick.start("A boutique in Paris, France wants 400 pieces of leather handbags at USD 85 each.")["fields"]
+    assert f["value"]["value"] == 34000 and f["value"]["source"] == "worked_out"

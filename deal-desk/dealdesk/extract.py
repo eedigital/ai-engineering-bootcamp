@@ -74,14 +74,15 @@ def money(text: str) -> tuple[float | None, str | None, float | None, str | None
     cur = r"(US\$|USD|EUR|GBP|JPY|CNY|CHF|CAD|AUD|INR|BRL|COP|MXN|AED|\$|€|£|¥)"
     amt = r"(\d[\d,\.]*)\s*(million|thousand|mn|m|k)?\b"
     found: list[tuple[float, str, str | None]] = []  # value, currency, per-unit
-    for m in re.finditer(cur + r"\s?" + amt + r"(\s*(?:per|/)\s*(kg|kilo|lb|tonne|ton|mt|bag|box|unit|piece|pc|carton|bottle|case))?", text, re.I):
+    per = r"(\s*(?:per|/|a)\s*(kg|kilo|lb|tonne|ton|mt|bag|box|unit|piece|pc|carton|bottle|case|pair|dozen)\b|\s*(each|apiece)\b)?"
+    for m in re.finditer(cur + r"\s?" + amt + per, text, re.I):
         v = _num(m.group(2))
         if v is not None:
-            found.append((_scale(v, m.group(3)), CURRENCY_WORDS.get(m.group(1).lower(), m.group(1).upper()), m.group(5)))
-    for m in re.finditer(amt + r"\s*(USD|EUR|GBP|euros?|dollars|pounds|JPY|CNY|CHF|CAD|AUD)(\s*(?:per|/)\s*(kg|kilo|lb|tonne|ton|mt|bag|box|unit|piece|carton|bottle|case))?", text, re.I):
+            found.append((_scale(v, m.group(3)), CURRENCY_WORDS.get(m.group(1).lower(), m.group(1).upper()), m.group(5) or (m.group(6) and "unit")))
+    for m in re.finditer(amt + r"\s*(USD|EUR|GBP|euros?|dollars|pounds|JPY|CNY|CHF|CAD|AUD)" + per, text, re.I):
         v = _num(m.group(1))
         if v is not None:
-            found.append((_scale(v, m.group(2)), CURRENCY_WORDS.get(m.group(3).lower(), m.group(3).upper()), m.group(5)))
+            found.append((_scale(v, m.group(2)), CURRENCY_WORDS.get(m.group(3).lower(), m.group(3).upper()), m.group(5) or (m.group(6) and "unit")))
     totals = [f for f in found if not f[2]]
     units = [f for f in found if f[2]]
     total = max(totals, key=lambda f: f[0]) if totals else None
@@ -242,6 +243,24 @@ def buyer_name(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+_NOT_PRODUCT = {"them", "it", "us", "you", "a", "the", "to", "some", "goods", "products", "an", "order", "this", "that", "more"}
+
+
+def product_phrase(text: str) -> str | None:
+    """The goods in plain words: 'I make organic coffee in Colombia' -> 'organic coffee'."""
+    m = re.search(r"\b(?:supply|supplying|order|ordering|buy|buying|purchase|sell|selling|export|exporting|ship|shipping|wants?|"
+                  r"needs?|make|makes|produce|produces|grow|grows|manufacture|manufactures)\s+(?:(?:about|around|approximately)\s+)?"
+                  r"(?:[\d,\.]+\s*(?:x\s*)?(?:(?:20|40)\s*(?:ft|')?\s*)?(?:kg|kgs|tonnes?|tons?|mt|units|pieces|pcs|cartons|boxes|bags|"
+                  r"sacks|cases|containers?|pallets|bottles|bales|drums)?\s*(?:of\s+)?)?"
+                  r"([a-z][a-z\-]*(?:\s+[a-z][a-z\-]*){0,4}?)(?=\s+(?:at|for|to|from|in|by|per|each|every|and|which|that)\b|\s*[,.;:(\n]|$)",
+                  text, re.I)
+    if not m:
+        return None
+    phrase = m.group(1).strip().lower()
+    words = phrase.split()
+    return phrase if words and words[0] not in _NOT_PRODUCT and len(phrase) > 2 else None
+
+
 def parties(text: str) -> tuple[str | None, str | None]:
     """(buyer, seller) from labelled lines. 'Buyer:'/'Seller:' first; in a purchase order, 'From:' is the buyer and 'To:' the seller."""
     def labelled(labels: str) -> str | None:
@@ -324,7 +343,7 @@ def read(text: str, home_country: str | None = None) -> dict:
         "payment_terms_mentioned": pay["mentioned"], "relationship": rel,
         "buyer_name": (bn := (labelled := parties(text))[0] or buyer_name(text)), "buyer_address": buyer_address(text, bn),
         "seller_name": labelled[1], "seller_address": buyer_address(text, labelled[1]),
-        "ship_window": ship_window(text), "hs_code": hs_code(text),
+        "ship_window": ship_window(text), "hs_code": hs_code(text), "product_phrase": product_phrase(text),
         "organic": bool(re.search(r"\borganic\b", text, re.I)),
         "red_flags": risks(text, pay["credit_days"], rel),
     }

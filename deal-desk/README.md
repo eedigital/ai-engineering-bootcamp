@@ -9,7 +9,7 @@
 The home page works like accounting software for exporting: the rules are public, but people pay not to make mistakes.
 
 1. **Drop in what you have.** Paste the buyer's email or order, attach their PDF, or describe the deal in one sentence.
-2. **It finds and works out the rest.** Product and a suggested HS code (`dealdesk/products.py`), quantities, price, unit price, route and ports, containers, bags, what the buyer asked for, and the risky terms. Every field shows where it came from: from the message, worked out, assumed, or your saved details.
+2. **It finds and works out the rest.** Product and its HS code from **all 5,612 six-digit codes of HS 2022** (`dealdesk/hs.py`, public-domain data from UN Comtrade). A hand-made list (`dealdesk/products.py`) covers common exports in plain words ("green coffee" is 090111, not roasted); anything else is matched by searching the full list, with alternatives to pick from, and the AI's guesses are used only if they're real codes. You can search all codes on the check screen (`GET /api/hs?q=`). Then quantities, price, unit price, route and ports, containers, bags, what the buyer asked for, and the risky terms. Every field shows where it came from: from the message, worked out, assumed, or your saved details.
 3. **At most three questions,** in plain words, only for what it can't find ("Green or roasted?", "Who books the transport?"). Anything else is assumed, safely, and marked.
 4. **One set of figures, three documents:** a quotation, proforma invoice and packing list, printable or saved as PDF, with gaps highlighted and fillable in place.
 5. **Checks before sending:** totals that don't add up, overloaded containers, part-full packages, FOB asked for container cargo, credit for a new buyer, letters of credit with FCA, insurance at 110% for CIF/CIP, the EU Deforestation Regulation, organic certificates in TRACES, trade-agreement proof of origin.
@@ -50,7 +50,7 @@ The embed only exchanges messages with the page that embedded it. For production
 
 ## Tests
 
-`pytest -q` from the repo root. 40 tests for the planner and 48 for one click and the paywall (product lookup, the plain-code reader, what's asked and assumed, one set of figures across documents, each check, and that documents stay locked without a genuine, unexpired pass for that product and market). Planner tests cover every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
+`pytest -q` from the repo root. 40 tests for the planner and 48 for one click and the paywall (product lookup, the plain-code reader, what's asked and assumed, one set of figures across documents, HS search across everyday products, each check, and that documents stay locked without a genuine, unexpired pass for that product and market). Planner tests cover every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
 
 ## Run locally
 

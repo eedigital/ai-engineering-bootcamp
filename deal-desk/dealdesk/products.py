@@ -123,6 +123,17 @@ def find(text: str) -> Product | None:
     return best[1] if best else None
 
 
+def from_hs(code: str, name: str = "") -> Product | None:
+    """A product outside our list, described by its HS code. Its needs (plant, animal, EUDR) come from the HS chapter."""
+    from . import hs
+    c = "".join(ch for ch in code or "" if ch.isdigit())[:6]
+    if not hs.valid(c):
+        return None
+    n = hs.needs(c)
+    return Product(key=f"hs{c}", name=name or hs.describe(c) or c, hs=c, words=(), plant=n["plant"], animal=n["animal"],
+                   food=n["food"], eudr=n["eudr"], package="packages")
+
+
 def package_for(p: Product, origin: str | None) -> tuple[float | None, str]:
     """A common package size to offer as an assumption. Colombian green coffee usually ships in 70 kg bags."""
     if p.key.startswith("coffee_green") or p.key == "coffee":
