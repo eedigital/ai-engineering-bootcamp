@@ -2,7 +2,7 @@
 
 **Get one export deal right.** A concept prototype built to plug into [ICC One Click](https://oneclick.iccwbo.org/). Not an official ICC product.
 
-**Live:** https://deal-desk.onrender.com ← confirm once deployed · **Integration guide:** `/integrate` · **API reference:** `/docs`
+**Live:** https://deal-desk-gzud.onrender.com · **Integration guide:** `/integrate` · **API reference:** `/docs`
 
 An SME describes one deal, or pastes the buyer's order or email, and gets a deal pack:
 
