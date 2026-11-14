@@ -83,6 +83,8 @@
   .question:first-of-type { border-top: 0; padding-top: 0; }
   .question p { margin: 0 0 0.55rem; font-weight: 700; font-size: 1.0625rem; }
   .question .opts { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .question[data-id="hs"] .opts { flex-direction: column; align-items: stretch; }
+  .question[data-id="hs"] .opt { text-align: left; }
   .question .opt { background: transparent; color: #fff; border: 1.5px solid rgb(255 255 255 / 0.5); border-radius: var(--r-small); padding: 0.5rem 0.95rem; cursor: pointer; }
   .question .opt:hover { border-color: #fff; }
   .question .opt[aria-pressed="true"] { background: #fff; color: var(--ink); border-color: #fff; }
@@ -432,7 +434,10 @@ function renderQuestions(qs) {
   $$(".opt", list).forEach((b) => b.addEventListener("click", () => {
     const q = qs.find((x) => x.id === b.dataset.q);
     $$(`.opt[data-q="${q.id}"]`, list).forEach((x) => x.setAttribute("aria-pressed", x === b));
-    apply(q.options[+b.dataset.i].set);
+    const set = q.options[+b.dataset.i].set;
+    if (set._search) { openHsSearch(); $("#hs-tools").scrollIntoView({ block: "center" }); return; }
+    apply(set);
+    if (set.hs_code) sources.hs_code = { source: "you", note: `You chose it. HS 2022: ${b.textContent.split(": ").slice(1).join(": ")}`, options: sources.hs_code?.options };
     markAnswered(q.id);
   }));
   $$("input[data-field], select[data-field]", list).forEach((el) => el.addEventListener("change", () => {

@@ -243,13 +243,17 @@ def buyer_name(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
-_NOT_PRODUCT = {"them", "it", "us", "you", "a", "the", "to", "some", "goods", "products", "an", "order", "this", "that", "more"}
+_NOT_PRODUCT = {"them", "it", "us", "you", "a", "the", "to", "some", "goods", "products", "an", "order", "this", "that", "more",
+                "pieces", "piece", "units", "unit", "cartons", "boxes", "bags", "cases", "containers", "container", "pallets", "bottles",
+                "kg", "tonnes", "tons", "pcs", "sacks", "bales", "drums", "lots", "samples", "about", "around"}
 
 
 def product_phrase(text: str) -> str | None:
     """The goods in plain words: 'I make organic coffee in Colombia' -> 'organic coffee'."""
     m = re.search(r"\b(?:supply|supplying|order|ordering|buy|buying|purchase|sell|selling|export|exporting|ship|shipping|wants?|"
-                  r"needs?|make|makes|produce|produces|grow|grows|manufacture|manufactures)\s+(?:(?:about|around|approximately)\s+)?"
+                  r"needs?|make|makes|produce|produces|grow|grows|manufacture|manufactures|knit|knits|weave|weaves|sew|sews|craft|crafts|"
+                  r"roast|roasts|brew|brews|distil|distill|distils|distills|bake|bakes|build|builds|harvest|harvests|"
+                  r"process|processes|catch|catches|design|designs|offer|offers|sells)\s+(?:(?:about|around|approximately)\s+)?"
                   r"(?:[\d,\.]+\s*(?:x\s*)?(?:(?:20|40)\s*(?:ft|')?\s*)?(?:kg|kgs|tonnes?|tons?|mt|units|pieces|pcs|cartons|boxes|bags|"
                   r"sacks|cases|containers?|pallets|bottles|bales|drums)?\s*(?:of\s+)?)?"
                   r"([a-z][a-z\-]*(?:\s+[a-z][a-z\-]*){0,4}?)(?=\s+(?:at|for|to|from|in|by|per|each|every|and|which|that)\b|\s*[,.;:(\n]|$)",

@@ -96,6 +96,7 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
     plain = extract.read(text, home)
     ai = (ai_reading or {}).get("deal") or {}
     fields: dict[str, dict] = {}
+    unsure_hs: list[dict] = []
 
     def take(name: str, ai_key: str | None = None, plain_key: str | None = None):
         v = ai.get(ai_key or name)
@@ -151,11 +152,17 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
         found = hs.search(phrase, 5)
         guess = ai.get("hs_code_guess")
         if guess and hs.valid(guess) and len(guess) == 6:
-            found = [{"code": guess, "description": hs.describe(guess)}] + [x for x in found if x["code"] != guess][:4]
+            found = [{"code": guess, "description": hs.describe(guess), "sure": True}] + [x for x in found if x["code"] != guess][:4]
         if found:
             top = found[0]["code"]
-            fields["hs_code"] = _f(top, "worked_out", _hs_note(top, "Best match in the HS list. Pick another if it's not right."))
-            fields["hs_code"]["options"] = [{"code": x["code"], "description": x["description"]} for x in found]
+            opts = [{"code": x["code"], "description": x["description"]} for x in found]
+            if found[0].get("sure"):
+                fields["hs_code"] = _f(top, "worked_out", _hs_note(top, "Best match in the HS list. Pick another if it's not right."))
+            else:
+                # a weak match: say so, and ask rather than guess
+                fields["hs_code"] = _f(top, "assumed", _hs_note(top, "Not sure. Pick the right one or search."))
+                unsure_hs = opts
+            fields["hs_code"]["options"] = opts
             fields["product_key"] = _f(f"hs{top}", "worked_out")
 
     # an HS code written in the order beats our suggestion
@@ -208,6 +215,11 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
         questions.append({"id": "product_form", "text": "Is the coffee green (not roasted) or roasted?", "field": "product_key",
                           "options": [{"label": "Green, not roasted", "set": _product_set("coffee_green", fields)},
                                       {"label": "Roasted", "set": _product_set("coffee_roasted", fields)}]})
+    if unsure_hs:
+        questions.append({"id": "hs", "text": f"Which of these best describes your {fields['product']['value'].lower()}?", "field": "hs_code",
+                          "options": [{"label": f"{o['code']}: {o['description'][:90]}", "set": {"hs_code": o["code"], "hs_confirmed": True,
+                                       "product_key": f"hs{o['code']}"}} for o in unsure_hs[:4]]
+                          + [{"label": "None of these: search all codes", "set": {"_search": True}}]})
     if not fields.get("value"):
         questions.append({"id": "value", "text": "What's the total price for this order?", "input": "money", "field": "value"})
     if not fields.get("transport_by"):

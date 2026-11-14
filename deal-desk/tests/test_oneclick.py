@@ -356,3 +356,33 @@ def test_price_each_is_a_unit_price():
     assert extract.money("400 pieces at USD 85 each")[2] == 85
     f = oneclick.start("A boutique in Paris, France wants 400 pieces of leather handbags at USD 85 each.")["fields"]
     assert f["value"]["value"] == 34000 and f["value"]["source"] == "worked_out"
+
+
+def test_every_everyday_name_points_to_a_real_code():
+    assert all(hs.describe(code) for code in hs.ALIASES.values())
+
+
+@pytest.mark.parametrize("query,code", [
+    ("shea butter", "151590"), ("dried hibiscus flowers", "121190"), ("coconut water", "200989"), ("drones", "880622"),
+    ("espresso machines", "851671"), ("e-bikes", "871160"), ("hand sanitizer", "380894"), ("surfboards", "950629"),
+    ("handwoven baskets", "460219"), ("frozen acai pulp", "081190"), ("guitar strings", "920930"), ("yerba mate", "090300"),
+    ("alpaca scarves", "621420"), ("bamboo bicycle frames", "871491"),
+])
+def test_unusual_products(query, code):
+    assert hs.search(query, 3)[0]["code"] == code
+
+
+def test_a_short_everyday_name_does_not_claim_a_longer_product():
+    assert hs.alias("bamboo bicycle frames", strict=True) is None and hs.alias("bicycles", strict=True) == "871200"
+
+
+def test_a_weak_match_is_asked_not_guessed():
+    r = oneclick.start("We make bamboo bicycle frames in Ghana. A buyer in Germany wants 50 pieces at EUR 300 each.")
+    assert r["fields"]["hs_code"]["source"] == "assumed"
+    q = r["questions"][0]
+    assert q["id"] == "hs" and q["options"][0]["set"]["hs_code"] == "871491" and q["options"][-1]["set"] == {"_search": True}
+
+
+def test_quantity_words_are_not_products():
+    assert extract.product_phrase("A shop in Canada wants 300 pieces at USD 60 each.") is None
+    assert extract.product_phrase("We knit llama fibre ponchos in Bolivia.") == "llama fibre ponchos"
