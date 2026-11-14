@@ -34,3 +34,25 @@ services:
         sync: false
       - key: MAX_CANDIDATES
         value: "10"
+
+  - type: web
+    name: pitch-perfect
+    runtime: docker
+    plan: free
+    dockerfilePath: ./pitch-perfect/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: groq,gemini
+      # Reuse the keys already set on grant-finder, so they're entered once.
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GROQ_API_KEY
+      - key: GEMINI_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GEMINI_API_KEY

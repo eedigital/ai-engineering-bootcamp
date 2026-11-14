@@ -12,6 +12,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r week1-llm-service/requirements.txt -r grants-finder/requirements.txt pytest
+      - run: pip install -r week1-llm-service/requirements.txt -r grants-finder/requirements.txt -r pitch-perfect/requirements.txt reportlab pytest
       # Both apps. Tests fake the AI and Grants.gov: no keys, no network.
       - run: pytest -q

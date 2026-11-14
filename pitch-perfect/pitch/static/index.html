@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitch Perfect</title>
+<meta name="description" content="Upload your startup pitch deck. Get a section-by-section investor review, a numbers check, and practice the tough questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f1f0f6; --sheet: #fff; --ink: #1f1d2b; --muted: #625f73; --line: #dcdae6; --soft: #f7f6fb;
+    --accent: #5b3fd1; --accent-dark: #4630a8; --marker: #f8e46a;
+    --yes: #17734a; --yes-bg: #e3f4ea; --maybe: #8a5a00; --maybe-bg: #fdf1d8; --no: #a3301f; --no-bg: #fbe6e2;
+    --r: 12px; --r-small: 8px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .bar { display: flex; justify-content: space-between; align-items: center; max-width: 54rem; margin: 0 auto; padding: 1.1rem 1.25rem; }
+  .brand { font-weight: 800; font-size: 1.125rem; background: none; border: 0; padding: 0; cursor: pointer; letter-spacing: -0.01em; }
+  .brand b { color: var(--accent); }
+  .link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.9375rem; }
+  main { max-width: 54rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
+  .screen[hidden], [hidden] { display: none !important; }
+  .muted { color: var(--muted); }
+  .err { color: var(--no); font-weight: 500; }
+
+  /* start */
+  .hero { padding: 2.5rem 0 1.75rem; }
+  .hero h1 { font-size: clamp(2.3rem, 6vw, 3.5rem); line-height: 1.03; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 1rem; max-width: 38rem; }
+  .hero p { margin: 0; color: var(--muted); font-size: 1.1875rem; max-width: 36rem; }
+  .drop {
+    display: grid; place-items: center; text-align: center; gap: 0.5rem; padding: 2.75rem 1.5rem;
+    background: var(--sheet); border: 2px dashed var(--line); border-radius: var(--r); cursor: pointer; transition: border-color 120ms, background-color 120ms;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: #faf9ff; }
+  .drop strong { font-size: 1.25rem; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .btn { border: 0; border-radius: var(--r-small); padding: 0.8rem 1.4rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.primary[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.secondary { background: var(--sheet); border: 1.5px solid var(--ink); }
+  .below { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; color: var(--muted); font-size: 0.9375rem; }
+  .what { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.5rem; }
+  @media (max-width: 44rem) { .what { grid-template-columns: 1fr; } }
+  .what div { border-top: 2px solid var(--ink); padding-top: 0.7rem; }
+  .what strong { display: block; margin-bottom: 0.2rem; }
+  .what span { color: var(--muted); font-size: 0.9375rem; }
+  .busy { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; color: var(--muted); }
+  .spin { width: 1.1rem; height: 1.1rem; border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* review */
+  .tabs { display: flex; gap: 0.25rem; background: var(--line); padding: 0.25rem; border-radius: 10px; margin: 1rem 0 1.5rem; width: fit-content; }
+  .tabs button { border: 0; background: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; cursor: pointer; color: var(--muted); }
+  .tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgb(31 29 43 / 0.12); }
+  .summary { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; align-items: center; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.5rem; }
+  @media (max-width: 36rem) { .summary { grid-template-columns: 1fr; } }
+  .score { width: 8rem; height: 8rem; border-radius: 50%; display: grid; place-content: center; text-align: center;
+           background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--line) 0); position: relative; }
+  .score::before { content: ""; position: absolute; inset: 0.6rem; border-radius: 50%; background: var(--sheet); }
+  .score span { position: relative; font-size: 2.25rem; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .score small { position: relative; color: var(--muted); font-size: 0.8125rem; margin-top: 0.2rem; }
+  .one-liner { font-size: 1.25rem; font-weight: 700; line-height: 1.3; margin: 0 0 0.4rem; }
+  .verdict { margin: 0; color: var(--muted); }
+  h2 { font-size: 1.375rem; font-weight: 800; letter-spacing: -0.015em; margin: 2rem 0 0.75rem; }
+  .fixes { margin: 0; padding: 0; list-style: none; counter-reset: f; display: grid; gap: 0.6rem; }
+  .fixes li { counter-increment: f; display: grid; grid-template-columns: 2rem 1fr; gap: 0.5rem; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.85rem 1rem; }
+  .fixes li::before { content: counter(f); font-weight: 800; color: var(--accent); font-size: 1.125rem; }
+  .issues { display: grid; gap: 0.6rem; }
+  .issue { background: var(--maybe-bg); border-radius: var(--r-small); padding: 0.85rem 1rem; }
+  .issue strong { display: block; color: var(--maybe); font-size: 0.875rem; margin-bottom: 0.15rem; }
+  .ok { background: var(--yes-bg); color: var(--yes); border-radius: var(--r-small); padding: 0.85rem 1rem; }
+  .sections { display: grid; gap: 0.6rem; }
+  .sec { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 1rem 1.15rem; }
+  .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .sec-name { font-weight: 800; font-size: 1.0625rem; }
+  .sec-slides { color: var(--muted); font-size: 0.875rem; font-weight: 400; margin-left: 0.4rem; }
+  .dots { display: flex; gap: 0.25rem; flex: none; }
+  .dots i { width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--line); }
+  .dots i.on { background: var(--accent); }
+  .missing { font-size: 0.8125rem; font-weight: 700; background: var(--no-bg); color: var(--no); border-radius: 99px; padding: 0.15rem 0.6rem; }
+  .sec p { margin: 0.45rem 0 0; }
+  .sec .fix { color: var(--ink); }
+  .sec .fix b { color: var(--accent); }
+  blockquote { margin: 0.5rem 0 0; padding: 0.1rem 0 0.1rem 0.75rem; border-left: 3px solid var(--marker); color: var(--muted); font-size: 0.9375rem; }
+  .unverified { display: block; color: var(--no); font-size: 0.8125rem; margin-top: 0.2rem; }
+  .cta { display: flex; justify-content: center; margin-top: 2rem; }
+  .strengths { margin: 0.5rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+
+  /* practice */
+  .practice { display: grid; grid-template-columns: 1fr 15rem; gap: 1.5rem; align-items: start; }
+  @media (max-width: 48rem) { .practice { grid-template-columns: 1fr; } }
+  .qcard { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.5rem; }
+  .topic { display: inline-block; font-size: 0.8125rem; font-weight: 700; background: #ece8fb; color: var(--accent-dark); border-radius: 99px; padding: 0.15rem 0.65rem; }
+  .q { font-size: clamp(1.35rem, 3.2vw, 1.7rem); line-height: 1.2; font-weight: 800; letter-spacing: -0.015em; margin: 0.6rem 0 0.4rem; }
+  .why { color: var(--muted); margin: 0 0 1.1rem; font-size: 0.9375rem; }
+  label.f { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+  textarea { width: 100%; min-height: 8rem; font: inherit; color: var(--ink); border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.75rem 0.85rem; resize: vertical; }
+  .q-actions { display: flex; gap: 1rem; align-items: center; margin-top: 0.9rem; flex-wrap: wrap; }
+  .gcard { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; display: grid; gap: 0.8rem; }
+  .gscore { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; }
+  .gscore .dots i { width: 0.9rem; height: 0.9rem; }
+  .gcard h4 { margin: 0 0 0.2rem; font-size: 0.875rem; color: var(--muted); }
+  .gcard p { margin: 0; }
+  .better { background: var(--soft); border-radius: var(--r-small); padding: 0.9rem 1rem; }
+  .ph { background: var(--marker); border-radius: 2px; padding: 0 0.15em; }
+  .side { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem; position: sticky; top: 1rem; }
+  .side h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+  .side ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; font-size: 0.9375rem; }
+  .side li { display: flex; justify-content: space-between; gap: 0.5rem; }
+  .side .low { color: var(--no); font-weight: 700; }
+  .history { margin-top: 1.5rem; }
+  .history details { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.75rem 1rem; margin-bottom: 0.5rem; }
+  .history summary { cursor: pointer; font-weight: 500; }
+  footer { max-width: 54rem; margin: 0 auto; padding: 0 1.25rem 2rem; color: var(--muted); font-size: 0.875rem; }
+  footer a { color: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button class="brand" id="home" type="button">Pitch <b>Perfect</b></button>
+  <button class="link" id="new-deck" type="button" hidden>Use a different deck</button>
+</div>
+
+<main>
+  <section class="screen" id="s-start">
+    <div class="hero">
+      <h1>Get your pitch deck investor-ready.</h1>
+      <p>Upload your deck. See how an investor would read each section, catch the numbers that don't add up, then practice the questions you'll be asked.</p>
+    </div>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+      <strong>Drop your deck here</strong>
+      <span class="muted">or tap to choose a PDF or PowerPoint (.pptx), up to 20 MB</span>
+    </label>
+    <div class="below">
+      <span>We don't save your deck, but its text is sent to an AI service (Groq or Google) to be reviewed.</span>
+      <button class="link" id="sample" type="button">No deck handy? Try a sample</button>
+    </div>
+    <p class="err" id="up-err" role="alert" hidden></p>
+    <div class="busy" id="busy" hidden><span class="spin" aria-hidden="true"></span><span id="busy-text">Reading your deck…</span></div>
+    <div class="what">
+      <div><strong>Section review</strong><span>Ten sections investors look for, each scored and quoted from your slides.</span></div>
+      <div><strong>Numbers check</strong><span>Figures that change between slides, market sizes that don't add up, a missing ask.</span></div>
+      <div><strong>Investor practice</strong><span>Tough questions about your deck, with feedback and a stronger answer for each.</span></div>
+    </div>
+  </section>
+
+  <section class="screen" id="s-deck" hidden>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="t-review" aria-selected="true">Review</button>
+      <button role="tab" id="t-practice" aria-selected="false">Practice questions</button>
+    </div>
+
+    <div id="p-review" role="tabpanel" aria-labelledby="t-review">
+      <div id="review-body"></div>
+    </div>
+
+    <div id="p-practice" role="tabpanel" aria-labelledby="t-practice" hidden>
+      <div class="practice">
+        <div>
+          <div class="qcard" id="qcard"></div>
+          <div class="history" id="history"></div>
+        </div>
+        <aside class="side" id="side" aria-label="Your practice so far"></aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Feedback is written by AI and can be wrong; numbers are checked by plain code. Pitch Perfect improves how a pitch reads; it can't promise funding. <a href="https://github.com/eedigital/ai-engineering-bootcamp">Source code</a>.</p>
+</footer>
+
+<script>
+const SAMPLE = [
+ "Fernwise\nSoil sensors that tell small farms exactly when to water.\nPre-seed, 2026",
+ "The problem\nSmall farms over-water by 30% on average, wasting water and money.\nMost can't afford $20K irrigation systems.",
+ "Our solution\n$49 solar soil sensors + a phone app that texts a watering plan every morning.\nSet up in 10 minutes, no wiring.",
+ "Traction\n120 paying customers across 3 states\nMRR: $40K, growing 15% month over month\nPilot with the Iowa Farm Bureau",
+ "Market\nTAM: $12B global precision agriculture\nSAM: $2.1B US small and mid-size farms\nSOM: $150M reachable in 5 years",
+ "Business model\nHardware at cost, $29/month subscription per farm\nGross margin 72% on subscriptions",
+ "Competition\nLarge irrigation companies focus on big farms and cost 10x more.\nDIY sensors lack the watering plan.",
+ "Team\nMaya Chen, CEO: former agronomist, 8 years at Cargill\nLeo Park, CTO: built IoT devices at Fitbit",
+ "Financials\nMonthly revenue $35K\nBurn $60K per month\nRunway: 18 months after this round",
+ "The ask\nRaising $1.5M pre-seed\nUse of funds: 40% engineering, 30% sales, 20% manufacturing",
+];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const withPh = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>');
+const store = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k) || "null"); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function post(path, body, tries = 3) {
+  for (let i = 1; ; i++) {
+    let r;
+    try { r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+    catch { if (i >= tries) throw new Error("Couldn't reach the server. Check your connection."); await wait(2000); continue; }
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return data;
+    if ((r.status === 429 || r.status === 502) && i < tries) { await wait(4000 * i); continue; }
+    const err = new Error(data.error || "Something went wrong. Try again."); err.data = data; throw err;
+  }
+}
+
+// Kept for this browser tab only, so a refresh doesn't lose your work.
+let S = store.get("pp") || { slides: null, review: null, numbers: null, score: null, names: null, asked: [], answers: [] };
+const save = () => store.set("pp", S);
+
+// --- screens ---
+function screen(id) {
+  $("s-start").hidden = id !== "start"; $("s-deck").hidden = id !== "deck";
+  $("new-deck").hidden = id === "start";
+  window.scrollTo({ top: 0 });
+}
+function tab(which) {
+  const rev = which === "review";
+  $("t-review").setAttribute("aria-selected", String(rev)); $("t-practice").setAttribute("aria-selected", String(!rev));
+  $("p-review").hidden = !rev; $("p-practice").hidden = rev;
+  if (!rev && !$("qcard").innerHTML) nextQuestion();
+}
+$("t-review").addEventListener("click", () => tab("review"));
+$("t-practice").addEventListener("click", () => tab("practice"));
+$("home").addEventListener("click", () => screen(S.slides ? "deck" : "start"));
+$("new-deck").addEventListener("click", () => { S = { slides: null, review: null, numbers: null, score: null, names: null, asked: [], answers: [] }; save(); $("qcard").innerHTML = ""; screen("start"); });
+
+// --- upload ---
+const drop = $("drop");
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) upload(f); });
+$("file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) upload(f); e.target.value = ""; });
+$("sample").addEventListener("click", () => startDeck(SAMPLE.map((t, i) => ({ number: i + 1, text: t }))));
+
+function busy(text) { $("busy").hidden = !text; if (text) $("busy-text").textContent = text; }
+async function upload(file) {
+  $("up-err").hidden = true;
+  if (file.size > 20 * 1024 * 1024) { $("up-err").textContent = "That file is over 20 MB. Export a smaller copy."; $("up-err").hidden = false; return; }
+  busy(`Reading ${file.name}…`);
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const r = await fetch("/api/parse", { method: "POST", body: fd });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "Couldn't read that file.");
+    await startDeck(data.slides);
+  } catch (e) { busy(null); $("up-err").textContent = e.message; $("up-err").hidden = false; }
+}
+
+async function startDeck(slides) {
+  S = { slides, review: null, numbers: null, score: null, names: null, asked: [], answers: [] }; save();
+  $("qcard").innerHTML = ""; $("history").innerHTML = "";
+  busy(`Reviewing ${slides.length} slides like an investor would. This takes about 20 seconds…`);
+  try {
+    const r = await post("/api/review", { slides });
+    Object.assign(S, { review: r.review, numbers: r.numbers, score: r.score, names: r.section_names }); save();
+  } catch (e) {
+    S.numbers = e.data?.numbers || null; S.reviewError = e.message; save();
+  }
+  busy(null); screen("deck"); tab("review"); drawReview();
+}
+
+// --- review ---
+const dots = (n, of = 5) => `<span class="dots" aria-label="${n} out of ${of}">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+function verdictText(score) {
+  if (score >= 80) return "Close to investor-ready. Polish the details below.";
+  if (score >= 60) return "A solid base. A few sections need work before you send it.";
+  if (score >= 40) return "Investors will have gaps to probe. Fix the top three first.";
+  return "Several key sections are missing or thin. Start with the top three fixes.";
+}
+function drawReview() {
+  const r = S.review, n = S.numbers;
+  const numbersHtml = !n ? "" : n.issues.length
+    ? `<div class="issues">${n.issues.map((i) => `<div class="issue"><strong>${esc(i.metric)}${i.slides.length ? `, slide${i.slides.length > 1 ? "s" : ""} ${i.slides.join(" and ")}` : ""}</strong>${esc(i.message)}</div>`).join("")}</div>`
+    : `<p class="ok">No problems found in ${n.figures.length} figure${n.figures.length === 1 ? "" : "s"} across your slides.</p>`;
+  if (!r) {
+    $("review-body").innerHTML = `<p class="err">${esc(S.reviewError || "The review isn't available.")}</p>
+      <button class="btn primary" id="retry-review" type="button">Try the review again</button>
+      <h2>Numbers check</h2>${numbersHtml}`;
+    $("retry-review").addEventListener("click", () => startDeck(S.slides));
+    return;
+  }
+  const secs = r.sections.map((s) => `<div class="sec">
+      <div class="sec-head"><span class="sec-name">${esc(S.names[s.section])}${s.slides.length ? `<span class="sec-slides">slide${s.slides.length > 1 ? "s" : ""} ${s.slides.join(", ")}</span>` : ""}</span>
+        ${s.present ? dots(s.score) : `<span class="missing">Missing</span>`}</div>
+      <p>${esc(s.feedback)}</p>
+      ${s.fix ? `<p class="fix"><b>Fix:</b> ${esc(s.fix)}</p>` : ""}
+      ${s.evidence ? `<blockquote>${esc(s.evidence)}</blockquote>` : ""}
+      ${s.evidence && !s.evidence_found ? `<span class="unverified">This quote isn't in your slides. The reviewer may have misread them.</span>` : ""}
+    </div>`).join("");
+  $("review-body").innerHTML = `
+    <div class="summary">
+      <div class="score" style="--p:${S.score}"><span>${S.score}</span><small>out of 100</small></div>
+      <div><p class="one-liner">${esc(r.one_liner)}</p><p class="verdict">${verdictText(S.score)}</p>
+        ${r.strengths.length ? `<ul class="strengths">${r.strengths.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div>
+    </div>
+    ${r.top_fixes.length ? `<h2>Fix these first</h2><ol class="fixes">${r.top_fixes.map((f) => `<li>${esc(f)}</li>`).join("")}</ol>` : ""}
+    <h2>Numbers check</h2>${numbersHtml}
+    <h2>Section by section</h2><div class="sections">${secs}</div>
+    <div class="cta"><button class="btn primary" type="button" id="go-practice">Practice investor questions</button></div>`;
+  $("go-practice").addEventListener("click", () => { tab("practice"); window.scrollTo({ top: 0 }); });
+}
+
+// --- practice ---
+const TOPICS = { problem: "Problem", solution: "Solution", why_now: "Why now", market: "Market size", traction: "Traction",
+  business_model: "Business model", competition: "Competition", team: "Team", financials: "Financials", ask: "The ask", general: "General" };
+let current = null;
+function topicStats() {
+  const t = {};
+  for (const a of S.answers) { (t[a.topic] ||= []).push(a.score); }
+  return Object.entries(t).map(([k, v]) => [k, v.reduce((x, y) => x + y, 0) / v.length, v.length]).sort((a, b) => a[1] - b[1]);
+}
+function weakAreas() {
+  const fromReview = (S.review?.sections || []).filter((s) => s.score <= 2).map((s) => s.section);
+  const fromPractice = topicStats().filter(([, avg]) => avg <= 3).map(([k]) => k).filter((k) => k !== "general");
+  return [...new Set([...fromPractice, ...fromReview])].slice(0, 5);
+}
+function drawSide() {
+  const st = topicStats();
+  $("side").innerHTML = `<h3>${S.answers.length} answered</h3>
+    ${st.length ? `<ul>${st.map(([k, avg, n]) => `<li><span>${esc(TOPICS[k] || k)}</span><span class="${avg <= 2.5 ? "low" : ""}">${avg.toFixed(1)} / 5</span></li>`).join("")}</ul>
+      <p class="muted" style="font-size:0.875rem;margin:0.75rem 0 0">Next questions focus on your lowest areas.</p>`
+      : `<p class="muted" style="margin:0;font-size:0.9375rem">Answer as you would in the room: short, specific, with numbers. Each answer is scored and you'll see a stronger version.</p>`}`;
+  const earlier = S.answers.filter((a) => a.question !== current?.question);
+  $("history").innerHTML = earlier.length ? `<h2 style="margin-top:0">Earlier answers</h2>` + [...earlier].reverse().map((a) => `<details>
+      <summary>${esc(a.question)} <span class="muted">(${a.score}/5)</span></summary>
+      <p><b>You said:</b> ${esc(a.answer)}</p><div class="better"><b>Stronger:</b> ${withPh(a.stronger)}</div></details>`).join("") : "";
+}
+async function nextQuestion() {
+  drawSide();
+  $("qcard").innerHTML = `<div class="busy"><span class="spin" aria-hidden="true"></span>An investor is reading your deck…</div>`;
+  try {
+    const { question } = await post("/api/question", { slides: S.slides, asked: S.asked, weak: weakAreas() });
+    current = question; S.asked.push(question.question); save();
+    drawQuestion();
+  } catch (e) {
+    $("qcard").innerHTML = `<p class="err">${esc(e.message)}</p><button class="btn primary" type="button" id="q-retry">Try again</button>`;
+    $("q-retry").addEventListener("click", nextQuestion);
+  }
+}
+function drawQuestion(grade, answer) {
+  const q = current;
+  $("qcard").innerHTML = `<span class="topic">${esc(TOPICS[q.topic] || "General")}</span>
+    <p class="q">${esc(q.question)}</p><p class="why">${esc(q.why)}</p>
+    <label class="f" for="answer">Your answer</label>
+    <textarea id="answer" placeholder="Answer as you would out loud: short and specific.">${esc(answer || "")}</textarea>
+    <div class="q-actions">
+      ${grade ? `<button class="btn primary" type="button" id="next-q">Next question</button>` : `<button class="btn primary" type="button" id="submit">Get feedback</button>`}
+      ${grade ? "" : `<button class="link" type="button" id="skip">Skip this question</button>`}
+    </div>
+    ${grade ? `<div class="gcard">
+      <div class="gscore">${dots(grade.score)} ${["", "Would worry an investor", "Needs work", "Okay", "Good", "Investor-ready"][grade.score]}</div>
+      <div><h4>What worked</h4><p>${esc(grade.good)}</p></div>
+      <div><h4>What they'd still want</h4><p>${esc(grade.missing)}</p></div>
+      <div class="better"><h4>A stronger answer</h4><p>${withPh(grade.stronger_answer)}</p>
+        ${/\[[^\]]+\]/.test(grade.stronger_answer) ? `<p class="muted" style="font-size:0.875rem;margin-top:0.5rem">Highlighted brackets are facts only you can fill in.</p>` : ""}</div>
+    </div>` : ""}`;
+  if (grade) $("next-q").addEventListener("click", nextQuestion);
+  else {
+    $("submit").addEventListener("click", submit);
+    $("skip").addEventListener("click", nextQuestion);
+    $("answer").focus();
+  }
+}
+async function submit() {
+  const answer = $("answer").value.trim();
+  if (!answer) { $("answer").focus(); return; }
+  $("submit").disabled = true; $("submit").textContent = "Scoring…";
+  try {
+    const { grade } = await post("/api/grade", { slides: S.slides, question: current.question, answer });
+    S.answers.push({ question: current.question, topic: current.topic, answer, score: grade.score, stronger: grade.stronger_answer }); save();
+    drawQuestion(grade, answer); drawSide();
+  } catch (e) {
+    $("submit").disabled = false; $("submit").textContent = "Get feedback";
+    $("qcard").insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`);
+  }
+}
+
+// resume where you left off in this tab
+if (S.slides) { screen("deck"); drawReview(); } else screen("start");
+</script>
+</body>
+</html>
