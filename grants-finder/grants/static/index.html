@@ -4,535 +4,692 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grant Finder</title>
-<meta name="description" content="Describe your organization once. See which US federal grants you can apply for, why, and get a first draft.">
+<meta name="description" content="Find US federal grants for the causes you care about, see who can apply, and check an organization's eligibility.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #eef1f4; --sheet: #fff; --ink: #1d2a3a; --muted: #5d6b7c; --line: #d5dce4;
-    --marker: #f8e46a; --action: #2347c5;
+    --paper: #eef1f4; --sheet: #fff; --ink: #1d2a3a; --muted: #5d6b7c; --line: #d5dce4; --soft: #f5f7f9;
+    --marker: #f8e46a; --action: #2347c5; --action-dark: #1b39a3;
     --yes: #17734a; --yes-bg: #e3f4ea; --maybe: #8a5a00; --maybe-bg: #fdf1d8; --no: #a3301f; --no-bg: #fbe6e2;
-    --r-sheet: 14px; --r-small: 6px;
+    --r: 12px; --r-small: 8px;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
-  main { max-width: 72rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
-  header { margin-bottom: 2rem; }
-  h1 { font-size: clamp(2.1rem, 5vw, 3.25rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.75rem; max-width: 46rem; }
-  h1 .hl { background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%); }
-  header p { margin: 0; color: var(--muted); font-size: 1.125rem; max-width: 42rem; }
-
-  .layout { display: grid; grid-template-columns: 24rem 1fr; gap: 1.5rem; align-items: start; }
-  @media (max-width: 60rem) { .layout { grid-template-columns: 1fr; } }
-  .sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-sheet); padding: 1.5rem; }
-  h2 { font-size: 1.25rem; font-weight: 800; margin: 0 0 1rem; letter-spacing: -0.01em; }
-  h3 { font-size: 1rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
-
-  /* profile form */
-  form .field { margin-bottom: 1rem; }
-  label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
-  .hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.9375rem; margin-top: -0.2rem; margin-bottom: 0.4rem; }
-  input, select, textarea {
-    width: 100%; font: inherit; color: var(--ink); background: #fbfcfd;
-    border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.6rem 0.75rem;
+  button { font: inherit; color: inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible + .opt, select:focus-visible, textarea:focus-visible, input:focus-visible {
+    outline: 3px solid var(--action); outline-offset: 2px;
   }
-  textarea { min-height: 6.5rem; resize: vertical; line-height: 1.5; }
-  input:focus, select:focus, textarea:focus { outline: 3px solid color-mix(in srgb, var(--action) 35%, transparent); border-color: var(--action); }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  .primary { font: inherit; font-weight: 700; background: var(--action); color: #fff; border: 0; border-radius: var(--r-small); padding: 0.75rem 1.4rem; cursor: pointer; }
-  .primary:hover { background: #1b39a3; }
-  .primary[disabled] { opacity: 0.6; cursor: progress; }
-  .link { font: inherit; background: none; border: 0; color: var(--action); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; }
-  button:focus-visible, a:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-  fieldset { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
-  legend { font-weight: 700; padding: 0; margin-bottom: 0.35rem; }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .chip input { position: absolute; opacity: 0; pointer-events: none; }
-  .chip span {
-    display: inline-block; cursor: pointer; user-select: none;
-    border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.8rem;
-    font-size: 0.9375rem; background: #fbfcfd;
+
+  /* top bar */
+  .bar { display: flex; justify-content: space-between; align-items: center; max-width: 52rem; margin: 0 auto; padding: 1.1rem 1.25rem; }
+  .brand { font-weight: 800; letter-spacing: -0.01em; background: none; border: 0; padding: 0; cursor: pointer; font-size: 1.125rem; }
+  .brand span { background: linear-gradient(transparent 55%, var(--marker) 55%, var(--marker) 92%, transparent 92%); }
+  .link { background: none; border: 0; padding: 0; color: var(--action); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.9375rem; }
+
+  main { max-width: 52rem; margin: 0 auto; padding: 0 1.25rem 7rem; }
+  .screen[hidden] { display: none; }
+
+  /* start screen */
+  .hero { padding: 2.5rem 0 2rem; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.04; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 1rem; max-width: 40rem; }
+  .hero h1 span { background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%); }
+  .hero p { margin: 0; color: var(--muted); font-size: 1.1875rem; max-width: 36rem; }
+  .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 40rem) { .paths { grid-template-columns: 1fr; } }
+  .path {
+    text-align: left; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 1.4rem 1.4rem 1.5rem; cursor: pointer; display: grid; gap: 0.4rem; transition: border-color 120ms;
   }
-  .chip span:hover { border-color: var(--ink); }
-  .chip input:checked + span { background: var(--ink); border-color: var(--ink); color: #fff; }
-  .chip input:focus-visible + span { outline: 3px solid var(--action); outline-offset: 2px; }
-  .chip input:disabled:not(:checked) + span { opacity: 0.45; cursor: not-allowed; }
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; background: var(--paper); padding: 0.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
-  .tabs button { font: inherit; font-weight: 700; font-size: 0.9375rem; border: 0; background: none; color: var(--muted); padding: 0.55rem 0.5rem; border-radius: 6px; cursor: pointer; }
-  .tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgb(29 42 58 / 0.12); }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .intro { margin: 0 0 1.1rem; color: var(--muted); }
-  .optional { font-weight: 400; color: var(--muted); }
-  .who { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.75rem 0 0; font-size: 0.9375rem; }
-  .who .lbl { color: var(--muted); margin-right: 0.15rem; }
-  .who .tag { background: var(--paper); border-radius: var(--r-small); padding: 0.1rem 0.55rem; }
-  .verdict.open { background: var(--yes-bg); color: var(--yes); }
-  .verdict.org { background: var(--paper); color: var(--ink); }
-  .mentions { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
-  .mentions li { border-left: 3px solid var(--marker); padding-left: 0.65rem; font-size: 0.9375rem; }
-  .mentions strong { display: block; }
-  .note { margin: 0.6rem 0 0; color: var(--maybe); font-size: 0.9375rem; }
+  .path:hover { border-color: var(--ink); }
+  .path strong { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
+  .path span { color: var(--muted); }
+  .path em { font-style: normal; color: var(--action); font-weight: 700; margin-top: 0.5rem; }
+  .source { margin-top: 2.5rem; color: var(--muted); font-size: 0.9375rem; max-width: 40rem; }
+
+  /* wizard */
+  .progress { display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0 2rem; color: var(--muted); font-size: 0.9375rem; }
+  .track { flex: 1; height: 4px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .track i { display: block; height: 100%; background: var(--ink); border-radius: 99px; transition: width 250ms ease; }
+  .q { font-size: clamp(1.75rem, 4.5vw, 2.4rem); line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.5rem; outline: none; }
+  .q-hint { color: var(--muted); margin: 0 0 1.5rem; font-size: 1.0625rem; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: 0.6rem; }
+  .opts.wide { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
+  .choice { position: relative; }
+  .choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .opt {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 3.25rem;
+    background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--r-small);
+    padding: 0.7rem 0.95rem; font-weight: 500; cursor: pointer; transition: border-color 100ms, background-color 100ms;
+  }
+  .opt::after { content: ""; flex: none; width: 1.15rem; height: 1.15rem; border-radius: 4px; border: 1.5px solid var(--line); }
+  .choice input[type=radio] + .opt::after { border-radius: 50%; }
+  .choice:hover .opt { border-color: var(--muted); }
+  .choice input:checked + .opt { border-color: var(--ink); background: #f7f9fb; }
+  .choice input:checked + .opt::after { background: var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/80% no-repeat; border-color: var(--ink); }
+  .choice { display: flex; }
+  .choice[hidden] { display: none; }
+  .choice .opt { flex: 1; }
+  .more-btn { margin-top: 1rem; font-size: 1rem; }
+  @media (max-width: 40rem) {
+    .opts { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .opts.wide { grid-template-columns: 1fr; }
+    .opt { padding: 0.6rem 0.7rem; font-size: 0.9375rem; min-height: 3rem; }
+  }
+  .nav-msg { color: var(--muted); font-size: 0.9375rem; text-align: center; flex: 1; }
+  .nav-msg.warn { color: var(--no); font-weight: 500; }
+  .more-btn[hidden] { display: none; }
+  .count { font-size: inherit; }
+  .count:not(:empty) { margin-left: 0.25rem; color: var(--ink); font-weight: 500; }
+  .count.warn { color: var(--no); }
+
+  .fields { display: grid; gap: 1.1rem; max-width: 34rem; }
+  .fields .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+  label.f { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+  .f-hint { display: block; color: var(--muted); font-size: 0.9375rem; margin: -0.2rem 0 0.45rem; }
+  input[type=text], input[type=search], select, textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--sheet);
+    border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.7rem 0.85rem;
+  }
+  textarea { min-height: 6rem; resize: vertical; }
   .combo { position: relative; }
-  .lookup { padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
   #org_results {
-    position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 0.25rem);
-    list-style: none; margin: 0; padding: 0.25rem; background: var(--sheet);
-    border: 1px solid var(--line); border-radius: var(--r-small); box-shadow: 0 8px 24px rgb(29 42 58 / 0.12);
-    max-height: 20rem; overflow: auto;
+    position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 0.3rem); list-style: none; margin: 0; padding: 0.3rem;
+    background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); box-shadow: 0 10px 28px rgb(29 42 58 / 0.14);
+    max-height: 19rem; overflow: auto;
   }
-  #org_results li { padding: 0.55rem 0.7rem; border-radius: 4px; cursor: pointer; line-height: 1.35; }
+  #org_results li { padding: 0.6rem 0.75rem; border-radius: 6px; cursor: pointer; line-height: 1.35; }
   #org_results li[aria-selected="true"], #org_results li:hover { background: var(--paper); }
   #org_results .o-name { font-weight: 700; display: block; }
-  #org_results .o-meta { color: var(--muted); font-size: 0.875rem; }
-  #org_results .o-none { color: var(--muted); cursor: default; }
-  .filled { margin: 0.6rem 0 0; font-size: 0.9375rem; background: var(--yes-bg); color: var(--yes); border-radius: var(--r-small); padding: 0.5rem 0.75rem; }
-  details.more { margin: 0.25rem 0 1.25rem; border-top: 1px solid var(--line); padding-top: 0.9rem; }
-  details.more summary { font-size: 1rem; margin-bottom: 0.25rem; }
-  details.more[open] summary { margin-bottom: 1rem; }
-  .form-actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-  .saved { color: var(--muted); font-size: 0.875rem; margin-top: 0.75rem; }
+  #org_results .o-meta, #org_results .o-none { color: var(--muted); font-size: 0.875rem; }
+  .filled { margin: 0.6rem 0 0; font-size: 0.9375rem; background: var(--yes-bg); color: var(--yes); border-radius: var(--r-small); padding: 0.55rem 0.8rem; }
+  .or { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.9375rem; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  details.extra { max-width: 34rem; margin-top: 1.75rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  details.extra summary { cursor: pointer; color: var(--action); font-weight: 500; }
+  details.extra[open] summary { margin-bottom: 1rem; }
+  .err { color: var(--no); font-weight: 500; margin: 1rem 0 0; }
+
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: rgb(238 241 244 / 0.94); backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+  .nav-in { max-width: 52rem; margin: 0 auto; padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .btn { border: 0; border-radius: var(--r-small); padding: 0.8rem 1.5rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--action); color: #fff; }
+  .btn.primary:hover { background: var(--action-dark); }
+  .btn.ghost { background: none; color: var(--ink); padding-left: 0; }
+  .btn.ghost:hover { text-decoration: underline; text-underline-offset: 3px; }
 
   /* results */
-  .status-line { color: var(--muted); margin: 0 0 1rem; }
-  .status-line strong { color: var(--ink); }
-  .empty { color: var(--muted); padding: 2rem 0.5rem; }
-  .empty ol { padding-left: 1.25rem; margin: 0.75rem 0 0; }
-  .grants { display: grid; gap: 1rem; }
-  .grant { border: 1px solid var(--line); border-radius: var(--r-small); padding: 1.1rem 1.25rem; background: var(--sheet); }
-  .grant.not-eligible { background: #f7f8fa; }
-  .grant.not-eligible .g-title { color: var(--muted); }
-  .g-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
-  .g-title { font-size: 1.125rem; font-weight: 700; line-height: 1.3; margin: 0; }
-  .g-meta { color: var(--muted); font-size: 0.9375rem; margin: 0.3rem 0 0; }
-  .verdict { flex: none; font-weight: 700; font-size: 0.875rem; border-radius: 999px; padding: 0.2rem 0.7rem; white-space: nowrap; }
-  .verdict.strong_match { background: var(--yes-bg); color: var(--yes); }
-  .verdict.possible_match { background: var(--maybe-bg); color: var(--maybe); }
-  .verdict.not_eligible { background: var(--no-bg); color: var(--no); }
-  .verdict.checking { background: var(--paper); color: var(--muted); font-weight: 500; }
-  .fit { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0; font-size: 0.9375rem; color: var(--muted); }
-  .bar { width: 7rem; height: 0.4rem; background: var(--paper); border-radius: 999px; overflow: hidden; }
-  .bar span { display: block; height: 100%; background: var(--ink); }
-  .g-summary { margin: 0.6rem 0 0; }
-  .g-actions { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 0.85rem; font-size: 0.9375rem; }
-  .g-actions a { color: var(--ink); }
-  details { margin-top: 0.75rem; }
-  summary { cursor: pointer; color: var(--action); font-size: 0.9375rem; }
-  .reqs { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.75rem; }
-  .reqs li { display: grid; grid-template-columns: 1.5rem 1fr; gap: 0.5rem; }
-  .mark { font-weight: 800; text-align: center; line-height: 1.55; }
-  .mark.met { color: var(--yes); } .mark.not_met { color: var(--no); } .mark.unknown { color: var(--maybe); }
-  .req-name { font-weight: 700; }
-  .req-why { color: var(--muted); }
-  q.evidence { display: block; quotes: none; margin-top: 0.25rem; font-size: 0.9375rem; }
-  q.evidence span { background: var(--marker); padding: 0 0.15em; border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-  .unverified { display: block; color: var(--no); font-size: 0.875rem; margin-top: 0.2rem; }
-  .questions { margin: 0.5rem 0 0; padding-left: 1.25rem; }
-  .rule-notes { margin: 0.5rem 0 0; padding-left: 1.25rem; color: var(--muted); font-size: 0.9375rem; }
+  .r-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0 1rem; }
+  .r-head h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; margin: 0; outline: none; }
+  .r-sub { color: var(--muted); margin: 0.35rem 0 0; }
+  .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 1.1rem; }
+  .filters[hidden] { display: none; }
+  .filters button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 99px; padding: 0.35rem 0.9rem; cursor: pointer; font-size: 0.9375rem; font-weight: 500; }
+  .filters button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .status { color: var(--muted); margin: 0 0 1rem; }
+  .status:empty { display: none; }
+  .cards { display: grid; gap: 0.9rem; }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem 1.4rem; }
+  .card.dim { opacity: 0.72; }
+  .c-top { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.45rem; min-height: 1.6rem; }
+  .badge { font-weight: 700; font-size: 0.8125rem; border-radius: 99px; padding: 0.2rem 0.7rem; white-space: nowrap; }
+  .badge.good { background: var(--yes-bg); color: var(--yes); }
+  .badge.okay { background: var(--maybe-bg); color: var(--maybe); }
+  .badge.bad { background: var(--no-bg); color: var(--no); }
+  .badge.plain { background: var(--soft); color: var(--muted); }
+  .soon { color: var(--no); font-size: 0.875rem; font-weight: 500; }
+  .c-title { font-size: 1.25rem; line-height: 1.25; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
+  .c-agency { color: var(--muted); margin: 0.2rem 0 0; font-size: 0.9375rem; }
+  .c-sum { margin: 0.75rem 0 0; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1rem 0 0; padding: 0.85rem 0 0; border-top: 1px solid var(--line); }
+  @media (max-width: 36rem) { .facts { grid-template-columns: 1fr 1fr; } .facts div:last-child { grid-column: 1 / -1; } }
+  .facts dt { color: var(--muted); font-size: 0.8125rem; }
+  .facts dd { margin: 0.1rem 0 0; font-weight: 700; font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+  .hits { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin: 0.85rem 0 0; padding: 0; list-style: none; font-size: 0.9375rem; font-weight: 500; color: var(--yes); }
+  .hits li::before { content: "✓ "; }
+  .warnline { margin: 0.6rem 0 0; color: var(--maybe); font-size: 0.9375rem; }
+  .c-actions { display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; font-size: 0.9375rem; }
+  .c-actions a { color: var(--ink); }
+  .c-actions .btn { padding: 0.5rem 1rem; font-size: 0.9375rem; }
+  .fit { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.875rem; margin-top: 0.75rem; }
+  .fit .meter { width: 6rem; height: 5px; background: var(--paper); border-radius: 99px; overflow: hidden; }
+  .fit .meter i { display: block; height: 100%; background: var(--ink); }
+  details.more { margin-top: 0.9rem; }
+  details.more summary { cursor: pointer; color: var(--action); font-size: 0.9375rem; font-weight: 500; }
+  .det { margin-top: 0.9rem; display: grid; gap: 1rem; }
+  .det h4 { font-size: 0.875rem; margin: 0 0 0.4rem; color: var(--muted); font-weight: 700; }
+  .det ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
+  .det li { display: grid; grid-template-columns: 1.3rem 1fr; gap: 0.3rem; }
+  .mk { font-weight: 800; }
+  .mk.met { color: var(--yes); } .mk.not_met { color: var(--no); } .mk.unknown, .mk.dot { color: var(--muted); }
+  blockquote { margin: 0.3rem 0 0; padding: 0.1rem 0 0.1rem 0.75rem; border-left: 3px solid var(--marker); color: var(--muted); font-size: 0.9375rem; }
+  .unverified { display: block; color: var(--no); font-size: 0.8125rem; margin-top: 0.2rem; }
+  .skel { height: 9.5rem; border-radius: var(--r); background: linear-gradient(90deg, #e6eaee 0%, #f2f4f6 50%, #e6eaee 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .empty { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.5rem; }
 
-  /* draft */
-  dialog { border: 0; border-radius: var(--r-sheet); padding: 0; width: min(46rem, 94vw); max-height: 90vh; color: var(--ink); }
+  dialog { border: 0; border-radius: var(--r); padding: 0; width: min(46rem, 94vw); max-height: 90vh; color: var(--ink); }
   dialog::backdrop { background: rgb(29 42 58 / 0.45); }
-  .d-inner { padding: 1.75rem; overflow: auto; max-height: 90vh; }
+  .d-in { padding: 1.75rem; overflow: auto; max-height: 90vh; }
   .d-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
-  .d-section { border-top: 1px solid var(--line); padding-top: 0.75rem; margin-top: 1rem; }
-  .d-section h3 { margin: 0 0 0.4rem; display: flex; justify-content: space-between; align-items: baseline; }
-  .d-section p { margin: 0; white-space: pre-wrap; }
-  .placeholder { background: var(--marker); border-radius: 2px; padding: 0 0.15em; }
+  .d-head h2 { margin: 0; font-size: 1.375rem; }
+  .d-sec { border-top: 1px solid var(--line); padding-top: 0.75rem; margin-top: 1rem; }
+  .d-sec h3 { margin: 0 0 0.4rem; font-size: 1rem; display: flex; justify-content: space-between; align-items: baseline; }
+  .d-sec p { margin: 0; white-space: pre-wrap; }
+  .ph { background: var(--marker); border-radius: 2px; padding: 0 0.15em; }
   .verify { background: var(--maybe-bg); border-radius: var(--r-small); padding: 0.9rem 1.1rem; margin-top: 1.25rem; }
-  .verify h3 { margin-top: 0; }
+  .verify h3 { margin: 0 0 0.4rem; font-size: 1rem; }
   .verify ul { margin: 0; padding-left: 1.25rem; }
-  .d-note { color: var(--muted); font-size: 0.875rem; margin-top: 1rem; }
 
-  .error { color: var(--no); }
-  footer { margin-top: 3rem; color: var(--muted); font-size: 0.9375rem; max-width: 46rem; }
+  footer { max-width: 52rem; margin: 0 auto; padding: 0 1.25rem 2rem; color: var(--muted); font-size: 0.875rem; }
   footer a { color: var(--ink); }
-  @media (max-width: 36rem) {
-    .sheet { padding: 1.1rem; }
-    .grant { padding: 1rem; }
-    .g-head { flex-direction: column-reverse; gap: 0.5rem; }
-  }
-  @media (prefers-reduced-motion: no-preference) { .grant { transition: background-color 200ms; } }
+  @media (prefers-reduced-motion: reduce) { .track i, .path { transition: none; } .skel { animation: none; } }
 </style>
 </head>
 <body>
+<div class="bar">
+  <button class="brand" id="home" type="button"><span>Grant Finder</span></button>
+  <button class="link" id="restart" type="button" hidden>Start over</button>
+</div>
+
 <main>
-  <header>
-    <h1>Find federal grants <span class="hl">you can actually get.</span></h1>
-    <p>Start from the causes you care about to see which open US federal grants exist and who can apply. Or check an organization against each grant's rules and get a first draft of the application.</p>
-  </header>
+  <section class="screen" id="s-start">
+    <div class="hero">
+      <h1>Find federal grants for <span>what you care about.</span></h1>
+      <p>Answer three quick questions. We search open US federal grants and show who can apply, what each one requires, and which ones favor people like you.</p>
+    </div>
+    <div class="paths">
+      <button class="path" data-go="x1" type="button">
+        <strong>Explore by cause</strong>
+        <span>No organization needed. See what grants exist for causes like conservation or social development, and who can apply.</span>
+        <em>Start exploring</em>
+      </button>
+      <button class="path" data-go="o1" type="button">
+        <strong>Check an organization</strong>
+        <span>See which grants your nonprofit or business qualifies for, why, and get a first draft of the application.</span>
+        <em>Check eligibility</em>
+      </button>
+    </div>
+    <p class="source">Grants come live from Grants.gov. Summaries and matches are written by AI and can be wrong, so always read the full notice before applying.</p>
+  </section>
 
-  <div class="layout">
-    <section class="sheet" aria-labelledby="you">
-      <div class="tabs" role="tablist" aria-label="How do you want to search?">
-        <button role="tab" id="tab-explore" aria-controls="explore" aria-selected="true">Explore by cause</button>
-        <button role="tab" id="tab-org" aria-controls="profile" aria-selected="false" tabindex="-1">Check my organization</button>
-      </div>
-      <h2 id="you" class="sr-only">Search</h2>
+  <section class="screen" id="s-x1" hidden>
+    <div class="progress"><span>Step 1 of 3</span><span class="track"><i style="width:33%"></i></span></div>
+    <h1 class="q" id="q-x1">Which causes do you care about?</h1>
+    <p class="q-hint">Pick up to three. <span class="count" id="x-causes-count" aria-live="polite"></span></p>
+    <div class="opts" id="x-causes" role="group" aria-labelledby="q-x1"></div>
+    <button class="link more-btn" type="button" data-more="x-causes">Show 16 more causes</button>
+  </section>
 
-      <form id="explore" role="tabpanel" aria-labelledby="tab-explore" novalidate>
-        <p class="intro">No organization needed. Pick the causes you care about and see which grants exist and who can apply.</p>
-        <fieldset class="field">
-          <legend>Causes you care about</legend>
-          <span class="hint">Pick up to 3.</span>
-          <div class="chips" id="x-causes"></div>
-        </fieldset>
-        <fieldset class="field">
-          <legend>About you <span class="optional">(optional)</span></legend>
-          <span class="hint">Some grants favor these groups. We'll show which grants mention them.</span>
-          <div class="chips" id="x-criteria"></div>
-        </fieldset>
-        <div class="field">
-          <label for="x-amount">How much do you need?</label>
-          <select id="x-amount" name="amount_needed">
-            <option value="">Any amount</option>
-            <option value="10000">Up to $10,000</option>
-            <option value="25000">Up to $25,000</option>
-            <option value="50000">Up to $50,000</option>
-            <option value="100000">Up to $100,000</option>
-            <option value="250000">Up to $250,000</option>
-            <option value="500000">Up to $500,000</option>
-            <option value="1000000">Up to $1 million</option>
-            <option value="5000000">Up to $5 million</option>
-          </select>
-        </div>
-        <p class="error" id="x-error" role="alert" hidden></p>
-        <div class="form-actions"><button class="primary" id="x-go" type="submit">Show grants</button></div>
-      </form>
+  <section class="screen" id="s-x2" hidden>
+    <div class="progress"><span>Step 2 of 3</span><span class="track"><i style="width:66%"></i></span></div>
+    <h1 class="q" id="q-x2">Does any of this describe you?</h1>
+    <p class="q-hint">Some grants favor these groups, and we'll point out which ones. Skip if none apply.</p>
+    <div class="opts wide" id="x-criteria" role="group" aria-labelledby="q-x2"></div>
+  </section>
 
-      <form id="profile" role="tabpanel" aria-labelledby="tab-org" novalidate hidden>
-        <div class="field lookup">
-          <label for="org_search">Find your nonprofit</label>
-          <span class="hint" id="org-search-hint">Start typing its name and pick it from the list to fill everything in. Not a nonprofit? Skip this.</span>
-          <div class="combo">
-          <input id="org_search" type="search" autocomplete="off" role="combobox" aria-expanded="false"
-                 aria-controls="org_results" aria-autocomplete="list" aria-describedby="org-search-hint" placeholder="e.g. Habitat for Humanity">
+  <section class="screen" id="s-x3" hidden>
+    <div class="progress"><span>Step 3 of 3</span><span class="track"><i style="width:100%"></i></span></div>
+    <h1 class="q" id="q-x3">How much funding do you need?</h1>
+    <p class="q-hint">We'll flag grants whose awards are too small or too large.</p>
+    <div class="opts wide" id="x-amount" role="radiogroup" aria-labelledby="q-x3"></div>
+  </section>
+
+  <section class="screen" id="s-o1" hidden>
+    <div class="progress"><span>Step 1 of 3</span><span class="track"><i style="width:33%"></i></span></div>
+    <h1 class="q" id="q-o1">Tell us about the organization</h1>
+    <p class="q-hint">Nonprofits can be filled in from IRS records.</p>
+    <div class="fields">
+      <div>
+        <label class="f" for="org_search">Find your nonprofit</label>
+        <div class="combo">
+          <input id="org_search" type="search" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="org_results" aria-autocomplete="list" placeholder="Start typing its name">
           <ul id="org_results" role="listbox" hidden></ul>
-          </div>
-          <p class="filled" id="filled" hidden></p>
         </div>
-        <div class="field">
-          <label for="org_type">You are a</label>
-          <select id="org_type" name="org_type" required>
-            <option value="nonprofit_501c3">Nonprofit with 501(c)(3) status</option>
-            <option value="nonprofit_other">Nonprofit without 501(c)(3) status</option>
-            <option value="small_business">Small business</option>
-            <option value="for_profit">For-profit company (not a small business)</option>
-            <option value="individual">Individual</option>
-            <option value="tribal">Tribal government or organization</option>
-            <option value="local_government">City, county or local government</option>
-            <option value="higher_ed">College or university</option>
-          </select>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="state">Based in</label>
-            <select id="state" name="state" required></select>
-          </div>
-          <div class="field">
-            <label for="org_size">Size</label>
-            <select id="org_size" name="org_size">
-              <option value="">Not sure</option>
-              <option value="solo">Just me</option>
-              <option value="2_10">2 to 10 people</option>
-              <option value="11_50">11 to 50 people</option>
-              <option value="51_500">51 to 500 people</option>
-              <option value="500_plus">More than 500</option>
-            </select>
-          </div>
-        </div>
-        <fieldset class="field topics">
-          <legend>What do you work on?</legend>
-          <span class="hint" id="topics-hint">Pick up to 3.</span>
-          <div class="chips" id="topics" aria-describedby="topics-hint"></div>
-        </fieldset>
-        <div class="field">
-          <label for="amount_needed">How much do you need?</label>
-          <select id="amount_needed" name="amount_needed">
-            <option value="">Any amount</option>
-            <option value="25000">Up to $25,000</option>
-            <option value="50000">Up to $50,000</option>
-            <option value="100000">Up to $100,000</option>
-            <option value="250000">Up to $250,000</option>
-            <option value="500000">Up to $500,000</option>
-            <option value="1000000">Up to $1 million</option>
-            <option value="5000000">Up to $5 million</option>
-          </select>
-        </div>
-        <details class="more" id="more">
-          <summary>Add details for better matches and drafts</summary>
-          <div class="field">
-            <label for="org_name">Your organization's name</label>
-            <input id="org_name" name="org_name" maxlength="120" autocomplete="organization">
-          </div>
-          <div class="field">
-            <label for="about">What you do</label>
-            <span class="hint" id="about-hint">Who you serve, where, and for how long.</span>
-            <textarea id="about" name="about" maxlength="1500" aria-describedby="about-hint"></textarea>
-          </div>
-          <div class="field">
-            <label for="project">What the money is for</label>
-            <span class="hint" id="project-hint">The project, who benefits and what changes.</span>
-            <textarea id="project" name="project" maxlength="1500" aria-describedby="project-hint"></textarea>
-          </div>
-          <div class="field">
-            <label for="keywords">Your own search words</label>
-            <span class="hint" id="kw-hint">Separate with commas. These replace the topics above.</span>
-            <input id="keywords" name="keywords" maxlength="200" aria-describedby="kw-hint">
-          </div>
-        </details>
-        <p class="error" id="form-error" role="alert" hidden></p>
-        <div class="form-actions">
-          <button class="primary" id="find" type="submit">Find grants</button>
-          <button class="link" id="example" type="button">Try an example</button>
-        </div>
-        <p class="saved" id="saved" hidden>Saved on this device for next time. <button class="link" type="button" id="forget">Clear</button></p>
-      </form>
-    </section>
-
-    <section class="sheet" aria-labelledby="matches" aria-live="polite">
-      <h2 id="matches">Grants</h2>
-      <div id="results">
-        <div class="empty">
-          <p>Grants will appear here. For each one you'll see who can apply, its key requirements in the grant's own words, and whether it mentions groups you belong to.</p>
-        </div>
+        <p class="filled" id="filled" hidden></p>
       </div>
-    </section>
-  </div>
+      <div class="or">or fill in</div>
+      <div>
+        <label class="f" for="org_type">Type</label>
+        <select id="org_type">
+          <option value="nonprofit_501c3">Nonprofit with 501(c)(3) status</option>
+          <option value="nonprofit_other">Nonprofit without 501(c)(3) status</option>
+          <option value="small_business">Small business</option>
+          <option value="for_profit">For-profit company (not a small business)</option>
+          <option value="individual">Individual</option>
+          <option value="tribal">Tribal government or organization</option>
+          <option value="local_government">City, county or local government</option>
+          <option value="higher_ed">College or university</option>
+        </select>
+      </div>
+      <div class="two">
+        <div><label class="f" for="state">State</label><select id="state"><option value="">Choose</option></select></div>
+        <div><label class="f" for="org_size">Size</label>
+          <select id="org_size">
+            <option value="">Not sure</option><option value="solo">Just me</option><option value="2_10">2 to 10 people</option>
+            <option value="11_50">11 to 50 people</option><option value="51_500">51 to 500 people</option><option value="500_plus">More than 500</option>
+          </select></div>
+      </div>
+    </div>
+    <p class="err" id="o1-err" role="alert" hidden></p>
+  </section>
 
-  <footer>
-    <p>Grant data comes live from the Grants.gov API. Nonprofit records come from <a href="https://projects.propublica.org/nonprofits/">ProPublica's Nonprofit Explorer</a>, which publishes IRS data. This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services. Matches and drafts are written by AI and can be wrong: always read the full notice on Grants.gov before applying. <a href="https://github.com/eedigital/ai-engineering-bootcamp">See the code</a>.</p>
-  </footer>
+  <section class="screen" id="s-o2" hidden>
+    <div class="progress"><span>Step 2 of 3</span><span class="track"><i style="width:66%"></i></span></div>
+    <h1 class="q" id="q-o2">What does it work on?</h1>
+    <p class="q-hint">Pick up to three. <span class="count" id="o-topics-count" aria-live="polite"></span></p>
+    <div class="opts" id="o-topics" role="group" aria-labelledby="q-o2"></div>
+    <button class="link more-btn" type="button" data-more="o-topics">Show 16 more topics</button>
+  </section>
+
+  <section class="screen" id="s-o3" hidden>
+    <div class="progress"><span>Step 3 of 3</span><span class="track"><i style="width:100%"></i></span></div>
+    <h1 class="q" id="q-o3">How much funding does it need?</h1>
+    <p class="q-hint">Details below are optional, but they sharpen the matches and the draft.</p>
+    <div class="opts wide" id="o-amount" role="radiogroup" aria-labelledby="q-o3"></div>
+    <details class="extra" id="o-extra">
+      <summary>Add details (optional)</summary>
+      <div class="fields">
+        <div><label class="f" for="org_name">Organization name</label><input type="text" id="org_name" maxlength="120" autocomplete="organization"></div>
+        <div><label class="f" for="about">What it does</label><span class="f-hint">Who you serve, where, and for how long.</span><textarea id="about" maxlength="1500"></textarea></div>
+        <div><label class="f" for="project">What the money is for</label><span class="f-hint">The project, who benefits and what changes.</span><textarea id="project" maxlength="1500"></textarea></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="screen" id="s-results" hidden>
+    <div class="r-head">
+      <div><h1 id="r-title">Grants</h1><p class="r-sub" id="r-sub" aria-live="polite"></p></div>
+      <button class="link" id="edit" type="button">Change answers</button>
+    </div>
+    <div class="filters" id="filters" hidden></div>
+    <p class="status" id="r-status" aria-live="polite"></p>
+    <div class="cards" id="cards"></div>
+  </section>
 </main>
 
-<dialog id="draft" aria-labelledby="draft-title">
-  <div class="d-inner" id="draft-body"></div>
-</dialog>
+<nav class="nav" id="nav" hidden aria-label="Steps">
+  <div class="nav-in">
+    <button class="btn ghost" id="back" type="button">Back</button>
+    <span class="nav-msg" id="nav-msg" aria-hidden="true"></span>
+    <button class="btn primary" id="next" type="button">Continue</button>
+  </div>
+</nav>
+
+<footer id="foot">
+  <p>Grant data: <a href="https://www.grants.gov">Grants.gov</a> API. This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services. Nonprofit records: <a href="https://projects.propublica.org/nonprofits/">ProPublica Nonprofit Explorer</a> (IRS data). <a href="https://github.com/eedigital/ai-engineering-bootcamp">Source code</a>.</p>
+</footer>
+
+<dialog id="draft" aria-labelledby="draft-title"><div class="d-in" id="draft-body"></div></dialog>
 
 <script>
 const STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Puerto Rico","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming","Guam","U.S. Virgin Islands"];
-const TOPICS = {
-  education: "Education", health: "Health", food_agriculture: "Food and farming", arts_culture: "Arts and culture",
-  environment: "Environment", energy: "Energy", housing: "Housing", jobs_training: "Jobs and training",
-  small_business: "Small business growth", community: "Community development", science_tech: "Science and technology",
-  youth_families: "Youth and families", justice_safety: "Justice and safety", veterans: "Veterans",
-};
-const CAUSES = {
-  conservation: "Nature conservation", environment: "Environment and climate", animal_welfare: "Wildlife and animals",
-  water: "Clean water", social_development: "Social development", community: "Community development",
-  youth_families: "Youth and families", seniors: "Seniors", disability: "Disability",
-  mental_health: "Mental health", health: "Health", education: "Education", arts_culture: "Arts and culture",
-  housing: "Housing", jobs_training: "Jobs and training", food_agriculture: "Food and farming",
-  small_business: "Small business growth", disaster_relief: "Disaster relief", civil_rights: "Civil rights",
-  justice_safety: "Justice and safety", veterans: "Veterans", energy: "Clean energy",
-  science_tech: "Science and technology", international: "International development",
-};
-const CRITERIA = {
-  women: "Woman or women-owned", minority: "Minority or minority-owned", veteran: "Veteran",
-  rural: "Rural", tribal: "Native American or tribal", low_income: "Low-income community",
-  disability: "Person with a disability", youth: "Under 25",
-};
-const MAX_TOPICS = 3;
-const EXAMPLE = {
-  org_type: "nonprofit_501c3", state: "Texas", org_size: "2_10", amount_needed: 250000,
-  focus_areas: ["small_business", "jobs_training", "food_agriculture"],
-  org_name: "Hill Country Makers",
-  about: "We're a 501(c)(3) makerspace and small-business incubator in a rural Texas town of about 4,000 people. Three staff and 40 volunteers; we've helped 25 local businesses start since 2021.",
-  project: "A 12-month program that trains and mentors 30 rural entrepreneurs starting food and craft businesses, with shared kitchen equipment and help selling online.",
-  keywords: "",
-};
-const VERDICT = { strong_match: "Strong match", possible_match: "Possible match", not_eligible: "Not eligible" };
-const RANK = { strong_match: 0, possible_match: 1, checking: 2, error: 3, not_eligible: 4 };
-const STORE = "grant-finder-profile";
+// The first 8 show up front; the rest sit behind "Show more".
+const CAUSES = [
+  ["conservation", "Nature conservation"], ["social_development", "Social development"], ["education", "Education"],
+  ["health", "Health"], ["community", "Community development"], ["youth_families", "Youth and families"],
+  ["environment", "Environment and climate"], ["housing", "Housing"],
+  ["mental_health", "Mental health"], ["animal_welfare", "Wildlife and animals"], ["water", "Clean water"],
+  ["arts_culture", "Arts and culture"], ["jobs_training", "Jobs and training"], ["food_agriculture", "Food and farming"],
+  ["small_business", "Small business growth"], ["seniors", "Seniors"], ["disability", "Disability"],
+  ["disaster_relief", "Disaster relief"], ["civil_rights", "Civil rights"], ["justice_safety", "Justice and safety"],
+  ["veterans", "Veterans"], ["energy", "Clean energy"], ["science_tech", "Science and technology"],
+  ["international", "International development"],
+];
+const UP_FRONT = 8;
+const CRITERIA = [
+  ["women", "Woman or women-owned"], ["minority", "Minority or minority-owned"], ["veteran", "Veteran"],
+  ["rural", "Rural"], ["tribal", "Native American or tribal"], ["low_income", "Low-income community"],
+  ["disability", "Person with a disability"], ["youth", "Under 25"],
+];
+const AMOUNTS = [
+  ["", "Not sure yet"], ["10000", "Up to $10,000"], ["50000", "Up to $50,000"], ["100000", "Up to $100,000"],
+  ["250000", "Up to $250,000"], ["500000", "Up to $500,000"], ["1000000", "Up to $1 million"], ["5000000", "More than $1 million"],
+];
+const MAX_PICK = 3;
 const PARALLEL = 2;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => "$" + Number(n).toLocaleString("en-US");
-const form = $("profile"), results = $("results");
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
 
-for (const s of STATES) form.state.add(new Option(s, s));
-const topics = $("topics");
-for (const [value, label] of Object.entries(TOPICS)) {
-  topics.insertAdjacentHTML("beforeend", `<label class="chip"><input type="checkbox" name="focus_areas" value="${value}"><span>${label}</span></label>`);
+// --- choice grids ---
+function choices(el, items, name, type = "checkbox") {
+  el.innerHTML = items.map(([v, l]) =>
+    `<label class="choice"><input type="${type}" name="${name}" value="${esc(v)}"><span class="opt">${esc(l)}</span></label>`).join("");
 }
-function limitTopics() {
-  const boxes = [...form.querySelectorAll('input[name="focus_areas"]')];
-  const full = boxes.filter((b) => b.checked).length >= MAX_TOPICS;
-  boxes.forEach((b) => (b.disabled = full && !b.checked));
+choices($("x-causes"), CAUSES, "x-cause");
+choices($("o-topics"), CAUSES, "o-topic");
+// Show the first few; the rest wait behind "Show more" in the same grid, so there's no gap.
+function collapse(gridId) { [...$(gridId).children].forEach((c, i) => (c.hidden = i >= UP_FRONT)); }
+function expand(gridId) {
+  [...$(gridId).children].forEach((c) => (c.hidden = false));
+  const b = document.querySelector(`[data-more="${gridId}"]`); if (b) b.hidden = true;
 }
-topics.addEventListener("change", limitTopics);
+collapse("x-causes"); collapse("o-topics");
+document.querySelectorAll("[data-more]").forEach((b) => b.addEventListener("click", () => {
+  expand(b.dataset.more);
+  $(b.dataset.more).children[UP_FRONT]?.querySelector("input").focus();
+}));
+choices($("x-criteria"), CRITERIA, "x-crit");
+choices($("x-amount"), AMOUNTS, "x-amt", "radio");
+choices($("o-amount"), AMOUNTS, "o-amt", "radio");
+for (const s of STATES) $("state").add(new Option(s, s));
 
-// --- profile memory (this device only) ---
-function readForm() {
-  const fd = new FormData(form);
-  const text = (k) => (fd.get(k) || "").trim() || null;
-  return {
-    org_type: fd.get("org_type"), state: fd.get("state"),
-    org_size: text("org_size"), amount_needed: fd.get("amount_needed") ? Number(fd.get("amount_needed")) : null,
-    focus_areas: fd.getAll("focus_areas"),
-    org_name: text("org_name"), about: text("about"), project: text("project"), keywords: text("keywords"),
+const picked = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((i) => i.value);
+const setPicked = (name, values) => document.querySelectorAll(`input[name="${name}"]`).forEach((i) => (i.checked = (values || []).includes(i.value)));
+const radioVal = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value ?? "";
+const setRadio = (name, v) => { const i = document.querySelector(`input[name="${name}"][value="${v ?? ""}"]`); if (i) i.checked = true; };
+
+// Up to 3: block the 4th tick with a message instead of greying everything out.
+function limit(name, countEl) {
+  const update = (warn) => {
+    const n = picked(name).length;
+    countEl.classList.toggle("warn", !!warn);
+    $("nav-msg").classList.toggle("warn", !!warn);
+    $("nav-msg").textContent = warn ? "Three is the most" : n ? `${n} of ${MAX_PICK} picked` : "";
+    countEl.textContent = warn ? "That's three already. Untick one to choose another." : n ? `${n} of ${MAX_PICK} picked` : "";
   };
-}
-function fillForm(p) {
-  for (const [k, v] of Object.entries(p)) {
-    if (k === "focus_areas") continue;
-    if (form[k] && !(form[k] instanceof RadioNodeList)) form[k].value = v ?? "";
-  }
-  form.querySelectorAll('input[name="focus_areas"]').forEach((b) => (b.checked = (p.focus_areas || []).includes(b.value)));
-  limitTopics();
-  if (p.about || p.project || p.keywords) $("more").open = true;
-}
-function save(p) { try { localStorage.setItem(STORE, JSON.stringify(p)); $("saved").hidden = false; } catch {} }
-try { const p = JSON.parse(localStorage.getItem(STORE) || "null"); if (p) { fillForm(p); $("saved").hidden = false; } } catch {}
-$("forget").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} form.reset(); limitTopics(); $("saved").hidden = true; });
-$("example").addEventListener("click", () => fillForm(EXAMPLE));
-
-// --- tabs ---
-const tabs = [$("tab-explore"), $("tab-org")];
-function selectTab(t) {
-  tabs.forEach((b) => {
-    const on = b === t;
-    b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
-    $(b.getAttribute("aria-controls")).hidden = !on;
-  });
-  try { localStorage.setItem("grant-finder-tab", t.id); } catch {}
-}
-tabs.forEach((b, i) => {
-  b.addEventListener("click", () => selectTab(b));
-  b.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + 1) % 2]; selectTab(n); n.focus(); }
-  });
-});
-try { const t = localStorage.getItem("grant-finder-tab"); if (t && $(t)) selectTab($(t)); } catch {}
-
-// --- explore by cause ---
-const xform = $("explore");
-function chipGroup(el, items, name, max) {
-  el.innerHTML = Object.entries(items).map(([v, l]) => `<label class="chip"><input type="checkbox" name="${name}" value="${v}"><span>${l}</span></label>`).join("");
-  const update = () => {
-    const boxes = [...el.querySelectorAll("input")];
-    const full = boxes.filter((b) => b.checked).length >= max;
-    boxes.forEach((b) => (b.disabled = full && !b.checked));
-  };
-  el.addEventListener("change", update);
+  document.querySelectorAll(`input[name="${name}"]`).forEach((i) => i.addEventListener("change", () => {
+    if (i.checked && picked(name).length > MAX_PICK) { i.checked = false; update(true); } else update(false);
+  }));
   return update;
 }
-const updCauses = chipGroup($("x-causes"), CAUSES, "causes", 3);
-const updCriteria = chipGroup($("x-criteria"), CRITERIA, "criteria", 4);
-try {
-  const saved = JSON.parse(localStorage.getItem("grant-finder-explore") || "null");
-  if (saved) {
-    xform.querySelectorAll("input[name=causes]").forEach((b) => (b.checked = saved.causes.includes(b.value)));
-    xform.querySelectorAll("input[name=criteria]").forEach((b) => (b.checked = saved.criteria.includes(b.value)));
-    $("x-amount").value = saved.amount_needed ?? "";
-    updCauses(); updCriteria();
-  }
-} catch {}
+const updX = limit("x-cause", $("x-causes-count"));
+const updO = limit("o-topic", $("o-topics-count"));
 
-let xstate = { req: null, grants: [] };
+// --- screens ---
+const FLOWS = { x: ["x1", "x2", "x3"], o: ["o1", "o2", "o3"] };
+let screen = "start", flow = "x";
 
-function xcard(item) {
-  const g = item.grant || item.hit;
-  const meta = [g.agency, closesText(g.close_date), awardText(g)].filter(Boolean).map(esc).join(". ");
-  let badge = `<span class="verdict checking">Checking</span>`, body = "";
-  if (item.status === "checking") body = `<p class="g-summary" style="color:var(--muted)">Reading who can apply…</p>`;
-  if (item.status === "error") { badge = `<span class="verdict checking">Not loaded</span>`; body = `<p class="g-summary error">${esc(item.error)} <button class="link" data-xretry="${g.id}">Try again</button></p>`; }
-  if (item.status === "done") {
-    const w = item.who;
-    badge = w.open_to_individuals ? `<span class="verdict open">Open to individuals</span>`
-      : w.needs_organization ? `<span class="verdict org">Needs an organization</span>` : `<span class="verdict checking">See who can apply</span>`;
-    const b = item.brief;
-    const reqs = (b?.requirements || []).map((r) => `<li><span class="mark unknown" aria-hidden="true">•</span><div><span class="req-name">${esc(r.requirement)}</span>
-      ${r.evidence ? `<q class="evidence"><span>${esc(r.evidence)}</span></q>` : ""}
-      ${r.evidence && !r.evidence_found ? `<span class="unverified">This quote isn't in the grant text. Check the notice yourself.</span>` : ""}</div></li>`).join("");
-    body = `
-      ${b ? `<p class="g-summary">${esc(b.summary)}</p>` : ""}
-      ${w.labels.length ? `<p class="who"><span class="lbl">Who can apply:</span>${w.labels.map((l) => `<span class="tag">${esc(l)}</span>`).join("")}</p>` : `<p class="who"><span class="lbl">Who can apply isn't listed. Check the notice.</span></p>`}
-      ${item.mentions.length ? `<ul class="mentions">${item.mentions.map((m) => `<li><strong>Mentions: ${esc(m.label)}</strong><q class="evidence"><span>${esc(m.quote)}</span></q></li>`).join("")}</ul>` : ""}
-      ${item.amount_note ? `<p class="note">${esc(item.amount_note)}</p>` : ""}
-      ${reqs ? `<details><summary>Eligibility requirements</summary><ul class="reqs">${reqs}</ul></details>` : ""}`;
+function nextLabel() {
+  const steps = FLOWS[flow], i = steps.indexOf(screen);
+  if (i === steps.length - 1) return "Show grants";
+  if (screen === "x2" && !picked("x-crit").length) return "Skip";
+  return "Continue";
+}
+function show(id, push = true) {
+  document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== `s-${id}`));
+  screen = id;
+  if (id[0] === "x" || id[0] === "o") flow = id[0];
+  const inWizard = id !== "start" && id !== "results";
+  $("nav").hidden = !inWizard;
+  $("restart").hidden = id === "start";
+  $("foot").hidden = inWizard;
+  if (inWizard) $("next").textContent = nextLabel();
+  $("nav-msg").textContent = ""; $("nav-msg").classList.remove("warn");
+  if (id === "x1") updX(); if (id === "o2") updO();
+  if (push) history.pushState({ id }, "", id === "start" ? location.pathname : `#${id}`);
+  window.scrollTo({ top: 0 });
+  const h = document.querySelector(`#s-${id} h1`);
+  if (h && id !== "start") { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+}
+window.addEventListener("popstate", (e) => show(e.state?.id || "start", false));
+document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => show(b.dataset.go)));
+$("home").addEventListener("click", () => show("start"));
+$("restart").addEventListener("click", () => show("start"));
+$("x-criteria").addEventListener("change", () => ($("next").textContent = nextLabel()));
+$("edit").addEventListener("click", () => show(FLOWS[flow][0]));
+$("back").addEventListener("click", () => {
+  const steps = FLOWS[flow], i = steps.indexOf(screen);
+  show(i > 0 ? steps[i - 1] : "start");
+});
+$("next").addEventListener("click", () => {
+  const steps = FLOWS[flow], i = steps.indexOf(screen);
+  if (!valid(screen)) return;
+  if (i < steps.length - 1) show(steps[i + 1]);
+  else if (flow === "x") runExplore(); else runOrg();
+});
+
+function warnCount(el, text) { el.classList.add("warn"); el.textContent = text; $("nav-msg").classList.add("warn"); $("nav-msg").textContent = "Pick at least one"; }
+function valid(id) {
+  if (id === "x1" && !picked("x-cause").length) { warnCount($("x-causes-count"), "Pick at least one cause to continue."); return false; }
+  if (id === "o1" && !$("state").value) { $("o1-err").textContent = "Choose a state to continue."; $("o1-err").hidden = false; $("state").focus(); return false; }
+  if (id === "o2" && !picked("o-topic").length) { warnCount($("o-topics-count"), "Pick at least one topic to continue."); return false; }
+  $("o1-err").hidden = true;
+  return true;
+}
+const openIfHidden = (gridId, name) => {
+  if (picked(name).some((v) => CAUSES.findIndex(([k]) => k === v) >= UP_FRONT)) expand(gridId);
+};
+
+(function restore() {
+  const x = store.get("gf-explore");
+  if (x) { setPicked("x-cause", x.causes); setPicked("x-crit", x.criteria); setRadio("x-amt", x.amount_needed ?? ""); updX(); openIfHidden("x-causes", "x-cause"); }
+  else setRadio("x-amt", "");
+  const o = store.get("gf-org");
+  if (o) {
+    $("org_type").value = o.org_type; $("state").value = o.state || ""; $("org_size").value = o.org_size || "";
+    setPicked("o-topic", o.focus_areas); setRadio("o-amt", o.amount_needed ?? ""); updO(); openIfHidden("o-topics", "o-topic");
+    $("org_name").value = o.org_name || ""; $("about").value = o.about || ""; $("project").value = o.project || "";
+  } else setRadio("o-amt", "");
+})();
+
+// --- server ---
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+async function post(path, body, tries = 3) {
+  for (let i = 1; ; i++) {
+    let r;
+    try { r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
+    catch { if (i >= tries) throw new Error("Couldn't reach the server. Check your connection."); await wait(2000); continue; }
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return data;
+    if ((r.status === 429 || r.status === 502) && i < tries) { await wait(3000 * i); continue; }
+    throw new Error(data.error || "Something went wrong. Try again.");
   }
-  return `<article class="grant">
-    <div class="g-head"><div><h3 class="g-title">${esc(g.title)}</h3><p class="g-meta">${meta}</p></div>${badge}</div>
-    ${body}<div class="g-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a></div></article>`;
 }
 
-function xscore(i) {
+// --- shared result bits ---
+function daysLeft(iso) { return iso ? Math.round((new Date(iso + "T23:59:59") - new Date()) / 864e5) : null; }
+function dateText(iso) { return iso ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Not listed"; }
+function awardText(g) {
+  if (g.award_floor && g.award_ceiling) return `${money(g.award_floor)} to ${money(g.award_ceiling)}`;
+  if (g.award_ceiling) return `Up to ${money(g.award_ceiling)}`;
+  return "See notice";
+}
+function soonTag(g) { const d = daysLeft(g.close_date); return d != null && d <= 21 ? `<span class="soon">Closes in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
+function quote(r) {
+  return `${r.evidence ? `<blockquote>${esc(r.evidence)}</blockquote>` : ""}${r.evidence && !r.evidence_found ? `<span class="unverified">Not found in the grant text. Check the notice.</span>` : ""}`;
+}
+const skeletons = (n) => Array.from({ length: n }, () => `<div class="skel" aria-hidden="true"></div>`).join("");
+
+let results = { kind: null, items: [], filter: "all" };
+
+function setFilters(defs) {
+  const f = $("filters");
+  if (!defs) { f.hidden = true; return; }
+  f.hidden = false;
+  f.innerHTML = defs.map(([k, label, n]) => `<button type="button" data-f="${k}" aria-pressed="${results.filter === k}">${esc(label)} (${n})</button>`).join("");
+}
+$("filters").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) { results.filter = b.dataset.f; draw(); } });
+
+function draw() {
+  const items = results.items, done = items.filter((i) => i.status !== "checking").length;
+  $("r-status").textContent = done === items.length ? "" : `Reading grant ${Math.min(done + 1, items.length)} of ${items.length}…`;
+  results.kind === "x" ? drawExplore(done === items.length) : drawOrg(done === items.length);
+}
+
+// --- explore results ---
+function xScore(i) {
   if (i.status !== "done") return -1;
   return i.mentions.length * 10 + (i.who.open_to_individuals ? 3 : 0) - (i.amount_note ? 2 : 0) + (i.brief ? 1 : 0);
 }
-function xrender(note) {
-  const items = [...xstate.grants].sort((a, b) => xscore(b) - xscore(a));
-  const done = xstate.grants.filter((g) => g.status !== "checking").length;
-  const crit = xstate.req.criteria.length;
-  const matched = xstate.grants.filter((g) => g.status === "done" && g.mentions.length).length;
-  const summary = done < xstate.grants.length ? `Read ${done} of ${xstate.grants.length} grants…`
-    : crit ? `<strong>${matched} of ${xstate.grants.length}</strong> grants mention ${crit === 1 ? "your criterion" : "at least one of your criteria"}. They're listed first.`
-    : `<strong>${xstate.grants.length}</strong> open grants for these causes.`;
-  results.innerHTML = `<p class="status-line">${note || summary}</p><div class="grants">${items.map(xcard).join("")}</div>`;
+function drawExplore(finished) {
+  const ok = results.items.filter((i) => i.status === "done");
+  const defs = [["all", "All", results.items.length], ["indiv", "Open to individuals", ok.filter((i) => i.who.open_to_individuals).length]];
+  if (results.req.criteria.length) defs.push(["you", "Mention you", ok.filter((i) => i.mentions.length).length]);
+  setFilters(defs);
+  let list = [...results.items].sort((a, b) => xScore(b) - xScore(a));
+  if (results.filter === "indiv") list = list.filter((i) => i.status === "done" && i.who.open_to_individuals);
+  if (results.filter === "you") list = list.filter((i) => i.status === "done" && i.mentions.length);
+  $("cards").innerHTML = list.length ? list.map(xCard).join("") : `<div class="empty">No grants in this group${finished ? "" : " yet"}.</div>`;
 }
-async function xcheck(item) {
-  item.status = "checking"; xrender();
-  try {
-    const r = await post("/api/explore/grant", { grant_id: item.hit.id, criteria: xstate.req.criteria, amount_needed: xstate.req.amount_needed });
-    Object.assign(item, { status: "done", ...r });
-  } catch (e) { Object.assign(item, { status: "error", error: e.message }); }
-  xrender();
+function errCard(i, g) { return `<article class="card"><h3 class="c-title">${esc(g.title)}</h3><p class="c-sum err">${esc(i.error)} <button class="link" data-retry="${g.id}">Try again</button></p></article>`; }
+function xCard(i) {
+  const g = i.grant || i.hit;
+  if (i.status === "checking") return `<div class="skel" aria-hidden="true"></div>`;
+  if (i.status === "error") return errCard(i, g);
+  const w = i.who;
+  const badge = w.open_to_individuals ? `<span class="badge good">Open to individuals</span>`
+    : w.needs_organization ? `<span class="badge plain">Needs an organization</span>` : `<span class="badge plain">Check who can apply</span>`;
+  const who = w.labels.length ? w.labels.slice(0, 2).join(", ") + (w.labels.length > 2 ? ` and ${w.labels.length - 2} more` : "") : "See notice";
+  const reqs = (i.brief?.requirements || []).map((r) => `<li><span class="mk dot">•</span><div>${esc(r.requirement)}${quote(r)}</div></li>`).join("");
+  const mentions = i.mentions.map((m) => `<li><span class="mk met">✓</span><div>Mentions ${esc(m.label.toLowerCase())}<blockquote>${esc(m.quote)}</blockquote></div></li>`).join("");
+  return `<article class="card">
+    <div class="c-top">${badge}${soonTag(g)}</div>
+    <h3 class="c-title">${esc(g.title)}</h3>
+    <p class="c-agency">${esc(g.agency || "")}</p>
+    ${i.brief ? `<p class="c-sum">${esc(i.brief.summary)}</p>` : ""}
+    ${i.mentions.length ? `<ul class="hits">${i.mentions.map((m) => `<li>Mentions ${esc(m.label.toLowerCase())}</li>`).join("")}</ul>` : ""}
+    ${i.amount_note ? `<p class="warnline">${esc(i.amount_note)}</p>` : ""}
+    <dl class="facts"><div><dt>Award</dt><dd>${awardText(g)}</dd></div><div><dt>Deadline</dt><dd>${dateText(g.close_date)}</dd></div><div><dt>Who can apply</dt><dd>${esc(who)}</dd></div></dl>
+    ${w.labels.length || reqs || mentions ? `<details class="more"><summary>Details</summary><div class="det">
+      ${w.labels.length ? `<div><h4>Who can apply</h4><p style="margin:0">${w.labels.map(esc).join(", ")}</p></div>` : ""}
+      ${reqs ? `<div><h4>Requirements, in the grant's words</h4><ul>${reqs}</ul></div>` : ""}
+      ${mentions ? `<div><h4>Where it mentions you</h4><ul>${mentions}</ul></div>` : ""}
+    </div></details>` : ""}
+    <div class="c-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a></div>
+  </article>`;
 }
-
-xform.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(xform);
-  const req = { causes: fd.getAll("causes"), criteria: fd.getAll("criteria"), amount_needed: fd.get("amount_needed") ? Number(fd.get("amount_needed")) : null };
-  const err = $("x-error");
-  if (!req.causes.length) { err.textContent = "Pick at least one cause."; err.hidden = false; $("x-causes").querySelector("input").focus(); return; }
-  err.hidden = true;
-  try { localStorage.setItem("grant-finder-explore", JSON.stringify(req)); } catch {}
-  xstate = { req, grants: [] };
-  $("x-go").disabled = true;
-  results.innerHTML = `<p class="status-line">Searching open grants on Grants.gov…</p>`;
-  if (matchMedia("(max-width: 60rem)").matches) results.scrollIntoView({ behavior: "smooth", block: "start" });
+async function runQueue(loader) {
+  const queue = [...results.items];
+  await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await loader(queue.shift()); }));
+}
+async function runExplore() {
+  const req = { causes: picked("x-cause"), criteria: picked("x-crit"), amount_needed: radioVal("x-amt") ? Number(radioVal("x-amt")) : null };
+  store.set("gf-explore", req);
+  results = { kind: "x", items: [], filter: "all", req };
+  show("results");
+  $("r-title").textContent = req.causes.map((c) => CAUSES.find(([k]) => k === c)[1]).join(", ");
+  $("r-sub").textContent = "Searching open grants on Grants.gov…";
+  setFilters(null); $("r-status").textContent = ""; $("cards").innerHTML = skeletons(3);
   try {
     const s = await post("/api/explore", req);
-    if (!s.candidates.length) { results.innerHTML = `<div class="empty"><p>No open grants found for these causes right now. Try different or fewer causes.</p></div>`; return; }
-    xstate.grants = s.candidates.map((hit) => ({ hit, status: "checking", mentions: [] }));
-    xrender(`Found ${s.total_found} open grants. Reading the ${s.candidates.length} closest…`);
-    const queue = [...xstate.grants];
-    await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await xcheck(queue.shift()); }));
-  } catch (err2) { results.innerHTML = `<p class="error">${esc(err2.message)}</p>`; }
-  finally { $("x-go").disabled = false; }
+    if (!s.candidates.length) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty">No open grants right now for these causes. Try different or fewer causes.</div>`; return; }
+    $("r-sub").textContent = `${s.total_found} open grant${s.total_found === 1 ? "" : "s"} found. Showing the ${s.candidates.length} closest matches.`;
+    results.items = s.candidates.map((hit) => ({ hit, status: "checking", mentions: [] }));
+    draw();
+    await runQueue(xLoad);
+  } catch (e) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty err">${esc(e.message)}</div>`; }
+}
+async function xLoad(item) {
+  item.status = "checking"; draw();
+  try { Object.assign(item, { status: "done", ...(await post("/api/explore/grant", { grant_id: item.hit.id, criteria: results.req.criteria, amount_needed: results.req.amount_needed })) }); }
+  catch (e) { Object.assign(item, { status: "error", error: e.message }); }
+  draw();
+}
+
+// --- organization results ---
+const VERDICT = { strong_match: ["good", "Strong match"], possible_match: ["okay", "Possible match"], not_eligible: ["bad", "Not eligible"] };
+const RANK = { strong_match: 0, possible_match: 1, not_eligible: 3 };
+const oRank = (i) => i.status === "done" ? RANK[i.assessment.verdict] * 1000 - i.assessment.fit_score : i.status === "error" ? 2500 : 2000;
+function drawOrg(finished) {
+  const ok = results.items.filter((i) => i.status === "done");
+  setFilters([["all", "All", results.items.length], ["eligible", "Worth a look", ok.filter((i) => i.assessment.verdict !== "not_eligible").length]]);
+  let list = [...results.items].sort((a, b) => oRank(a) - oRank(b));
+  if (results.filter === "eligible") list = list.filter((i) => i.status === "done" && i.assessment.verdict !== "not_eligible");
+  $("cards").innerHTML = list.length ? list.map(oCard).join("") : `<div class="empty">No grants in this group${finished ? "" : " yet"}.</div>`;
+}
+function oCard(i) {
+  const g = i.grant || i.hit;
+  if (i.status === "checking") return `<div class="skel" aria-hidden="true"></div>`;
+  if (i.status === "error") return errCard(i, g);
+  const a = i.assessment, [cls, label] = VERDICT[a.verdict];
+  const reqs = (a.requirements || []).map((r) => `<li><span class="mk ${r.status}" aria-label="${{ met: "Met", not_met: "Not met", unknown: "Unknown" }[r.status]}">${{ met: "✓", not_met: "✗", unknown: "?" }[r.status]}</span><div>${esc(r.requirement)}. <span style="color:var(--muted)">${esc(r.why)}</span>${quote(r)}</div></li>`).join("");
+  const qs = (a.questions || []).map((q) => `<li><span class="mk dot">•</span><div>${esc(q)}</div></li>`).join("");
+  const notes = (i.rules?.reasons || []).map((x) => `<li><span class="mk dot">•</span><div>${esc(x)}</div></li>`).join("");
+  return `<article class="card ${a.verdict === "not_eligible" ? "dim" : ""}">
+    <div class="c-top"><span class="badge ${cls}">${label}</span>${soonTag(g)}</div>
+    <h3 class="c-title">${esc(g.title)}</h3>
+    <p class="c-agency">${esc(g.agency || "")}</p>
+    <p class="c-sum">${esc(a.summary)}</p>
+    ${a.verdict !== "not_eligible" ? `<div class="fit"><span class="meter"><i style="width:${a.fit_score}%"></i></span>Fit with your work: ${a.fit_score} out of 100</div>` : ""}
+    <dl class="facts"><div><dt>Award</dt><dd>${awardText(g)}</dd></div><div><dt>Deadline</dt><dd>${dateText(g.close_date)}</dd></div><div><dt>Cost sharing</dt><dd>${g.cost_sharing === true ? "Required" : g.cost_sharing === false ? "Not required" : "See notice"}</dd></div></dl>
+    ${reqs || qs || notes ? `<details class="more"><summary>Why, and what to check</summary><div class="det">
+      ${notes ? `<div><h4>Checked automatically</h4><ul>${notes}</ul></div>` : ""}
+      ${reqs ? `<div><h4>Requirements</h4><ul>${reqs}</ul></div>` : ""}
+      ${qs ? `<div><h4>Find out before applying</h4><ul>${qs}</ul></div>` : ""}
+    </div></details>` : ""}
+    <div class="c-actions">
+      ${a.verdict !== "not_eligible" ? `<button class="btn primary" type="button" data-draft="${g.id}">Draft the application</button>` : ""}
+      <a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice</a>
+    </div>
+  </article>`;
+}
+function orgProfile() {
+  const t = (id) => $(id).value.trim() || null;
+  return {
+    org_type: $("org_type").value, state: $("state").value, org_size: $("org_size").value || null,
+    focus_areas: picked("o-topic"), amount_needed: radioVal("o-amt") ? Number(radioVal("o-amt")) : null,
+    org_name: t("org_name"), about: t("about"), project: t("project"), keywords: null,
+  };
+}
+async function runOrg() {
+  const profile = orgProfile();
+  store.set("gf-org", profile);
+  results = { kind: "o", items: [], filter: "all", profile };
+  show("results");
+  $("r-title").textContent = profile.org_name || "Grants for your organization";
+  $("r-sub").textContent = "Searching open grants on Grants.gov…";
+  setFilters(null); $("r-status").textContent = ""; $("cards").innerHTML = skeletons(3);
+  try {
+    const s = await post("/api/search", { profile });
+    if (!s.candidates.length) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty">No open grants matched. Try different topics.</div>`; return; }
+    $("r-sub").textContent = `${s.total_found} open grant${s.total_found === 1 ? "" : "s"} found. Checking the ${s.candidates.length} closest against your details.`;
+    results.items = s.candidates.map((hit) => ({ hit, status: "checking" }));
+    draw();
+    await runQueue(oLoad);
+  } catch (e) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty err">${esc(e.message)}</div>`; }
+}
+async function oLoad(item) {
+  item.status = "checking"; draw();
+  try { Object.assign(item, { status: "done", ...(await post("/api/assess", { profile: results.profile, grant_id: item.hit.id })) }); }
+  catch (e) { Object.assign(item, { status: "error", error: e.message }); }
+  draw();
+}
+
+$("cards").addEventListener("click", (e) => {
+  const retry = e.target.closest("[data-retry]");
+  if (retry) { const it = results.items.find((x) => x.hit.id === retry.dataset.retry); results.kind === "x" ? xLoad(it) : oLoad(it); }
+  const d = e.target.closest("[data-draft]");
+  if (d) openDraft(d.dataset.draft);
 });
 
-// --- find your nonprofit (IRS records via ProPublica) ---
+// --- nonprofit lookup (IRS records via ProPublica) ---
 const search = $("org_search"), list = $("org_results");
-let found = [], active = -1, timer, lastQuery = "";
+let found = [], active = -1, timer, lastQ = "";
 function showList(on) { list.hidden = !on; search.setAttribute("aria-expanded", String(on)); }
 function drawList() {
-  if (!found.length) { list.innerHTML = `<li class="o-none" role="option" aria-disabled="true">No nonprofit found with that name. You can fill in the form below.</li>`; return; }
-  list.innerHTML = found.map((o, i) => `<li role="option" id="org-${i}" aria-selected="${i === active}" data-i="${i}">
-    <span class="o-name">${esc(o.name)}</span>
-    <span class="o-meta">${esc([o.city, o.state].filter(Boolean).join(", "))}${o.tax_status ? `. ${esc(o.tax_status)}` : ""}${o.category ? `. ${esc(o.category)}` : ""}</span></li>`).join("");
+  list.innerHTML = found.length ? found.map((o, i) => `<li role="option" id="org-${i}" aria-selected="${i === active}" data-i="${i}">
+      <span class="o-name">${esc(o.name)}</span><span class="o-meta">${esc([o.city, o.state].filter(Boolean).join(", "))}${o.tax_status ? `. ${esc(o.tax_status)}` : ""}${o.category ? `. ${esc(o.category)}` : ""}</span></li>`).join("")
+    : `<li class="o-none" role="option" aria-disabled="true">No nonprofit found. Fill in the details below instead.</li>`;
   search.setAttribute("aria-activedescendant", active >= 0 ? `org-${active}` : "");
 }
 function pick(o) {
-  fillForm({ ...readForm(), org_name: o.name, org_type: o.org_type, state: o.state || form.state.value,
-             focus_areas: o.focus_areas.length ? o.focus_areas : readForm().focus_areas });
+  $("org_type").value = o.org_type; if (o.state) $("state").value = o.state;
+  $("org_name").value = o.name;
+  if (o.focus_areas.length) { setPicked("o-topic", o.focus_areas); updO(); openIfHidden("o-topics", "o-topic"); }
   search.value = o.name; showList(false);
   const f = $("filled");
-  f.textContent = `Filled in from IRS records: ${o.tax_status || "nonprofit"} in ${o.state || "unknown state"}${o.category ? `, ${o.category.toLowerCase()}` : ""}. Check the answers below and change anything that's wrong.`;
-  f.hidden = false;
+  f.textContent = `Filled in from IRS records: ${o.tax_status || "nonprofit"} in ${o.state || "unknown state"}${o.category ? `, ${o.category.toLowerCase()}` : ""}. Check below and change anything that's wrong.`;
+  f.hidden = false; $("o1-err").hidden = true;
 }
 search.addEventListener("input", () => {
   clearTimeout(timer);
   const q = search.value.trim();
   if (q.length < 3) { showList(false); return; }
   timer = setTimeout(async () => {
-    lastQuery = q;
+    lastQ = q;
     try {
       const r = await fetch(`/api/orgs?q=${encodeURIComponent(q)}`);
       const data = await r.json();
-      if (q !== lastQuery) return;
+      if (q !== lastQ) return;
       found = r.ok ? data.results : []; active = -1; drawList(); showList(true);
     } catch { showList(false); }
   }, 350);
@@ -547,160 +704,36 @@ search.addEventListener("keydown", (e) => {
 list.addEventListener("mousedown", (e) => { const li = e.target.closest("li[data-i]"); if (li) { e.preventDefault(); pick(found[+li.dataset.i]); } });
 search.addEventListener("blur", () => setTimeout(() => showList(false), 150));
 
-// --- talking to the server ---
-async function post(path, body, tries = 3) {
-  for (let i = 1; ; i++) {
-    let r;
-    try { r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
-    catch { if (i >= tries) throw new Error("Couldn't reach the server. Check your connection."); await wait(2000); continue; }
-    const data = await r.json().catch(() => ({}));
-    if (r.ok) return data;
-    if ((r.status === 429 || r.status === 502) && i < tries) { await wait(3000 * i); continue; }
-    throw new Error(data.error || (r.status === 422 ? "Some details are missing or too short." : "Something went wrong."));
-  }
-}
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// --- results ---
-let state = { profile: null, grants: [] };
-
-function daysLeft(iso) {
-  if (!iso) return null;
-  return Math.round((new Date(iso + "T23:59:59") - new Date()) / 864e5);
-}
-function closesText(iso) {
-  const d = daysLeft(iso);
-  if (d == null) return "No deadline listed";
-  const when = new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return d <= 14 ? `Closes ${when}, in ${d} day${d === 1 ? "" : "s"}` : `Closes ${when}`;
-}
-function awardText(g) {
-  if (g.award_floor && g.award_ceiling) return `${money(g.award_floor)} to ${money(g.award_ceiling)}`;
-  if (g.award_ceiling) return `Up to ${money(g.award_ceiling)}`;
-  return null;
-}
-
-function card(item) {
-  const g = item.grant || item.hit;
-  const a = item.assessment;
-  const v = item.status === "done" ? a.verdict : item.status;
-  const meta = [g.agency, closesText(g.close_date), awardText(g)].filter(Boolean).map(esc).join(". ");
-  let body = "";
-  if (item.status === "checking") body = `<p class="g-summary" style="color:var(--muted)">Reading the grant and checking its rules against yours…</p>`;
-  if (item.status === "error") body = `<p class="g-summary error">${esc(item.error)} <button class="link" data-retry="${g.id}">Try again</button></p>`;
-  if (item.status === "done") {
-    const reqs = (a.requirements || []).map((r) => `
-      <li><span class="mark ${r.status}" aria-label="${{ met: "Met", not_met: "Not met", unknown: "Unknown" }[r.status]}">${{ met: "✓", not_met: "✗", unknown: "?" }[r.status]}</span>
-        <div><span class="req-name">${esc(r.requirement)}.</span> <span class="req-why">${esc(r.why)}</span>
-        ${r.evidence ? `<q class="evidence"><span>${esc(r.evidence)}</span></q>` : ""}
-        ${r.evidence && !r.evidence_found ? `<span class="unverified">This quote isn't in the grant text. Check the notice yourself.</span>` : ""}</div></li>`).join("");
-    const notes = (item.rules?.reasons || []).map((x) => `<li>${esc(x)}</li>`).join("");
-    const qs = (a.questions || []).map((x) => `<li>${esc(x)}</li>`).join("");
-    body = `
-      ${v !== "not_eligible" ? `<div class="fit"><span class="bar" aria-hidden="true"><span style="width:${a.fit_score}%"></span></span>Fit with your project: ${a.fit_score} out of 100</div>` : ""}
-      <p class="g-summary">${esc(a.summary)}</p>
-      ${reqs || notes || qs ? `<details><summary>Why${qs ? ", and what to check" : ""}</summary>
-        ${notes ? `<ul class="rule-notes">${notes}</ul>` : ""}
-        ${reqs ? `<ul class="reqs">${reqs}</ul>` : ""}
-        ${qs ? `<h3>Find out before applying</h3><ul class="questions">${qs}</ul>` : ""}
-      </details>` : ""}`;
-  }
-  const actions = `<div class="g-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a>
-    ${item.status === "done" && v !== "not_eligible" ? `<button class="link" data-draft="${g.id}">Draft my application</button>` : ""}</div>`;
-  return `<article class="grant ${v === "not_eligible" ? "not-eligible" : ""}">
-    <div class="g-head"><div><h3 class="g-title">${esc(g.title)}</h3><p class="g-meta">${meta}</p></div>
-    <span class="verdict ${v}">${v === "checking" ? "Checking" : v === "error" ? "Not checked" : VERDICT[v]}</span></div>
-    ${body}${actions}</article>`;
-}
-
-function render(note) {
-  const items = [...state.grants].sort((x, y) => {
-    const vx = x.status === "done" ? x.assessment.verdict : x.status, vy = y.status === "done" ? y.assessment.verdict : y.status;
-    return RANK[vx] - RANK[vy] || (y.assessment?.fit_score ?? 0) - (x.assessment?.fit_score ?? 0);
-  });
-  const done = state.grants.filter((g) => g.status !== "checking").length;
-  const good = state.grants.filter((g) => g.status === "done" && g.assessment.verdict !== "not_eligible").length;
-  results.innerHTML = `<p class="status-line">${note || (done < state.grants.length
-    ? `Checked ${done} of ${state.grants.length} grants…`
-    : `<strong>${good} of ${state.grants.length}</strong> open grants look worth a closer look.`)}</p>
-    <div class="grants">${items.map(card).join("")}</div>`;
-}
-
-async function check(item) {
-  item.status = "checking"; render();
-  try {
-    const r = await post("/api/assess", { profile: state.profile, grant_id: item.hit.id });
-    Object.assign(item, { status: "done", grant: r.grant, rules: r.rules, assessment: r.assessment });
-  } catch (e) { Object.assign(item, { status: "error", error: e.message }); }
-  render();
-}
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const profile = readForm();
-  const err = $("form-error");
-  if (!profile.focus_areas.length && !profile.project && !profile.about && !profile.keywords) {
-    err.textContent = "Pick at least one topic, or describe your project under \u201cAdd details\u201d.";
-    err.hidden = false; topics.querySelector("input").focus(); return;
-  }
-  err.hidden = true;
-  save(profile);
-  state = { profile, grants: [] };
-  $("find").disabled = true;
-  results.innerHTML = `<p class="status-line">Searching open grants on Grants.gov…</p>`;
-  if (matchMedia("(max-width: 60rem)").matches) results.scrollIntoView({ behavior: "smooth", block: "start" });
-  try {
-    const s = await post("/api/search", { profile });
-    if (!s.candidates.length) {
-      results.innerHTML = `<div class="empty"><p>No open grants matched <strong>${esc(s.queries.join(", "))}</strong>. Try broader search words, like the field you work in.</p></div>`;
-      return;
-    }
-    state.grants = s.candidates.map((hit) => ({ hit, status: "checking" }));
-    render(`Found ${s.total_found} open grants for <strong>${esc(s.queries.join(", "))}</strong>. Checking the ${s.candidates.length} closest…`);
-    const queue = [...state.grants];
-    await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await check(queue.shift()); }));
-  } catch (err) {
-    results.innerHTML = `<p class="error">${esc(err.message)}</p>`;
-  } finally { $("find").disabled = false; }
-});
-
-results.addEventListener("click", async (e) => {
-  const xretry = e.target.closest("[data-xretry]");
-  if (xretry) xcheck(xstate.grants.find((g) => g.hit.id === xretry.dataset.xretry));
-  const retry = e.target.closest("[data-retry]"), drafting = e.target.closest("[data-draft]");
-  if (retry) check(state.grants.find((g) => g.hit.id === retry.dataset.retry));
-  if (drafting) openDraft(drafting.dataset.draft);
-});
-
 // --- draft ---
 const dlg = $("draft"), dbody = $("draft-body");
-const withPlaceholders = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<span class="placeholder">[$1]</span>');
-
+const withPh = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>');
 async function openDraft(id) {
-  const item = state.grants.find((g) => g.hit.id === id);
-  dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Drafting your application…</h2><button class="link" data-close>Close</button></div>
-    <p class="status-line">Writing from your details and this grant's priorities. This takes up to a minute.</p>`;
+  const item = results.items.find((g) => g.hit.id === id);
+  dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Writing your first draft…</h2><button class="link" data-close>Close</button></div>
+    <p style="color:var(--muted)">Using your details and this grant's priorities. This can take up to a minute.</p>`;
   dlg.showModal();
   try {
-    const { draft: d } = await post("/api/draft", { profile: state.profile, grant_id: id });
-    const sec = (title, text) => `<div class="d-section"><h3>${title} <button class="link" data-copy>Copy</button></h3><p>${withPlaceholders(text)}</p></div>`;
+    const { draft: d } = await post("/api/draft", { profile: results.profile, grant_id: id });
+    const sec = (t, x) => `<div class="d-sec"><h3>${t} <button class="link" data-copy>Copy</button></h3><p>${withPh(x)}</p></div>`;
     dbody.innerHTML = `<div class="d-head"><div><h2 id="draft-title">${esc(d.project_title)}</h2>
-      <p class="g-meta">First draft for ${esc(item.grant.title)}</p></div><button class="link" data-close>Close</button></div>
+      <p style="color:var(--muted);margin:0.25rem 0 0">First draft for ${esc(item.grant.title)}</p></div><button class="link" data-close>Close</button></div>
       ${sec("Project summary", d.summary)}${sec("Statement of need", d.need)}${sec("How this fits the grant", d.fit)}${sec("Budget outline", d.budget)}
-      ${d.to_verify.length ? `<div class="verify"><h3>Check or fill in before submitting</h3><ul>${d.to_verify.map((x) => `<li>${withPlaceholders(x)}</li>`).join("")}</ul></div>` : ""}
-      <p class="d-note">Highlighted brackets are facts only you can supply. Read the full notice for the exact sections and page limits this grant asks for.</p>`;
-  } catch (err) {
-    dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Couldn't write the draft</h2><button class="link" data-close>Close</button></div><p class="error">${esc(err.message)}</p>`;
+      ${d.to_verify.length ? `<div class="verify"><h3>Check or fill in before submitting</h3><ul>${d.to_verify.map((x) => `<li>${withPh(x)}</li>`).join("")}</ul></div>` : ""}
+      <p style="color:var(--muted);font-size:0.875rem;margin-top:1rem">Highlighted brackets are facts only you can supply. Check the notice for the exact sections and page limits.</p>`;
+  } catch (e) {
+    dbody.innerHTML = `<div class="d-head"><h2 id="draft-title">Couldn't write the draft</h2><button class="link" data-close>Close</button></div><p class="err">${esc(e.message)}</p>`;
   }
 }
 dlg.addEventListener("click", (e) => {
   if (e.target === dlg || e.target.closest("[data-close]")) dlg.close();
-  const copy = e.target.closest("[data-copy]");
-  if (copy) {
-    const text = copy.closest(".d-section").querySelector("p").innerText;
-    navigator.clipboard?.writeText(text).then(() => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy"), 1500); });
-  }
+  const c = e.target.closest("[data-copy]");
+  if (c) navigator.clipboard?.writeText(c.closest(".d-sec").querySelector("p").innerText).then(() => { c.textContent = "Copied"; setTimeout(() => (c.textContent = "Copy"), 1500); });
 });
+
+// Start where the URL says (e.g. after a refresh mid-way).
+const startAt = location.hash.slice(1);
+show(["x1", "x2", "x3", "o1", "o2", "o3"].includes(startAt) ? startAt : "start", false);
+history.replaceState({ id: screen }, "", location.href);
 </script>
 </body>
 </html>
