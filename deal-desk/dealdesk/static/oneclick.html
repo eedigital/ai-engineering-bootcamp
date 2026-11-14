@@ -176,6 +176,29 @@
   .docs-list span { font-size: 0.9375rem; color: var(--muted); }
   .links { margin: 1rem 0 0; padding-left: 1.2rem; }
 
+  /* the paywall */
+  .locked { position: relative; padding: 2.5rem 0.75rem; min-height: 30rem; }
+  .locked .ghost { position: absolute; inset: 0; overflow: hidden; filter: blur(5px); opacity: 0.55; pointer-events: none; user-select: none; }
+  .ghost .bar-line { height: 0.7rem; background: #dfe5df; border-radius: 3px; margin: 0.7rem 0; }
+  .offer { position: relative; margin: 0 auto; width: min(30rem, 100%); background: var(--sheet);
+           border: 1.5px solid var(--ink); border-radius: var(--r); padding: 1.5rem 1.6rem; box-shadow: 0 24px 50px -24px rgb(23 32 25 / 0.45); }
+  .offer h2 { margin: 0 0 0.25rem; font-size: 1.375rem; letter-spacing: -0.015em; line-height: 1.2; }
+  .offer .price { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.03em; margin: 0.6rem 0 0; }
+  .offer .price small { display: block; font-size: 1rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .offer ul { padding-left: 1.1rem; margin: 0.7rem 0 1rem; font-size: 0.9375rem; }
+  .offer .btn.primary { width: 100%; }
+  .offer .demo { font-size: 0.8125rem; color: var(--muted); margin: 0.5rem 0 0; text-align: center; }
+  .checkout { border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.8rem; margin-bottom: 0.8rem; background: var(--soft); }
+  .checkout .field input { background: #fff; color: var(--muted); }
+  .checkout .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.5rem; }
+  .or { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); font-size: 0.875rem; margin: 1.1rem 0 0.6rem; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .code-row { display: flex; gap: 0.5rem; }
+  .code-row input { flex: 1; min-width: 0; border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.5rem 0.65rem; text-transform: uppercase; }
+  .code-row input::placeholder { text-transform: none; }
+  .passbadge { display: inline-block; background: var(--ok-bg); color: var(--ok); font-weight: 700; font-size: 0.8125rem; border-radius: 99px; padding: 0.15rem 0.7rem; margin-top: 0.4rem; }
+  .tab .lock { font-size: 0.8em; margin-left: 0.3rem; }
+
   @media print {
     body { background: #fff; }
     body > *:not(main), main > *:not(#pack), #pack > *:not(.print-area) { display: none !important; }
@@ -251,7 +274,7 @@
   <!-- 3. the deal pack -->
   <section id="pack" hidden>
     <div class="head">
-      <div><h1 id="pack-title">Your deal pack</h1><p id="pack-sub"></p></div>
+      <div><h1 id="pack-title">Your deal pack</h1><p id="pack-sub"></p><span class="passbadge" id="passbadge" hidden></span></div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap"><button class="btn secondary small" id="edit" type="button">Edit the deal</button><button class="btn secondary small" id="save" type="button">Save deal</button></div>
     </div>
     <div class="summary" id="summary"></div>
@@ -470,7 +493,8 @@ async function makePack() {
   $("#confirm-err").textContent = "";
   const btn = $("#make"); btn.disabled = true; btn.textContent = "Making the documents…";
   try {
-    const r = await fetch("/api/pack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload()) });
+    const passes = store.get("dd-passes", []).filter((x) => x.expires * 1000 > Date.now()).map((x) => x.token).join(",");
+    const r = await fetch("/api/pack", { method: "POST", headers: { "Content-Type": "application/json", "X-Deal-Pass": passes }, body: JSON.stringify(payload()) });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || (data.detail && "Some details aren't valid: " + data.detail.map((d) => d.loc.slice(-1)[0]).join(", ")) || "Something went wrong.");
     lastPack = data;
@@ -488,7 +512,7 @@ const RULE_CODES = ["EXW","FCA","FAS","FOB","CPT","CIP","CFR","CIF","DAP","DPU",
 function renderPack(p) {
   const d = p.deal, inc = p.incoterm, pay = p.payment;
   $("#pack-title").textContent = `${(d.product || "Your deal").split(",")[0]}${d.destination_country ? " to " + d.destination_country : ""}`;
-  $("#pack-sub").textContent = [d.quantity ? `${num(d.quantity, 0)} ${d.quantity_unit}` : null, p.documents.quotation.total != null ? `${d.currency} ${num(p.documents.quotation.total)}` : null, d.buyer_name || null].filter(Boolean).join(" · ");
+  $("#pack-sub").textContent = [d.quantity ? `${num(d.quantity, 0)} ${d.quantity_unit}` : null, (d.value ?? (d.quantity && d.unit_price ? d.quantity * d.unit_price : null)) != null ? `${d.currency} ${num(d.value ?? d.quantity * d.unit_price)}` : null, d.buyer_name || null].filter(Boolean).join(" · ");
   const handover = p.chain.findIndex((s) => s.risk === "buyer") - 1;
   $("#summary").innerHTML = `
     <div class="card"><h2>Delivery term</h2><p class="big">${esc(inc.chosen)}</p>
@@ -510,7 +534,11 @@ function renderPack(p) {
     <ul>${shown.map((x) => `<li class="${x.level}"><i aria-hidden="true">${icon[x.level]}</i><span>${esc(x.text)}</span></li>`).join("")}</ul>
     <details class="more"><summary class="muted">${passed.length} checks passed</summary><ul>${passed.map((x) => `<li class="ok"><i aria-hidden="true">✓</i><span>${esc(x.text)}</span></li>`).join("")}</ul></details>`;
 
-  renderGaps(d);
+  const pb = $("#passbadge");
+  pb.hidden = p.locked || !p.pass;
+  if (p.pass) pb.textContent = p.pass.via === "sponsor" ? "Deal pass: paid for by your sponsor" : `Deal pass active until ${new Date(p.pass.expires * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+  $$("#tabs .tab").forEach((t) => { t.querySelector(".lock")?.remove(); if (p.locked && t.dataset.doc !== "checklist") t.insertAdjacentHTML("beforeend", '<span class="lock" aria-label="locked">🔒</span>'); });
+  if (p.locked) $("#gaps").hidden = true; else renderGaps(d);
   renderDocs();
 }
 
@@ -568,8 +596,9 @@ function termsList(t, extra = []) {
 function renderDocs() {
   const p = lastPack; if (!p) return;
   const D = p.documents;
-  $("#doc-tools").hidden = currentDoc === "checklist";
+  $("#doc-tools").hidden = currentDoc === "checklist" || p.locked;
   let html = "";
+  if (p.locked && currentDoc !== "checklist") { renderLocked(p); return; }
   if (currentDoc === "quotation") {
     const q = D.quotation;
     html = `<article class="sheet printing"><div class="top">${partyBlock("From", q.seller)}<div><h3>Quotation</h3><div class="meta">No. ${esc(q.number)}<br>Date ${esc(q.date)}<br>Valid until ${esc(q.valid_until)}</div></div></div>
@@ -598,6 +627,54 @@ function renderDocs() {
   }
   $("#docs").innerHTML = html;
   $$("#docs input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => { const d = store.get("dd-checked", {}); d[cb.dataset.doc] = cb.checked; store.set("dd-checked", d); }));
+}
+
+// ---------- the paywall ----------
+function renderLocked(p) {
+  const o = p.offer, d = p.deal;
+  const family = (p.scope || "").split("|")[0];
+  const what = `${family ? family.charAt(0).toUpperCase() + family.slice(1) : "This product"} to ${d.destination_country || "this market"}`;
+  const ghost = `<article class="sheet ghost" aria-hidden="true"><div class="top"><div><div class="bar-line" style="width:12rem"></div><div class="bar-line" style="width:9rem"></div></div><h3>${{ quotation: "Quotation", proforma: "Proforma invoice", packing_list: "Packing list" }[currentDoc]}</h3></div>
+    ${Array.from({ length: 9 }, (_, i) => `<div class="bar-line" style="width:${[90, 70, 100, 60, 95, 80, 40, 85, 55][i]}%"></div>`).join("")}</article>`;
+  $("#docs").innerHTML = `<div class="locked">${ghost}
+    <div class="offer" role="dialog" aria-labelledby="offer-title">
+      <h2 id="offer-title">Unlock the documents for this deal</h2>
+      <p class="muted" style="margin:0">Your quotation, proforma invoice and packing list are ready, with the same figures on every one.</p>
+      <p class="price">${esc(o.currency)} ${num(o.price, 0)} <small>Deal pass: ${esc(o.covers.toLowerCase())}</small></p>
+      <ul>${o.includes.map((x) => `<li>${esc(x)}</li>`).join("")}<li>Covers: <b>${esc(what)}</b></li></ul>
+      <div class="checkout" id="checkout" hidden>
+        <div class="field"><label for="card">Card number</label><input id="card" value="4242 4242 4242 4242" disabled></div>
+        <div class="row2"><div class="field"><label for="exp">Expiry</label><input id="exp" value="12 / 30" disabled></div><div class="field"><label for="cvc">CVC</label><input id="cvc" value="123" disabled></div></div>
+      </div>
+      <button class="btn primary" id="buy" type="button">Unlock for ${esc(o.currency)} ${num(o.price, 0)}</button>
+      <p class="demo">Demo checkout: no card is charged.</p>
+      <div class="or">or</div>
+      <label for="code" style="font-weight:700;font-size:.9375rem">Have a code from your bank or chamber?</label>
+      <div class="code-row" style="margin-top:.35rem"><input id="code" placeholder="e.g. CHAMBER-DEMO" autocomplete="off"><button class="btn secondary small" id="use-code" type="button">Use code</button></div>
+      <p class="err" id="pay-err" role="alert" style="margin:.5rem 0 0;font-size:.9375rem"></p>
+    </div></div>`;
+  $("#buy").addEventListener("click", () => {
+    const co = $("#checkout");
+    if (co.hidden) { co.hidden = false; $("#buy").textContent = `Pay ${o.currency} ${num(o.price)}`; return; }
+    getPass({ method: "demo" }, $("#buy"));
+  });
+  $("#use-code").addEventListener("click", () => getPass({ method: "code", code: $("#code").value.trim() }, $("#use-code")));
+  $("#code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#use-code").click(); });
+}
+
+async function getPass(how, btn) {
+  const d = lastPack.deal;
+  $("#pay-err").textContent = "";
+  const label = btn.textContent; btn.disabled = true; btn.textContent = how.method === "demo" ? "Paying…" : "Checking…";
+  try {
+    const r = await fetch("/api/pass", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_key: d.product_key, product: d.product, destination_country: d.destination_country, ...how }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "That didn't work. Try again.");
+    store.set("dd-passes", [data, ...store.get("dd-passes", []).filter((x) => x.scope !== data.scope)].slice(0, 30));
+    await makePack();
+    toHost({ type: "dealdesk:pass", via: data.via, scope: data.scope });
+  } catch (err) { $("#pay-err").textContent = err.message; btn.disabled = false; btn.textContent = label; }
 }
 
 $("#print").addEventListener("click", () => window.print());

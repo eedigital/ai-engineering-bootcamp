@@ -16,15 +16,17 @@ import os
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
-from . import ai, oneclick, rules  # noqa: E402
+from . import ai, oneclick, paywall, rules  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("dealdesk")
@@ -149,10 +151,47 @@ async def start(request: Request, text: str | None = Form(default=None), file: U
 @app.post("/api/pack")
 def make_pack(deal: oneclick.OneDeal, request: Request):
     """One click, step 2: the quotation, proforma invoice and packing list from one set of figures, plus the
-    document checklist and the checks. Plain rules, no AI, instant."""
+    document checklist and the checks. Plain rules, no AI, instant.
+
+    The advice, checks and checklist are free. The three documents need a deal pass (header X-Deal-Pass),
+    covering one product to one market. Without one, `documents` is null and `locked` is true."""
     if (r := _limited(request, "plan", 120)):
         return r
-    return oneclick.pack(deal)
+    result = oneclick.pack(deal)
+    scope = paywall.scope(deal.product_key, deal.product, deal.destination_country)
+    if not paywall.ENABLED:
+        return {**result, "locked": False}
+    valid = paywall.any_valid(request.headers.get("x-deal-pass"), scope)
+    if valid:
+        return {**result, "locked": False, "pass": {"expires": valid["e"], "via": valid["v"]}}
+    return {**result, "documents": None, "locked": True, "offer": paywall.offer(), "scope": scope}
+
+
+class PassRequest(BaseModel):
+    product_key: str | None = Field(default=None, max_length=40)
+    product: str = Field(default="", max_length=200)
+    destination_country: str = Field(default="", max_length=60)
+    method: Literal["demo", "code"] = "demo"
+    code: str | None = Field(default=None, max_length=40)
+
+
+@app.post("/api/pass")
+def buy_pass(req: PassRequest, request: Request):
+    """Issue a deal pass for one product to one market. Demo checkout: no card is charged.
+    With a sponsor code, the pass is paid for by the bank or chamber that gave it."""
+    if (r := _limited(request, "pass", 20)):
+        return r
+    if not (req.product_key or req.product.strip()) or not req.destination_country.strip():
+        return _error(422, "The deal needs a product and a destination before a pass can cover it.")
+    scope = paywall.scope(req.product_key, req.product, req.destination_country)
+    if req.method == "code":
+        sponsor = paywall.SPONSOR_CODES.get((req.code or "").strip().upper())
+        if not sponsor:
+            return _error(422, "That code isn't recognised. Check it with the bank or chamber that gave it to you.")
+        log.info("pass_issued via=sponsor scope=%s", scope)
+        return {**paywall.issue(scope, via="sponsor"), "sponsor": sponsor}
+    log.info("pass_issued via=demo scope=%s", scope)
+    return paywall.issue(scope, via="demo")
 
 
 @app.post("/api/read")

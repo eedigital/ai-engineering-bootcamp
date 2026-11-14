@@ -212,6 +212,63 @@ def test_start_needs_some_text(client):
     assert client.post("/api/start", data={"text": "hi"}).status_code == 422
 
 
-def test_pack_endpoint(client):
-    r = client.post("/api/pack", json={"destination_country": "Germany", "product": "green coffee", "quantity": 1000, "unit_price": 4})
-    assert r.status_code == 200 and r.json()["documents"]["quotation"]["total"] == 4000
+# --- the paywall ------------------------------------------------------------------------------
+
+DEAL = {"destination_country": "Germany", "product": "green coffee", "product_key": "coffee_green", "quantity": 1000, "unit_price": 4}
+
+
+def test_documents_are_locked_but_advice_is_free(client):
+    body = client.post("/api/pack", json=DEAL).json()
+    assert body["locked"] is True and body["documents"] is None
+    assert body["incoterm"]["chosen"] and body["checks"] and body["checklist"]
+    assert body["offer"]["price"] > 0 and body["offer"]["demo"] is True
+
+
+def test_a_pass_unlocks_the_documents(client):
+    p = client.post("/api/pass", json={**DEAL, "method": "demo"}).json()
+    body = client.post("/api/pack", json=DEAL, headers={"X-Deal-Pass": p["token"]}).json()
+    assert body["locked"] is False and body["documents"]["quotation"]["total"] == 4000 and body["pass"]["via"] == "demo"
+
+
+def test_a_pass_covers_the_product_family_and_market_only(client):
+    token = client.post("/api/pass", json={**DEAL, "product_key": "coffee", "product": "coffee"}).json()["token"]
+    roasted = {**DEAL, "product_key": "coffee_roasted", "product": "Roasted coffee"}
+    assert client.post("/api/pack", json=roasted, headers={"X-Deal-Pass": token}).json()["locked"] is False
+    france = {**DEAL, "destination_country": "France"}
+    assert client.post("/api/pack", json=france, headers={"X-Deal-Pass": token}).json()["locked"] is True
+    cocoa = {**DEAL, "product_key": "cocoa_beans", "product": "Cocoa beans"}
+    assert client.post("/api/pack", json=cocoa, headers={"X-Deal-Pass": token}).json()["locked"] is True
+
+
+def test_any_of_several_passes_works(client):
+    other = client.post("/api/pass", json={**DEAL, "destination_country": "Japan"}).json()["token"]
+    mine = client.post("/api/pass", json=DEAL).json()["token"]
+    assert client.post("/api/pack", json=DEAL, headers={"X-Deal-Pass": f"{other},{mine}"}).json()["locked"] is False
+
+
+def test_forged_and_expired_passes_are_refused(client):
+    from dealdesk import paywall
+    good = paywall.issue(paywall.scope("coffee_green", "", "Germany"))["token"]
+    payload, sig = good.split(".")
+    forged = paywall._b64(json.dumps({"s": "coffee|germany", "e": 9999999999, "v": "demo"}).encode()) + "." + sig
+    expired = paywall.issue(paywall.scope("coffee_green", "", "Germany"), days=-1)["token"]
+    for t in (forged, expired, "nonsense", ""):
+        assert client.post("/api/pack", json=DEAL, headers={"X-Deal-Pass": t}).json()["locked"] is True
+
+
+def test_sponsor_code(client):
+    bad = client.post("/api/pass", json={**DEAL, "method": "code", "code": "WRONG"})
+    assert bad.status_code == 422
+    ok = client.post("/api/pass", json={**DEAL, "method": "code", "code": "chamber-demo"}).json()
+    assert ok["via"] == "sponsor" and ok["sponsor"]
+    assert client.post("/api/pack", json=DEAL, headers={"X-Deal-Pass": ok["token"]}).json()["pass"]["via"] == "sponsor"
+
+
+def test_pass_needs_a_product_and_market(client):
+    assert client.post("/api/pass", json={"product": "coffee"}).status_code == 422
+
+
+def test_paywall_can_be_switched_off(client, monkeypatch):
+    from dealdesk import paywall
+    monkeypatch.setattr(paywall, "ENABLED", False)
+    assert client.post("/api/pack", json=DEAL).json()["documents"]["quotation"]["total"] == 4000

@@ -69,6 +69,8 @@ services:
         value: groq,gemini
       - key: ALLOWED_ORIGINS
         value: "*"   # set to One Click's domains for production
+      - key: PAYWALL_SECRET
+        generateValue: true   # signs deal passes; keeps them valid across restarts
       - key: GROQ_API_KEY
         fromService:
           type: web
