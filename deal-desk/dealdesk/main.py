@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-from . import ai, hs, oneclick, paywall, rules  # noqa: E402
+from . import ai, expert, hs, oneclick, paywall, rules  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("dealdesk")
@@ -122,7 +122,8 @@ async def _body(text: str | None, file: UploadFile | None, min_len: int = 20) ->
 
 @app.post("/api/start")
 async def start(request: Request, text: str | None = Form(default=None), file: UploadFile | None = File(default=None),
-                profile: str | None = Form(default=None), use_ai: bool = Form(default=True)):
+                profile: str | None = Form(default=None), use_ai: bool = Form(default=True),
+                catalogue: str | None = Form(default=None)):
     """One click, step 1: read the message, fill in what can be found or worked out, and ask at most three questions.
     Works without AI too: if the AI is busy, plain-code reading still fills in most of the deal."""
     if (r := _limited(request, "start", 60)):
@@ -142,10 +143,45 @@ async def start(request: Request, text: str | None = Form(default=None), file: U
         except ai.StructuredError as e:
             log.warning("start_ai_unavailable error=%s", e)
             notice = "The AI reader is busy, so this was filled in by our built-in reader. Check the details below."
-    result = oneclick.start(body, prof, reading)
+    try:
+        cat = json.loads(catalogue) if catalogue else []
+        cat = [c for c in cat if isinstance(c, dict)] if isinstance(cat, list) else []
+    except ValueError:
+        cat = []
+    result = oneclick.start(body, prof, reading, cat)
     if notice:
         result["notice"] = notice
     return result
+
+
+class ExpertRequest(BaseModel):
+    product: str = Field(min_length=2, max_length=200)
+    codes: list[str] = Field(default_factory=list, max_length=6)
+    origin_country: str = Field(default="", max_length=60)
+    destination_country: str = Field(default="", max_length=60)
+    question: str = Field(default="", max_length=500)
+
+
+@app.get("/api/expert")
+def expert_offer():
+    """What an expert check costs and how fast it comes back."""
+    return expert.offer()
+
+
+@app.post("/api/expert")
+def expert_ask(req: ExpertRequest, request: Request):
+    """Ask an expert to confirm the HS code, from inside the deal. Demo checkout: no card is charged."""
+    if (r := _limited(request, "expert", 10)):
+        return r
+    log.info("expert_requested product=%s", req.product[:60])
+    return expert.ask(req.product, req.codes, req.origin_country, req.destination_country, req.question)
+
+
+@app.get("/api/expert/{request_id}")
+def expert_status(request_id: str):
+    """Pending, or the expert's answer. The answer is a labelled demo until real experts are connected."""
+    s = expert.status(request_id)
+    return s if s else _error(404, "That request wasn't found.")
 
 
 @app.get("/api/hs")

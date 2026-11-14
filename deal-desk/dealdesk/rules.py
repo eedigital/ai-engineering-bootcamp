@@ -200,7 +200,9 @@ def recommend_payment(d: Deal) -> dict:
         "advance": "This is a new buyer or a higher-risk destination, so get paid before the goods leave.",
         "lc": "A bank's promise to pay protects you while you build trust with this buyer.",
         "lc_confirmed": "A higher-risk destination makes a guarantee from a bank in your own country worth the cost.",
-        "collection": "You know this buyer somewhat, so keeping control of the documents until they pay is a fair balance.",
+        "collection": ("For a smaller first deal in a lower-risk market, keeping control of the shipping documents until they pay is a fair balance."
+                       if d.relationship == "new" else
+                       "You know this buyer somewhat, so keeping control of the documents until they pay is a fair balance."),
         "open": "An established buyer in a lower-risk market is usually offered open account terms.",
     }[key]
     m = METHODS[key]

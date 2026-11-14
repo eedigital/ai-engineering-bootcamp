@@ -386,3 +386,44 @@ def test_a_weak_match_is_asked_not_guessed():
 def test_quantity_words_are_not_products():
     assert extract.product_phrase("A shop in Canada wants 300 pieces at USD 60 each.") is None
     assert extract.product_phrase("We knit llama fibre ponchos in Bolivia.") == "llama fibre ponchos"
+
+
+# --- your products and the expert -----------------------------------------------------------
+
+def test_a_saved_product_is_reused_without_asking():
+    cat = [{"name": "Bamboo bicycle frames", "hs_code": "871491", "confirmed_by": "expert"}]
+    r = oneclick.start("A buyer in France wants 20 bamboo bicycle frames at EUR 310 each.", None, None, cat)
+    f = r["fields"]
+    assert f["hs_code"]["value"] == "871491" and f["hs_confirmed_by"]["value"] == "product_list"
+    assert "confirmed by an expert" in f["hs_code"]["note"] and not any(q["id"] == "hs" for q in r["questions"])
+    assert (f["quantity"]["value"], f["value"]["value"]) == (20, 6200)
+
+
+def test_a_saved_product_needs_all_its_words():
+    cat = [{"name": "Bamboo bicycle frames", "hs_code": "871491"}]
+    assert "hs_confirmed_by" not in oneclick.start("A buyer wants 20 steel bicycle frames", None, None, cat)["fields"]
+
+
+def test_expert_answer_comes_back_into_the_deal(client, monkeypatch):
+    from dealdesk import expert
+    monkeypatch.setattr(expert, "DEMO_DELAY_S", 0)
+    assert client.get("/api/expert").json()["demo"] is True
+    req = client.post("/api/expert", json={"product": "Bamboo bicycle frames", "codes": ["871491", "871200"]}).json()
+    assert req["status"] == "with_expert"
+    ans = client.get(f"/api/expert/{req['id']}").json()
+    assert ans["status"] == "answered" and ans["code"] == "871491" and ans["demo"] is True
+
+
+def test_expert_waits_before_answering(monkeypatch):
+    from dealdesk import expert
+    monkeypatch.setattr(expert, "DEMO_DELAY_S", 3600)
+    assert expert.status(expert.ask("Coffee", ["090111"])["id"])["status"] == "with_expert"
+
+
+def test_expert_request_ids_cannot_be_forged(client):
+    assert client.get("/api/expert/abc.def").status_code == 404
+
+
+def test_check_says_who_confirmed_the_code():
+    p = oneclick.pack(coffee_deal(hs_confirmed=True, hs_confirmed_by="expert"))
+    assert any("confirmed by an expert" in t for t in levels(p, "ok"))

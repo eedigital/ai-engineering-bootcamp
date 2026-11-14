@@ -36,6 +36,7 @@ class OneDeal(BaseModel):
     product_key: str | None = None
     hs_code: str = Field(default="", max_length=12)
     hs_confirmed: bool = Field(default=False, description="True when the code came from the buyer's order or the seller confirmed it")
+    hs_confirmed_by: Literal["", "order", "you", "expert", "product_list"] = ""
     organic: bool = False
     origin_country: str = Field(default="", max_length=60)
     origin_place: str = Field(default="", max_length=80)
@@ -89,7 +90,19 @@ def _transport_from_incoterm(code: str) -> dict:
     return {"transport_by": "seller", "delivery_to": "buyer_site", "seller_clears_import": c == "DDP"}
 
 
-def start(text: str, profile: dict | None = None, ai_reading: dict | None = None) -> dict:
+def _from_catalogue(text: str, catalogue: list[dict]) -> dict | None:
+    """A product the business has saved with a confirmed code, if the message mentions it. Longest name wins."""
+    words = set(hs._words(text))
+    best = None
+    for item in catalogue[:200]:
+        name_words = [w for w in hs._words(str(item.get("name", ""))) if w not in hs.STOP and w not in hs.FORM_WORDS]
+        if name_words and set(name_words) <= words and hs.valid(str(item.get("hs_code", ""))):
+            if best is None or len(name_words) > best[0]:
+                best = (len(name_words), item)
+    return best[1] if best else None
+
+
+def start(text: str, profile: dict | None = None, ai_reading: dict | None = None, catalogue: list[dict] | None = None) -> dict:
     """Combine the plain-code reading and (if given) the AI's, work things out, and list the questions to ask."""
     profile = profile or {}
     home = (profile.get("country") or "").strip() or None
@@ -166,9 +179,19 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
             fields["product_key"] = _f(f"hs{top}", "worked_out")
 
     # an HS code written in the order beats our suggestion
+    saved = _from_catalogue(" ".join(filter(None, [ai.get("product"), text])), catalogue or [])
+    if saved:
+        who = {"expert": "confirmed by an expert", "order": "from a buyer's order", "you": "confirmed by you"}.get(saved.get("confirmed_by"), "confirmed")
+        fields["product"] = _f(saved["name"], "profile")
+        fields["hs_code"] = _f(saved["hs_code"], "profile", _hs_note(saved["hs_code"], f"From your product list, {who}."))
+        fields["hs_confirmed"] = _f(True, "profile")
+        fields["hs_confirmed_by"] = _f("product_list", "profile")
+        fields["product_key"] = _f(fields.get("product_key", {}).get("value") or f"hs{saved['hs_code']}", "worked_out")
+        unsure_hs = []
     if plain.get("hs_code") and hs.valid(plain["hs_code"]):
         fields["hs_code"] = _f(plain["hs_code"], "message", _hs_note(plain["hs_code"], "From the order."))
         fields["hs_confirmed"] = _f(True, "message")
+        fields["hs_confirmed_by"] = _f("order", "message")
 
     # money: fill the gap between quantity, unit price and total
     qty = (fields.get("quantity") or {}).get("value")
@@ -401,7 +424,9 @@ def _checks(d: OneDeal, code, rec_code, pay, rec_pay, plan, p, total, unit_price
     elif not hs.valid(d.hs_code):
         add("fix", f"HS code {d.hs_code} isn't in the {hs.EDITION} list. Search for the right one.")
     elif d.hs_confirmed:
-        add("ok", f"HS code {d.hs_code} confirmed: {(hs.describe(d.hs_code) or '')[:90]}. The same code is on every document.")
+        who = {"order": "as stated in the buyer's order", "expert": "confirmed by an expert", "product_list": "from your product list",
+               "you": "confirmed by you"}.get(d.hs_confirmed_by, "confirmed")
+        add("ok", f"HS code {d.hs_code}, {who}: {(hs.describe(d.hs_code) or '')[:80]}. The same code is on every document.")
     else:
         add("warn", f"Confirm HS code {d.hs_code} with customs or your broker, and add your country's extra digits.")
 

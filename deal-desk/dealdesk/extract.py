@@ -335,6 +335,12 @@ def read(text: str, home_country: str | None = None) -> dict:
     """Everything the plain-code reader can find. Values are None where it found nothing."""
     total, currency, unit_price, unit = money(text)
     qty, qty_unit = quantity(text)
+    phrase = product_phrase(text)
+    if qty is None and phrase:
+        # "20 bamboo bicycle frames": a plain count right before the product
+        m = re.search(rf"\b(\d[\d,]*)\s+(?:x\s+)?{re.escape(phrase)}", text, re.I)
+        if m and (v := _num(m.group(1))):
+            qty, qty_unit = v, "pieces"
     n_containers, size = containers(text)
     pay = payment(text)
     rel = relationship(text)
@@ -347,7 +353,7 @@ def read(text: str, home_country: str | None = None) -> dict:
         "payment_terms_mentioned": pay["mentioned"], "relationship": rel,
         "buyer_name": (bn := (labelled := parties(text))[0] or buyer_name(text)), "buyer_address": buyer_address(text, bn),
         "seller_name": labelled[1], "seller_address": buyer_address(text, labelled[1]),
-        "ship_window": ship_window(text), "hs_code": hs_code(text), "product_phrase": product_phrase(text),
+        "ship_window": ship_window(text), "hs_code": hs_code(text), "product_phrase": phrase,
         "organic": bool(re.search(r"\borganic\b", text, re.I)),
         "red_flags": risks(text, pay["credit_days"], rel),
     }

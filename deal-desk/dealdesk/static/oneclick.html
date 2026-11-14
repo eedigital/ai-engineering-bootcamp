@@ -113,6 +113,19 @@
   .hs-list button { width: 100%; text-align: left; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.45rem 0.65rem; cursor: pointer; font-size: 0.9375rem; display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.5rem; }
   .hs-list button:hover, .hs-list button[aria-current="true"] { border-color: var(--accent); }
   .hs-list b { font-variant-numeric: tabular-nums; }
+  .expert { background: var(--sheet); border: 1px solid var(--line); border-left: 4px solid var(--buyer-bg); border-radius: var(--r); padding: 1rem 1.2rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .expert.waiting { border-left-color: #e8b44c; }
+  .expert.done { border-left-color: var(--ok); }
+  .expert h2 { margin: 0 0 0.15rem; font-size: 1.0625rem; }
+  .expert p { margin: 0; font-size: 0.9375rem; color: var(--muted); max-width: 40rem; }
+  .expert .demo { font-size: 0.8125rem; }
+  .dots::after { content: "…"; animation: dots 1.4s steps(4) infinite; display: inline-block; width: 1.2em; overflow: hidden; vertical-align: bottom; }
+  @keyframes dots { from { width: 0; } to { width: 1.2em; } }
+  @media (prefers-reduced-motion: reduce) { .dots::after { animation: none; } }
+  .src.expert { background: var(--ok-bg); color: var(--ok); }
+  .products-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
+  .products-list li { display: flex; justify-content: space-between; gap: 1rem; align-items: center; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.55rem 0.85rem; font-size: 0.9375rem; }
+  .products-list span { color: var(--muted); font-size: 0.8125rem; }
   .flags { display: grid; gap: 0.5rem; }
   .flag { border-left: 4px solid var(--warn); background: var(--warn-bg); border-radius: 0 var(--r-small) var(--r-small) 0; padding: 0.6rem 0.9rem; font-size: 0.9375rem; }
   .flag.high { border-color: var(--no); background: var(--no-bg); }
@@ -288,6 +301,7 @@
     </div>
     <div class="summary" id="summary"></div>
     <div class="checks" id="checks"></div>
+    <div class="expert" id="expert" hidden></div>
     <div class="gaps" id="gaps" hidden></div>
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-doc="quotation" aria-selected="true">Quotation</button>
@@ -303,6 +317,7 @@
   <section id="profile" hidden>
     <div class="head"><div><h1>Your company</h1><p>Saved on this device and added to every document.</p></div></div>
     <div class="group"><div class="grid" id="profile-fields"></div></div>
+    <div class="group" style="margin-top:1rem"><h2>Your products</h2><p class="muted" style="margin:-.4rem 0 .8rem;font-size:.9375rem">Confirm a product's HS code once and it's used on every deal.</p><ul class="products-list" id="products"></ul></div>
     <div class="actionbar"><button class="link" type="button" id="profile-cancel">Back</button><button class="btn primary" type="button" id="profile-save">Save my details</button></div>
   </section>
 </main>
@@ -369,6 +384,7 @@ async function startDeal(text, file) {
   if (text) fd.append("text", text);
   if (file) fd.append("file", file);
   fd.append("profile", JSON.stringify(store.get("dd-profile", {})));
+  fd.append("catalogue", JSON.stringify(store.get("dd-products", [])));
   try {
     const r = await fetch("/api/start", { method: "POST", body: fd });
     const data = await r.json();
@@ -403,7 +419,7 @@ const GROUPS = [
                  ["incoterm_requested", "Delivery term they asked for", "text"], ["payment_requested", "Payment they asked for", "select"], ["credit_days", "Days of credit asked", "number"],
                  ["ship_window", "Shipment window", "text"]]],
 ];
-const SRC_LABEL = { message: "From the message", worked_out: "Worked out", assumed: "Assumed", profile: "Your details", you: "You" };
+const SRC_LABEL = { message: "From the message", worked_out: "Worked out", assumed: "Assumed", profile: "Your details", you: "You", expert: "Expert" };
 
 function loadReading(data) {
   deal = {}; sources = {};
@@ -436,7 +452,7 @@ function renderQuestions(qs) {
     $$(`.opt[data-q="${q.id}"]`, list).forEach((x) => x.setAttribute("aria-pressed", x === b));
     const set = q.options[+b.dataset.i].set;
     if (set._search) { openHsSearch(); $("#hs-tools").scrollIntoView({ block: "center" }); return; }
-    apply(set);
+    apply(set.hs_code ? { ...set, hs_confirmed_by: "you" } : set);
     if (set.hs_code) sources.hs_code = { source: "you", note: `You chose it. HS 2022: ${b.textContent.split(": ").slice(1).join(": ")}`, options: sources.hs_code?.options };
     markAnswered(q.id);
   }));
@@ -476,7 +492,7 @@ function renderFields() {
     if (el.type === "number") v = v === "" ? null : +v;
     if (k === "organic") v = v === "true";
     deal[k] = v; sources[k] = { source: "you" };
-    if (k === "hs_code") { deal.hs_confirmed = !!v; if (v) describeHs(v); }
+    if (k === "hs_code") { deal.hs_confirmed = !!v; deal.hs_confirmed_by = v ? "you" : ""; if (v) describeHs(v); }
     if (k === "quantity" || k === "unit_price") recalc();
     renderFields();
     document.getElementById("f-" + k)?.focus();
@@ -507,7 +523,7 @@ function openHsSearch() {
   $("#hs-q").focus();
 }
 function pickHs(code, description) {
-  deal.hs_code = code; deal.hs_confirmed = true;
+  deal.hs_code = code; deal.hs_confirmed = true; deal.hs_confirmed_by = "you";
   if (!deal.product_key || String(deal.product_key).startsWith("hs")) deal.product_key = "hs" + code;
   sources.hs_code = { source: "you", note: `You chose it. HS 2022: ${description}`, options: sources.hs_code?.options };
   renderFields();
@@ -521,6 +537,91 @@ async function describeHs(code) {
   } catch {}
 }
 
+// ---------- your products: confirm a code once, reuse it on every deal ----------
+function rememberProduct() {
+  if (!deal.hs_confirmed || !deal.hs_code || !deal.product || deal.hs_confirmed_by === "product_list") return;
+  const name = String(deal.product).split(",")[0].trim();
+  const list = store.get("dd-products", []).filter((x) => x.name.toLowerCase() !== name.toLowerCase());
+  list.unshift({ name, hs_code: deal.hs_code, confirmed_by: deal.hs_confirmed_by || "you", date: new Date().toISOString().slice(0, 10) });
+  store.set("dd-products", list.slice(0, 100));
+}
+
+// ---------- ask an expert, inside the deal ----------
+let expertTimer = null;
+const BY = { expert: "an expert", order: "the buyer's order", you: "you", product_list: "your product list" };
+function renderExpert() {
+  const box = $("#expert"), e = deal.expert, d = lastPack?.deal || {};
+  if (e?.status === "answered") {
+    box.hidden = false; box.className = "expert done";
+    box.innerHTML = `<div><h2>Confirmed by an expert: ${esc(e.code || "")}</h2><p>${esc(e.note || "")}</p><p class="demo">Demo answer: no real expert is connected yet. Saved to your product list.</p></div>`;
+    return;
+  }
+  if (e?.status === "with_expert") {
+    box.hidden = false; box.className = "expert waiting";
+    box.innerHTML = `<div><h2 class="dots">With an expert</h2><p>Reply within 24 hours. Keep working: the answer will appear here and update all three documents.</p><p class="demo">Demo: the answer arrives in about ${esc(e.delay || 20)} seconds.</p></div>`;
+    pollExpert();
+    return;
+  }
+  if (d.hs_confirmed || !d.hs_code && !d.product) { box.hidden = true; return; }
+  box.hidden = false; box.className = "expert";
+  box.innerHTML = `<div><h2>Not sure about the HS code?</h2><p>An expert confirms it inside this deal, using what you've already entered. No forms, no emails.</p></div>
+    <div id="expert-act"><button class="btn primary small" id="expert-go" type="button">Ask an expert · ${esc(expertOffer.currency)} ${num(expertOffer.price, 0)}</button></div>`;
+  $("#expert-go").addEventListener("click", () => {
+    $("#expert-act").innerHTML = `<p class="demo" style="margin:0 0 .4rem">Demo checkout: no card is charged.</p><button class="btn primary small" id="expert-pay" type="button">Pay ${esc(expertOffer.currency)} ${num(expertOffer.price)} and send</button>`;
+    $("#expert-pay").addEventListener("click", askExpert);
+  });
+}
+let expertOffer = { price: 15, currency: "USD", demo_delay_s: 20 };
+fetch("/api/expert").then((r) => r.json()).then((o) => (expertOffer = o)).catch(() => {});
+
+async function askExpert() {
+  const btn = $("#expert-pay"); btn.disabled = true; btn.textContent = "Sending…";
+  const codes = (sources.hs_code?.options || []).map((o) => o.code);
+  if (deal.hs_code && !codes.includes(deal.hs_code)) codes.unshift(deal.hs_code);
+  try {
+    const r = await fetch("/api/expert", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product: String(deal.product || "").slice(0, 200), codes: codes.slice(0, 6), origin_country: deal.origin_country || "", destination_country: deal.destination_country || "" }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "That didn't send. Try again.");
+    deal.expert = { id: data.id, status: "with_expert", delay: expertOffer.demo_delay_s };
+    saveIfSaved();
+    renderExpert();
+  } catch (err) { btn.disabled = false; btn.textContent = "Try again"; $("#expert-act").insertAdjacentHTML("beforeend", `<p class="err">${esc(err.message)}</p>`); }
+}
+function pollExpert() {
+  if (expertTimer) return;
+  expertTimer = setInterval(async () => {
+    const e = deal.expert;
+    if (!e || e.status !== "with_expert") { clearInterval(expertTimer); expertTimer = null; return; }
+    try {
+      const r = await fetch("/api/expert/" + encodeURIComponent(e.id));
+      const a = await r.json();
+      if (a.status !== "answered") return;
+      clearInterval(expertTimer); expertTimer = null;
+      deal.expert = { ...e, ...a };
+      if (a.code) {
+        deal.hs_code = a.code; deal.hs_confirmed = true; deal.hs_confirmed_by = "expert";
+        if (!deal.product_key || String(deal.product_key).startsWith("hs")) deal.product_key = "hs" + a.code;
+        sources.hs_code = { source: "expert", note: `Confirmed by an expert (demo). HS 2022: ${a.description}` };
+      }
+      saveIfSaved();
+      if (!$("#pack").hidden) await makePack(); else renderFields();
+      toast("An expert confirmed your HS code. The documents are updated.");
+    } catch {}
+  }, 4000);
+}
+function saveIfSaved() {
+  if (!deal._id) return;
+  const saved = store.get("dd-deals", []);
+  const i = saved.findIndex((x) => x.id === deal._id);
+  if (i >= 0) { saved[i] = { ...saved[i], deal, sources }; store.set("dd-deals", saved); }
+}
+function toast(msg) {
+  let t = $("#toast");
+  if (!t) { document.body.insertAdjacentHTML("beforeend", `<div id="toast" role="status" style="position:fixed;left:50%;bottom:1.25rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.7rem 1.1rem;border-radius:var(--r-small);font-size:.9375rem;z-index:20;max-width:calc(100% - 2rem)"></div>`); t = $("#toast"); }
+  t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => (t.hidden = true), 5000);
+}
+
 function renderFlags() {
   $("#flags-box").hidden = !flags.length;
   $("#flags").innerHTML = flags.map((f) => `<div class="flag ${f.severity}"><b>${esc(f.flag)}.</b> ${esc(f.why)}${f.quote ? `<q>${esc(f.quote)}</q>` : ""}</div>`).join("");
@@ -529,7 +630,7 @@ function renderFlags() {
 $("#restart").addEventListener("click", () => show("start"));
 $("#make").addEventListener("click", makePack);
 
-const DEAL_KEYS = ["product","product_key","hs_code","hs_confirmed","organic","origin_country","origin_place","destination_country","destination_place","quantity","quantity_unit","unit_price","value","currency","containers","container_size","package_type","package_kg","mode","transport_by","delivery_to","insurance_by","seller_clears_import","relationship","destination_risk","buyer_accepts_lc","incoterm_requested","payment_requested","credit_days","incoterm","payment","deposit_pct","buyer_name","buyer_address","seller_name","seller_address","seller_tax_id","ship_window","reference"];
+const DEAL_KEYS = ["product","product_key","hs_code","hs_confirmed","hs_confirmed_by","organic","origin_country","origin_place","destination_country","destination_place","quantity","quantity_unit","unit_price","value","currency","containers","container_size","package_type","package_kg","mode","transport_by","delivery_to","insurance_by","seller_clears_import","relationship","destination_risk","buyer_accepts_lc","incoterm_requested","payment_requested","credit_days","incoterm","payment","deposit_pct","buyer_name","buyer_address","seller_name","seller_address","seller_tax_id","ship_window","reference"];
 function payload() {
   const prof = store.get("dd-profile", {});
   const out = { red_flags: flags.slice(0, 8) };
@@ -553,6 +654,7 @@ async function makePack() {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || (data.detail && "Some details aren't valid: " + data.detail.map((d) => d.loc.slice(-1)[0]).join(", ")) || "Something went wrong.");
     lastPack = data;
+    rememberProduct();
     renderPack(data);
     show("pack");
     toHost({ type: "dealdesk:complete", pack: data });
@@ -594,6 +696,7 @@ function renderPack(p) {
   if (p.pass) pb.textContent = p.pass.via === "sponsor" ? "Deal pass: paid for by your sponsor" : `Deal pass active until ${new Date(p.pass.expires * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
   $$("#tabs .tab").forEach((t) => { t.querySelector(".lock")?.remove(); if (p.locked && t.dataset.doc !== "checklist") t.insertAdjacentHTML("beforeend", '<span class="lock" aria-label="locked">🔒</span>'); });
   if (p.locked) $("#gaps").hidden = true; else renderGaps(d);
+  renderExpert();
   renderDocs();
 }
 
@@ -752,7 +855,7 @@ function renderSaved() {
   $$("[data-open]").forEach((b) => b.addEventListener("click", () => {
     const s = store.get("dd-deals", []).find((x) => x.id === b.dataset.open); if (!s) return;
     deal = s.deal; sources = s.sources || {}; flags = s.flags || [];
-    makePack();
+    makePack().then(() => { if (deal.expert?.status === "with_expert") pollExpert(); });
   }));
 }
 
@@ -762,7 +865,14 @@ function openProfile() {
   const prof = store.get("dd-profile", {});
   $("#profile-fields").innerHTML = PROFILE_FIELDS.map(([k, l]) => `<div class="field"><label for="p-${k}">${l}</label><input id="p-${k}" data-k="${k}" ${k === "country" ? 'list="countries"' : ""} value="${esc(prof[k] || "")}"></div>`).join("")
     + `<datalist id="countries">${COUNTRIES.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`;
+  renderProducts();
   show("profile");
+}
+function renderProducts() {
+  const list = store.get("dd-products", []);
+  $("#products").innerHTML = list.length ? list.map((x, i) => `<li><div><b>${esc(x.name)}</b> · ${esc(x.hs_code)}<br><span>Confirmed by ${esc(BY[x.confirmed_by] || "you")} on ${esc(x.date)}</span></div><button class="link" type="button" data-rm="${i}">Remove</button></li>`).join("")
+    : `<li class="muted">None yet. Products appear here once their HS code is confirmed.</li>`;
+  $$("[data-rm]").forEach((b) => b.addEventListener("click", () => { const l = store.get("dd-products", []); l.splice(+b.dataset.rm, 1); store.set("dd-products", l); renderProducts(); }));
 }
 $("#profile-btn").addEventListener("click", openProfile);
 $("#profile-cancel").addEventListener("click", () => show(lastPack ? "pack" : "start"));
