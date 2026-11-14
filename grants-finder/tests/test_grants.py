@@ -290,3 +290,68 @@ def test_org_lookup_no_match(client, monkeypatch):
     orglookup._cache.clear()
     monkeypatch.setattr(orglookup.httpx, "get", lambda url, **kw: httpx.Response(404, request=httpx.Request("GET", url)))
     assert client.get("/api/orgs", params={"q": "zzzzqqq"}).json() == {"results": []}
+
+
+# --- explore by cause (no organization) --------------------------------------
+
+from grants import explore  # noqa: E402
+from grants.schemas import ExploreRequest  # noqa: E402
+
+
+def test_applicant_labels_are_plain_and_ordered_correctly():
+    labels = explore.applicant_labels([
+        "For profit organizations other than small businesses",
+        "Small businesses",
+        "Nonprofits that do not have a 501(c)(3) status with the IRS, other than institutions of higher education",
+        "Nonprofits having a 501(c)(3) status with the IRS, other than institutions of higher education",
+        "Individuals",
+    ])
+    assert labels == ["Larger companies", "Small businesses", "Other nonprofits", "Nonprofits (501(c)(3))", "Individuals"]
+
+
+def test_open_to_individuals_or_needs_an_organization():
+    assert explore.who_can_apply(grant(applicant_types=["Individuals"]))["open_to_individuals"]
+    assert explore.who_can_apply(grant())["needs_organization"]
+
+
+def test_cause_and_criteria_become_searches():
+    assert explore.queries_for(["conservation", "social_development"], ["women", "rural"]) == [
+        "conservation", "social services", "women conservation", "rural conservation"]
+
+
+def test_criteria_mentions_quote_the_real_sentence():
+    g = grant(description="Priority goes to projects in rural areas. Women-owned businesses are encouraged to apply.")
+    m = explore.criteria_mentions(g, ["women", "veteran", "rural"])
+    assert [x["criterion"] for x in m] == ["women", "rural"]
+    assert m[0]["quote"] == "Women-owned businesses are encouraged to apply."
+
+
+def test_amount_notes():
+    g = grant()  # awards $10,000 to $500,000
+    assert explore.amount_note(g, 900000).startswith("Awards are at most $500,000")
+    assert explore.amount_note(g, 5000).startswith("The smallest award is $10,000")
+    assert explore.amount_note(g, 100000) is None
+
+
+def test_explore_needs_a_cause():
+    with pytest.raises(ValueError):
+        ExploreRequest(causes=[])
+
+
+def test_explore_endpoints(client):
+    set_fake_handler(lambda m: json.dumps({"summary": "Pays for rural business training.", "requirements": [
+        {"requirement": "Be rural", "evidence": "rural area of 50,000 people or fewer"},
+        {"requirement": "Invented", "evidence": "must be a unicorn"}]}))
+    found = client.post("/api/explore", json={"causes": ["small_business"], "criteria": ["rural"]}).json()
+    assert found["queries"] == ["small business", "rural small business"] and found["candidates"]
+    body = client.post("/api/explore/grant", json={"grant_id": "360001", "criteria": ["rural", "women"], "amount_needed": 900000}).json()
+    assert body["who"]["needs_organization"] and "Nonprofits (501(c)(3))" in body["who"]["labels"]
+    assert [m["criterion"] for m in body["mentions"]] == ["rural"]
+    assert body["amount_note"].startswith("Awards are at most")
+    assert [r["evidence_found"] for r in body["brief"]["requirements"]] == [True, False]
+
+
+def test_explore_grant_still_answers_when_ai_is_down(client):
+    set_fake_handler(lambda m: "not json")
+    body = client.post("/api/explore/grant", json={"grant_id": "360001"}).json()
+    assert body["brief"] is None and body["who"]["labels"]

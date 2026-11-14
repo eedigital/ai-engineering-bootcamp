@@ -47,6 +47,17 @@ FOCUS_AREAS: dict[str, str] = {
     "youth_families": "youth",
     "justice_safety": "justice",
     "veterans": "veterans",
+    # causes added for explore mode
+    "conservation": "conservation",
+    "social_development": "social services",
+    "animal_welfare": "wildlife",
+    "mental_health": "mental health",
+    "disaster_relief": "disaster",
+    "seniors": "aging",
+    "disability": "disability",
+    "civil_rights": "civil rights",
+    "water": "water",
+    "international": "international development",
 }
 
 ORG_SIZES = {
@@ -150,6 +161,57 @@ class Draft(BaseModel):
 
 
 # --- API requests ------------------------------------------------------------
+
+
+# Who the applicant is, for grants that favor certain groups.
+# key -> (label, search word, words that signal it in a grant's text)
+CRITERIA: dict[str, tuple[str, str, list[str]]] = {
+    "women": ("Woman or women-owned", "women", ["women-owned", "women owned", "woman-owned", "women"]),
+    "minority": ("Minority or minority-owned", "minority", ["minority", "socially and economically disadvantaged", "underrepresented", "historically underserved"]),
+    "veteran": ("Veteran", "veteran", ["veteran"]),
+    "rural": ("Rural", "rural", ["rural"]),
+    "tribal": ("Native American or tribal", "tribal", ["tribal", "native american", "alaska native", "native hawaiian", "indian tribe"]),
+    "low_income": ("Low-income community", "low-income", ["low-income", "low income", "underserved", "economically distressed", "poverty"]),
+    "disability": ("Person with a disability", "disability", ["disabilit", "disabled"]),
+    "youth": ("Under 25", "youth", ["youth", "young adult", "students"]),
+}
+
+
+class ExploreRequest(BaseModel):
+    causes: list[str] = Field(min_length=1, max_length=3)
+    criteria: list[str] = Field(default_factory=list, max_length=4)
+    amount_needed: int | None = Field(default=None, ge=0, le=1_000_000_000)
+
+    @field_validator("causes")
+    @classmethod
+    def known_causes(cls, v):
+        if bad := [c for c in v if c not in FOCUS_AREAS]:
+            raise ValueError(f"unknown causes: {bad}")
+        return v
+
+    @field_validator("criteria")
+    @classmethod
+    def known_criteria(cls, v):
+        if bad := [c for c in v if c not in CRITERIA]:
+            raise ValueError(f"unknown criteria: {bad}")
+        return v
+
+
+class ExploreGrantRequest(BaseModel):
+    grant_id: str = Field(pattern=r"^\d{1,10}$")
+    criteria: list[str] = Field(default_factory=list, max_length=4)
+    amount_needed: int | None = Field(default=None, ge=0, le=1_000_000_000)
+
+
+class EligibilityPoint(BaseModel):
+    requirement: str = Field(max_length=200)
+    evidence: str = Field(default="", max_length=400, description="Exact words from the grant")
+    evidence_found: bool = True  # set by our own check, not the AI
+
+
+class GrantBrief(BaseModel):
+    summary: str = Field(max_length=500, description="What the grant pays for, in plain words")
+    requirements: list[EligibilityPoint] = Field(default_factory=list, max_length=6)
 
 
 class SearchRequest(BaseModel):

@@ -58,6 +58,21 @@
   .chip input:checked + span { background: var(--ink); border-color: var(--ink); color: #fff; }
   .chip input:focus-visible + span { outline: 3px solid var(--action); outline-offset: 2px; }
   .chip input:disabled:not(:checked) + span { opacity: 0.45; cursor: not-allowed; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem; background: var(--paper); padding: 0.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+  .tabs button { font: inherit; font-weight: 700; font-size: 0.9375rem; border: 0; background: none; color: var(--muted); padding: 0.55rem 0.5rem; border-radius: 6px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgb(29 42 58 / 0.12); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .intro { margin: 0 0 1.1rem; color: var(--muted); }
+  .optional { font-weight: 400; color: var(--muted); }
+  .who { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.75rem 0 0; font-size: 0.9375rem; }
+  .who .lbl { color: var(--muted); margin-right: 0.15rem; }
+  .who .tag { background: var(--paper); border-radius: var(--r-small); padding: 0.1rem 0.55rem; }
+  .verdict.open { background: var(--yes-bg); color: var(--yes); }
+  .verdict.org { background: var(--paper); color: var(--ink); }
+  .mentions { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; gap: 0.5rem; }
+  .mentions li { border-left: 3px solid var(--marker); padding-left: 0.65rem; font-size: 0.9375rem; }
+  .mentions strong { display: block; }
+  .note { margin: 0.6rem 0 0; color: var(--maybe); font-size: 0.9375rem; }
   .combo { position: relative; }
   .lookup { padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
   #org_results {
@@ -144,13 +159,48 @@
 <main>
   <header>
     <h1>Find federal grants <span class="hl">you can actually get.</span></h1>
-    <p>Answer four quick questions. Grant Finder searches open US federal grants, checks each one's rules against yours, quotes the grant to show why, and writes a first draft of the application.</p>
+    <p>Start from the causes you care about to see which open US federal grants exist and who can apply. Or check an organization against each grant's rules and get a first draft of the application.</p>
   </header>
 
   <div class="layout">
     <section class="sheet" aria-labelledby="you">
-      <h2 id="you">About you</h2>
-      <form id="profile" novalidate>
+      <div class="tabs" role="tablist" aria-label="How do you want to search?">
+        <button role="tab" id="tab-explore" aria-controls="explore" aria-selected="true">Explore by cause</button>
+        <button role="tab" id="tab-org" aria-controls="profile" aria-selected="false" tabindex="-1">Check my organization</button>
+      </div>
+      <h2 id="you" class="sr-only">Search</h2>
+
+      <form id="explore" role="tabpanel" aria-labelledby="tab-explore" novalidate>
+        <p class="intro">No organization needed. Pick the causes you care about and see which grants exist and who can apply.</p>
+        <fieldset class="field">
+          <legend>Causes you care about</legend>
+          <span class="hint">Pick up to 3.</span>
+          <div class="chips" id="x-causes"></div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>About you <span class="optional">(optional)</span></legend>
+          <span class="hint">Some grants favor these groups. We'll show which grants mention them.</span>
+          <div class="chips" id="x-criteria"></div>
+        </fieldset>
+        <div class="field">
+          <label for="x-amount">How much do you need?</label>
+          <select id="x-amount" name="amount_needed">
+            <option value="">Any amount</option>
+            <option value="10000">Up to $10,000</option>
+            <option value="25000">Up to $25,000</option>
+            <option value="50000">Up to $50,000</option>
+            <option value="100000">Up to $100,000</option>
+            <option value="250000">Up to $250,000</option>
+            <option value="500000">Up to $500,000</option>
+            <option value="1000000">Up to $1 million</option>
+            <option value="5000000">Up to $5 million</option>
+          </select>
+        </div>
+        <p class="error" id="x-error" role="alert" hidden></p>
+        <div class="form-actions"><button class="primary" id="x-go" type="submit">Show grants</button></div>
+      </form>
+
+      <form id="profile" role="tabpanel" aria-labelledby="tab-org" novalidate hidden>
         <div class="field lookup">
           <label for="org_search">Find your nonprofit</label>
           <span class="hint" id="org-search-hint">Start typing its name and pick it from the list to fill everything in. Not a nonprofit? Skip this.</span>
@@ -241,16 +291,10 @@
     </section>
 
     <section class="sheet" aria-labelledby="matches" aria-live="polite">
-      <h2 id="matches">Matching grants</h2>
+      <h2 id="matches">Grants</h2>
       <div id="results">
         <div class="empty">
-          <p>Your matches will appear here, best first. For each grant you'll see:</p>
-          <ol>
-            <li>whether you're eligible, checked rule by rule,</li>
-            <li>the grant's own words for each rule,</li>
-            <li>what to find out before applying,</li>
-            <li>a first draft of your application, on request.</li>
-          </ol>
+          <p>Grants will appear here. For each one you'll see who can apply, its key requirements in the grant's own words, and whether it mentions groups you belong to.</p>
         </div>
       </div>
     </section>
@@ -272,6 +316,21 @@ const TOPICS = {
   environment: "Environment", energy: "Energy", housing: "Housing", jobs_training: "Jobs and training",
   small_business: "Small business growth", community: "Community development", science_tech: "Science and technology",
   youth_families: "Youth and families", justice_safety: "Justice and safety", veterans: "Veterans",
+};
+const CAUSES = {
+  conservation: "Nature conservation", environment: "Environment and climate", animal_welfare: "Wildlife and animals",
+  water: "Clean water", social_development: "Social development", community: "Community development",
+  youth_families: "Youth and families", seniors: "Seniors", disability: "Disability",
+  mental_health: "Mental health", health: "Health", education: "Education", arts_culture: "Arts and culture",
+  housing: "Housing", jobs_training: "Jobs and training", food_agriculture: "Food and farming",
+  small_business: "Small business growth", disaster_relief: "Disaster relief", civil_rights: "Civil rights",
+  justice_safety: "Justice and safety", veterans: "Veterans", energy: "Clean energy",
+  science_tech: "Science and technology", international: "International development",
+};
+const CRITERIA = {
+  women: "Woman or women-owned", minority: "Minority or minority-owned", veteran: "Veteran",
+  rural: "Rural", tribal: "Native American or tribal", low_income: "Low-income community",
+  disability: "Person with a disability", youth: "Under 25",
 };
 const MAX_TOPICS = 3;
 const EXAMPLE = {
@@ -328,6 +387,122 @@ function save(p) { try { localStorage.setItem(STORE, JSON.stringify(p)); $("save
 try { const p = JSON.parse(localStorage.getItem(STORE) || "null"); if (p) { fillForm(p); $("saved").hidden = false; } } catch {}
 $("forget").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} form.reset(); limitTopics(); $("saved").hidden = true; });
 $("example").addEventListener("click", () => fillForm(EXAMPLE));
+
+// --- tabs ---
+const tabs = [$("tab-explore"), $("tab-org")];
+function selectTab(t) {
+  tabs.forEach((b) => {
+    const on = b === t;
+    b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1;
+    $(b.getAttribute("aria-controls")).hidden = !on;
+  });
+  try { localStorage.setItem("grant-finder-tab", t.id); } catch {}
+}
+tabs.forEach((b, i) => {
+  b.addEventListener("click", () => selectTab(b));
+  b.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + 1) % 2]; selectTab(n); n.focus(); }
+  });
+});
+try { const t = localStorage.getItem("grant-finder-tab"); if (t && $(t)) selectTab($(t)); } catch {}
+
+// --- explore by cause ---
+const xform = $("explore");
+function chipGroup(el, items, name, max) {
+  el.innerHTML = Object.entries(items).map(([v, l]) => `<label class="chip"><input type="checkbox" name="${name}" value="${v}"><span>${l}</span></label>`).join("");
+  const update = () => {
+    const boxes = [...el.querySelectorAll("input")];
+    const full = boxes.filter((b) => b.checked).length >= max;
+    boxes.forEach((b) => (b.disabled = full && !b.checked));
+  };
+  el.addEventListener("change", update);
+  return update;
+}
+const updCauses = chipGroup($("x-causes"), CAUSES, "causes", 3);
+const updCriteria = chipGroup($("x-criteria"), CRITERIA, "criteria", 4);
+try {
+  const saved = JSON.parse(localStorage.getItem("grant-finder-explore") || "null");
+  if (saved) {
+    xform.querySelectorAll("input[name=causes]").forEach((b) => (b.checked = saved.causes.includes(b.value)));
+    xform.querySelectorAll("input[name=criteria]").forEach((b) => (b.checked = saved.criteria.includes(b.value)));
+    $("x-amount").value = saved.amount_needed ?? "";
+    updCauses(); updCriteria();
+  }
+} catch {}
+
+let xstate = { req: null, grants: [] };
+
+function xcard(item) {
+  const g = item.grant || item.hit;
+  const meta = [g.agency, closesText(g.close_date), awardText(g)].filter(Boolean).map(esc).join(". ");
+  let badge = `<span class="verdict checking">Checking</span>`, body = "";
+  if (item.status === "checking") body = `<p class="g-summary" style="color:var(--muted)">Reading who can apply…</p>`;
+  if (item.status === "error") { badge = `<span class="verdict checking">Not loaded</span>`; body = `<p class="g-summary error">${esc(item.error)} <button class="link" data-xretry="${g.id}">Try again</button></p>`; }
+  if (item.status === "done") {
+    const w = item.who;
+    badge = w.open_to_individuals ? `<span class="verdict open">Open to individuals</span>`
+      : w.needs_organization ? `<span class="verdict org">Needs an organization</span>` : `<span class="verdict checking">See who can apply</span>`;
+    const b = item.brief;
+    const reqs = (b?.requirements || []).map((r) => `<li><span class="mark unknown" aria-hidden="true">•</span><div><span class="req-name">${esc(r.requirement)}</span>
+      ${r.evidence ? `<q class="evidence"><span>${esc(r.evidence)}</span></q>` : ""}
+      ${r.evidence && !r.evidence_found ? `<span class="unverified">This quote isn't in the grant text. Check the notice yourself.</span>` : ""}</div></li>`).join("");
+    body = `
+      ${b ? `<p class="g-summary">${esc(b.summary)}</p>` : ""}
+      ${w.labels.length ? `<p class="who"><span class="lbl">Who can apply:</span>${w.labels.map((l) => `<span class="tag">${esc(l)}</span>`).join("")}</p>` : `<p class="who"><span class="lbl">Who can apply isn't listed. Check the notice.</span></p>`}
+      ${item.mentions.length ? `<ul class="mentions">${item.mentions.map((m) => `<li><strong>Mentions: ${esc(m.label)}</strong><q class="evidence"><span>${esc(m.quote)}</span></q></li>`).join("")}</ul>` : ""}
+      ${item.amount_note ? `<p class="note">${esc(item.amount_note)}</p>` : ""}
+      ${reqs ? `<details><summary>Eligibility requirements</summary><ul class="reqs">${reqs}</ul></details>` : ""}`;
+  }
+  return `<article class="grant">
+    <div class="g-head"><div><h3 class="g-title">${esc(g.title)}</h3><p class="g-meta">${meta}</p></div>${badge}</div>
+    ${body}<div class="g-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a></div></article>`;
+}
+
+function xscore(i) {
+  if (i.status !== "done") return -1;
+  return i.mentions.length * 10 + (i.who.open_to_individuals ? 3 : 0) - (i.amount_note ? 2 : 0) + (i.brief ? 1 : 0);
+}
+function xrender(note) {
+  const items = [...xstate.grants].sort((a, b) => xscore(b) - xscore(a));
+  const done = xstate.grants.filter((g) => g.status !== "checking").length;
+  const crit = xstate.req.criteria.length;
+  const matched = xstate.grants.filter((g) => g.status === "done" && g.mentions.length).length;
+  const summary = done < xstate.grants.length ? `Read ${done} of ${xstate.grants.length} grants…`
+    : crit ? `<strong>${matched} of ${xstate.grants.length}</strong> grants mention ${crit === 1 ? "your criterion" : "at least one of your criteria"}. They're listed first.`
+    : `<strong>${xstate.grants.length}</strong> open grants for these causes.`;
+  results.innerHTML = `<p class="status-line">${note || summary}</p><div class="grants">${items.map(xcard).join("")}</div>`;
+}
+async function xcheck(item) {
+  item.status = "checking"; xrender();
+  try {
+    const r = await post("/api/explore/grant", { grant_id: item.hit.id, criteria: xstate.req.criteria, amount_needed: xstate.req.amount_needed });
+    Object.assign(item, { status: "done", ...r });
+  } catch (e) { Object.assign(item, { status: "error", error: e.message }); }
+  xrender();
+}
+
+xform.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(xform);
+  const req = { causes: fd.getAll("causes"), criteria: fd.getAll("criteria"), amount_needed: fd.get("amount_needed") ? Number(fd.get("amount_needed")) : null };
+  const err = $("x-error");
+  if (!req.causes.length) { err.textContent = "Pick at least one cause."; err.hidden = false; $("x-causes").querySelector("input").focus(); return; }
+  err.hidden = true;
+  try { localStorage.setItem("grant-finder-explore", JSON.stringify(req)); } catch {}
+  xstate = { req, grants: [] };
+  $("x-go").disabled = true;
+  results.innerHTML = `<p class="status-line">Searching open grants on Grants.gov…</p>`;
+  if (matchMedia("(max-width: 60rem)").matches) results.scrollIntoView({ behavior: "smooth", block: "start" });
+  try {
+    const s = await post("/api/explore", req);
+    if (!s.candidates.length) { results.innerHTML = `<div class="empty"><p>No open grants found for these causes right now. Try different or fewer causes.</p></div>`; return; }
+    xstate.grants = s.candidates.map((hit) => ({ hit, status: "checking", mentions: [] }));
+    xrender(`Found ${s.total_found} open grants. Reading the ${s.candidates.length} closest…`);
+    const queue = [...xstate.grants];
+    await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await xcheck(queue.shift()); }));
+  } catch (err2) { results.innerHTML = `<p class="error">${esc(err2.message)}</p>`; }
+  finally { $("x-go").disabled = false; }
+});
 
 // --- find your nonprofit (IRS records via ProPublica) ---
 const search = $("org_search"), list = $("org_results");
@@ -490,6 +665,8 @@ form.addEventListener("submit", async (e) => {
 });
 
 results.addEventListener("click", async (e) => {
+  const xretry = e.target.closest("[data-xretry]");
+  if (xretry) xcheck(xstate.grants.find((g) => g.hit.id === xretry.dataset.xretry));
   const retry = e.target.closest("[data-retry]"), drafting = e.target.closest("[data-draft]");
   if (retry) check(state.grants.find((g) => g.hit.id === retry.dataset.retry));
   if (drafting) openDraft(drafting.dataset.draft);

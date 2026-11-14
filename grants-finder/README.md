@@ -4,7 +4,12 @@ Answer four quick questions, or pick your nonprofit from IRS records. Grant Find
 
 **Live:** https://grant-finder.onrender.com ← confirm once deployed
 
-## How it works
+## Two ways to search
+
+- **Explore by cause** (default, no organization needed): pick up to 3 causes, optionally who you are (woman-owned, minority-owned, veteran, rural, tribal, low-income, disability, under 25) and an amount. Each grant shows who can apply in plain words, an "Open to individuals" or "Needs an organization" badge, its key requirements quoted from the notice, and which of your criteria its text mentions. Grants that mention your criteria come first. Criteria mentions are found by plain text search, so the quote is always real.
+- **Check my organization**: pick your nonprofit from IRS records (via ProPublica) or answer a few dropdowns, then see whether you're eligible for each grant, why, and get a first draft. That flow is described below.
+
+## How it works (organization mode)
 
 ```
 Your profile ──► AI picks 2–3 search terms ──► Grants.gov search (open grants only)
