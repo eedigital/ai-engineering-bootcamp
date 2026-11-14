@@ -45,6 +45,36 @@
   .primary[disabled] { opacity: 0.6; cursor: progress; }
   .link { font: inherit; background: none; border: 0; color: var(--action); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; }
   button:focus-visible, a:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
+  legend { font-weight: 700; padding: 0; margin-bottom: 0.35rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: inline-block; cursor: pointer; user-select: none;
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.8rem;
+    font-size: 0.9375rem; background: #fbfcfd;
+  }
+  .chip span:hover { border-color: var(--ink); }
+  .chip input:checked + span { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .chip input:focus-visible + span { outline: 3px solid var(--action); outline-offset: 2px; }
+  .chip input:disabled:not(:checked) + span { opacity: 0.45; cursor: not-allowed; }
+  .combo { position: relative; }
+  .lookup { padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+  #org_results {
+    position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 0.25rem);
+    list-style: none; margin: 0; padding: 0.25rem; background: var(--sheet);
+    border: 1px solid var(--line); border-radius: var(--r-small); box-shadow: 0 8px 24px rgb(29 42 58 / 0.12);
+    max-height: 20rem; overflow: auto;
+  }
+  #org_results li { padding: 0.55rem 0.7rem; border-radius: 4px; cursor: pointer; line-height: 1.35; }
+  #org_results li[aria-selected="true"], #org_results li:hover { background: var(--paper); }
+  #org_results .o-name { font-weight: 700; display: block; }
+  #org_results .o-meta { color: var(--muted); font-size: 0.875rem; }
+  #org_results .o-none { color: var(--muted); cursor: default; }
+  .filled { margin: 0.6rem 0 0; font-size: 0.9375rem; background: var(--yes-bg); color: var(--yes); border-radius: var(--r-small); padding: 0.5rem 0.75rem; }
+  details.more { margin: 0.25rem 0 1.25rem; border-top: 1px solid var(--line); padding-top: 0.9rem; }
+  details.more summary { font-size: 1rem; margin-bottom: 0.25rem; }
+  details.more[open] summary { margin-bottom: 1rem; }
   .form-actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
   .saved { color: var(--muted); font-size: 0.875rem; margin-top: 0.75rem; }
 
@@ -114,19 +144,25 @@
 <main>
   <header>
     <h1>Find federal grants <span class="hl">you can actually get.</span></h1>
-    <p>Describe your organization once. Grant Finder searches open US federal grants, checks each one's rules against yours, quotes the grant to show why, and writes a first draft of the application.</p>
+    <p>Answer four quick questions. Grant Finder searches open US federal grants, checks each one's rules against yours, quotes the grant to show why, and writes a first draft of the application.</p>
   </header>
 
   <div class="layout">
     <section class="sheet" aria-labelledby="you">
       <h2 id="you">About you</h2>
-      <form id="profile">
-        <div class="field">
-          <label for="org_name">Organization name</label>
-          <input id="org_name" name="org_name" required maxlength="120" autocomplete="organization">
+      <form id="profile" novalidate>
+        <div class="field lookup">
+          <label for="org_search">Find your nonprofit</label>
+          <span class="hint" id="org-search-hint">Start typing its name and pick it from the list to fill everything in. Not a nonprofit? Skip this.</span>
+          <div class="combo">
+          <input id="org_search" type="search" autocomplete="off" role="combobox" aria-expanded="false"
+                 aria-controls="org_results" aria-autocomplete="list" aria-describedby="org-search-hint" placeholder="e.g. Habitat for Humanity">
+          <ul id="org_results" role="listbox" hidden></ul>
+          </div>
+          <p class="filled" id="filled" hidden></p>
         </div>
         <div class="field">
-          <label for="org_type">Type of organization</label>
+          <label for="org_type">You are a</label>
           <select id="org_type" name="org_type" required>
             <option value="nonprofit_501c3">Nonprofit with 501(c)(3) status</option>
             <option value="nonprofit_other">Nonprofit without 501(c)(3) status</option>
@@ -140,34 +176,67 @@
         </div>
         <div class="row">
           <div class="field">
-            <label for="state">State</label>
+            <label for="state">Based in</label>
             <select id="state" name="state" required></select>
           </div>
           <div class="field">
-            <label for="amount_needed">Amount needed ($)</label>
-            <input id="amount_needed" name="amount_needed" type="number" min="0" step="1000" inputmode="numeric">
+            <label for="org_size">Size</label>
+            <select id="org_size" name="org_size">
+              <option value="">Not sure</option>
+              <option value="solo">Just me</option>
+              <option value="2_10">2 to 10 people</option>
+              <option value="11_50">11 to 50 people</option>
+              <option value="51_500">51 to 500 people</option>
+              <option value="500_plus">More than 500</option>
+            </select>
           </div>
         </div>
+        <fieldset class="field topics">
+          <legend>What do you work on?</legend>
+          <span class="hint" id="topics-hint">Pick up to 3.</span>
+          <div class="chips" id="topics" aria-describedby="topics-hint"></div>
+        </fieldset>
         <div class="field">
-          <label for="about">What you do</label>
-          <span class="hint" id="about-hint">Who you serve, where, and how big you are.</span>
-          <textarea id="about" name="about" required minlength="20" maxlength="1500" aria-describedby="about-hint"></textarea>
+          <label for="amount_needed">How much do you need?</label>
+          <select id="amount_needed" name="amount_needed">
+            <option value="">Any amount</option>
+            <option value="25000">Up to $25,000</option>
+            <option value="50000">Up to $50,000</option>
+            <option value="100000">Up to $100,000</option>
+            <option value="250000">Up to $250,000</option>
+            <option value="500000">Up to $500,000</option>
+            <option value="1000000">Up to $1 million</option>
+            <option value="5000000">Up to $5 million</option>
+          </select>
         </div>
-        <div class="field">
-          <label for="project">What the money is for</label>
-          <span class="hint" id="project-hint">The project, who benefits and what changes.</span>
-          <textarea id="project" name="project" required minlength="20" maxlength="1500" aria-describedby="project-hint"></textarea>
-        </div>
-        <div class="field">
-          <label for="keywords">Search words (optional)</label>
-          <span class="hint" id="kw-hint">Separate with commas. Leave empty and the AI picks them.</span>
-          <input id="keywords" name="keywords" maxlength="200" aria-describedby="kw-hint">
-        </div>
+        <details class="more" id="more">
+          <summary>Add details for better matches and drafts</summary>
+          <div class="field">
+            <label for="org_name">Your organization's name</label>
+            <input id="org_name" name="org_name" maxlength="120" autocomplete="organization">
+          </div>
+          <div class="field">
+            <label for="about">What you do</label>
+            <span class="hint" id="about-hint">Who you serve, where, and for how long.</span>
+            <textarea id="about" name="about" maxlength="1500" aria-describedby="about-hint"></textarea>
+          </div>
+          <div class="field">
+            <label for="project">What the money is for</label>
+            <span class="hint" id="project-hint">The project, who benefits and what changes.</span>
+            <textarea id="project" name="project" maxlength="1500" aria-describedby="project-hint"></textarea>
+          </div>
+          <div class="field">
+            <label for="keywords">Your own search words</label>
+            <span class="hint" id="kw-hint">Separate with commas. These replace the topics above.</span>
+            <input id="keywords" name="keywords" maxlength="200" aria-describedby="kw-hint">
+          </div>
+        </details>
+        <p class="error" id="form-error" role="alert" hidden></p>
         <div class="form-actions">
           <button class="primary" id="find" type="submit">Find grants</button>
-          <button class="link" id="example" type="button">Fill in an example</button>
+          <button class="link" id="example" type="button">Try an example</button>
         </div>
-        <p class="saved" id="saved" hidden>Saved on this device, so you won't have to type it again. <button class="link" type="button" id="forget">Forget it</button></p>
+        <p class="saved" id="saved" hidden>Saved on this device for next time. <button class="link" type="button" id="forget">Clear</button></p>
       </form>
     </section>
 
@@ -188,7 +257,7 @@
   </div>
 
   <footer>
-    <p>Grant data comes live from the Grants.gov API. This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services. Matches and drafts are written by AI and can be wrong: always read the full notice on Grants.gov before applying. <a href="https://github.com/eedigital/ai-engineering-bootcamp">See the code</a>.</p>
+    <p>Grant data comes live from the Grants.gov API. Nonprofit records come from <a href="https://projects.propublica.org/nonprofits/">ProPublica's Nonprofit Explorer</a>, which publishes IRS data. This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services. Matches and drafts are written by AI and can be wrong: always read the full notice on Grants.gov before applying. <a href="https://github.com/eedigital/ai-engineering-bootcamp">See the code</a>.</p>
   </footer>
 </main>
 
@@ -198,8 +267,17 @@
 
 <script>
 const STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Puerto Rico","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming","Guam","U.S. Virgin Islands"];
+const TOPICS = {
+  education: "Education", health: "Health", food_agriculture: "Food and farming", arts_culture: "Arts and culture",
+  environment: "Environment", energy: "Energy", housing: "Housing", jobs_training: "Jobs and training",
+  small_business: "Small business growth", community: "Community development", science_tech: "Science and technology",
+  youth_families: "Youth and families", justice_safety: "Justice and safety", veterans: "Veterans",
+};
+const MAX_TOPICS = 3;
 const EXAMPLE = {
-  org_name: "Hill Country Makers", org_type: "nonprofit_501c3", state: "Texas", amount_needed: 120000,
+  org_type: "nonprofit_501c3", state: "Texas", org_size: "2_10", amount_needed: 250000,
+  focus_areas: ["small_business", "jobs_training", "food_agriculture"],
+  org_name: "Hill Country Makers",
   about: "We're a 501(c)(3) makerspace and small-business incubator in a rural Texas town of about 4,000 people. Three staff and 40 volunteers; we've helped 25 local businesses start since 2021.",
   project: "A 12-month program that trains and mentors 30 rural entrepreneurs starting food and craft businesses, with shared kitchen equipment and help selling online.",
   keywords: "",
@@ -215,21 +293,84 @@ const money = (n) => "$" + Number(n).toLocaleString("en-US");
 const form = $("profile"), results = $("results");
 
 for (const s of STATES) form.state.add(new Option(s, s));
+const topics = $("topics");
+for (const [value, label] of Object.entries(TOPICS)) {
+  topics.insertAdjacentHTML("beforeend", `<label class="chip"><input type="checkbox" name="focus_areas" value="${value}"><span>${label}</span></label>`);
+}
+function limitTopics() {
+  const boxes = [...form.querySelectorAll('input[name="focus_areas"]')];
+  const full = boxes.filter((b) => b.checked).length >= MAX_TOPICS;
+  boxes.forEach((b) => (b.disabled = full && !b.checked));
+}
+topics.addEventListener("change", limitTopics);
 
 // --- profile memory (this device only) ---
 function readForm() {
-  const f = Object.fromEntries(new FormData(form));
-  f.amount_needed = f.amount_needed ? Number(f.amount_needed) : null;
-  f.keywords = f.keywords || null;
-  return f;
+  const fd = new FormData(form);
+  const text = (k) => (fd.get(k) || "").trim() || null;
+  return {
+    org_type: fd.get("org_type"), state: fd.get("state"),
+    org_size: text("org_size"), amount_needed: fd.get("amount_needed") ? Number(fd.get("amount_needed")) : null,
+    focus_areas: fd.getAll("focus_areas"),
+    org_name: text("org_name"), about: text("about"), project: text("project"), keywords: text("keywords"),
+  };
 }
 function fillForm(p) {
-  for (const [k, v] of Object.entries(p)) if (form[k] && v != null) form[k].value = v;
+  for (const [k, v] of Object.entries(p)) {
+    if (k === "focus_areas") continue;
+    if (form[k] && !(form[k] instanceof RadioNodeList)) form[k].value = v ?? "";
+  }
+  form.querySelectorAll('input[name="focus_areas"]').forEach((b) => (b.checked = (p.focus_areas || []).includes(b.value)));
+  limitTopics();
+  if (p.about || p.project || p.keywords) $("more").open = true;
 }
 function save(p) { try { localStorage.setItem(STORE, JSON.stringify(p)); $("saved").hidden = false; } catch {} }
 try { const p = JSON.parse(localStorage.getItem(STORE) || "null"); if (p) { fillForm(p); $("saved").hidden = false; } } catch {}
-$("forget").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} form.reset(); $("saved").hidden = true; });
+$("forget").addEventListener("click", () => { try { localStorage.removeItem(STORE); } catch {} form.reset(); limitTopics(); $("saved").hidden = true; });
 $("example").addEventListener("click", () => fillForm(EXAMPLE));
+
+// --- find your nonprofit (IRS records via ProPublica) ---
+const search = $("org_search"), list = $("org_results");
+let found = [], active = -1, timer, lastQuery = "";
+function showList(on) { list.hidden = !on; search.setAttribute("aria-expanded", String(on)); }
+function drawList() {
+  if (!found.length) { list.innerHTML = `<li class="o-none" role="option" aria-disabled="true">No nonprofit found with that name. You can fill in the form below.</li>`; return; }
+  list.innerHTML = found.map((o, i) => `<li role="option" id="org-${i}" aria-selected="${i === active}" data-i="${i}">
+    <span class="o-name">${esc(o.name)}</span>
+    <span class="o-meta">${esc([o.city, o.state].filter(Boolean).join(", "))}${o.tax_status ? `. ${esc(o.tax_status)}` : ""}${o.category ? `. ${esc(o.category)}` : ""}</span></li>`).join("");
+  search.setAttribute("aria-activedescendant", active >= 0 ? `org-${active}` : "");
+}
+function pick(o) {
+  fillForm({ ...readForm(), org_name: o.name, org_type: o.org_type, state: o.state || form.state.value,
+             focus_areas: o.focus_areas.length ? o.focus_areas : readForm().focus_areas });
+  search.value = o.name; showList(false);
+  const f = $("filled");
+  f.textContent = `Filled in from IRS records: ${o.tax_status || "nonprofit"} in ${o.state || "unknown state"}${o.category ? `, ${o.category.toLowerCase()}` : ""}. Check the answers below and change anything that's wrong.`;
+  f.hidden = false;
+}
+search.addEventListener("input", () => {
+  clearTimeout(timer);
+  const q = search.value.trim();
+  if (q.length < 3) { showList(false); return; }
+  timer = setTimeout(async () => {
+    lastQuery = q;
+    try {
+      const r = await fetch(`/api/orgs?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if (q !== lastQuery) return;
+      found = r.ok ? data.results : []; active = -1; drawList(); showList(true);
+    } catch { showList(false); }
+  }, 350);
+});
+search.addEventListener("keydown", (e) => {
+  if (list.hidden || !found.length) return;
+  if (e.key === "ArrowDown") { active = Math.min(active + 1, found.length - 1); drawList(); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { active = Math.max(active - 1, 0); drawList(); e.preventDefault(); }
+  else if (e.key === "Enter" && active >= 0) { pick(found[active]); e.preventDefault(); }
+  else if (e.key === "Escape") showList(false);
+});
+list.addEventListener("mousedown", (e) => { const li = e.target.closest("li[data-i]"); if (li) { e.preventDefault(); pick(found[+li.dataset.i]); } });
+search.addEventListener("blur", () => setTimeout(() => showList(false), 150));
 
 // --- talking to the server ---
 async function post(path, body, tries = 3) {
@@ -322,6 +463,12 @@ async function check(item) {
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const profile = readForm();
+  const err = $("form-error");
+  if (!profile.focus_areas.length && !profile.project && !profile.about && !profile.keywords) {
+    err.textContent = "Pick at least one topic, or describe your project under \u201cAdd details\u201d.";
+    err.hidden = false; topics.querySelector("input").focus(); return;
+  }
+  err.hidden = true;
   save(profile);
   state = { profile, grants: [] };
   $("find").disabled = true;

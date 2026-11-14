@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class OrgType(str, Enum):
@@ -31,16 +31,72 @@ ORG_TYPE_LABELS = {
 }
 
 
-class Profile(BaseModel):
-    """Who is applying. Kept short on purpose: everything here goes into prompts."""
+# Topics a user can tap instead of typing. Each maps to the Grants.gov search it runs.
+FOCUS_AREAS: dict[str, str] = {
+    "education": "education",
+    "health": "health",
+    "food_agriculture": "agriculture",
+    "arts_culture": "arts",
+    "environment": "environment",
+    "energy": "energy",
+    "housing": "housing",
+    "jobs_training": "workforce training",
+    "small_business": "small business",
+    "community": "community development",
+    "science_tech": "research",
+    "youth_families": "youth",
+    "justice_safety": "justice",
+    "veterans": "veterans",
+}
 
-    org_name: str = Field(min_length=1, max_length=120)
+ORG_SIZES = {
+    "solo": "Just one person",
+    "2_10": "2 to 10 people",
+    "11_50": "11 to 50 people",
+    "51_500": "51 to 500 people",
+    "500_plus": "More than 500 people",
+}
+
+
+class Profile(BaseModel):
+    """Who is applying. Only type and state are required; the rest sharpens matches and drafts."""
+
     org_type: OrgType
     state: str = Field(min_length=2, max_length=40)
-    about: str = Field(min_length=20, max_length=1500, description="What the organization does")
-    project: str = Field(min_length=20, max_length=1500, description="What the money would pay for")
+    focus_areas: list[str] = Field(default_factory=list, max_length=3)
     amount_needed: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    org_size: str | None = None
+    # Optional details
+    org_name: str | None = Field(default=None, max_length=120)
+    about: str | None = Field(default=None, max_length=1500, description="What the organization does")
+    project: str | None = Field(default=None, max_length=1500, description="What the money would pay for")
     keywords: str | None = Field(default=None, max_length=200)
+
+    @field_validator("focus_areas")
+    @classmethod
+    def known_areas(cls, v: list[str]) -> list[str]:
+        unknown = [a for a in v if a not in FOCUS_AREAS]
+        if unknown:
+            raise ValueError(f"unknown focus areas: {unknown}")
+        return v
+
+    @field_validator("org_size")
+    @classmethod
+    def known_size(cls, v: str | None) -> str | None:
+        if v is not None and v not in ORG_SIZES:
+            raise ValueError("unknown organization size")
+        return v
+
+    @field_validator("org_name", "about", "project", "keywords", mode="before")
+    @classmethod
+    def blank_is_none(cls, v):
+        return v.strip() or None if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def something_to_search(self) -> "Profile":
+        if not (self.focus_areas or self.project or self.about or self.keywords):
+            raise ValueError("pick at least one topic, or describe your project")
+        return self
 
 
 class Grant(BaseModel):

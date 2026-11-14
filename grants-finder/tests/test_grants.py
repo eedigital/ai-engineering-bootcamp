@@ -218,5 +218,75 @@ def test_bad_grant_id_rejected(client):
     assert client.post("/api/assess", json={"profile": PROFILE, "grant_id": "../etc"}).status_code == 422
 
 
-def test_short_profile_rejected(client):
-    assert client.post("/api/search", json={"profile": {**PROFILE, "about": "hi"}}).status_code == 422
+def test_profile_with_nothing_to_search_rejected(client):
+    bare = {"org_type": "small_business", "state": "Ohio"}
+    assert client.post("/api/search", json={"profile": bare}).status_code == 422
+
+
+# --- simpler profile: topics instead of typing --------------------------------
+
+def test_minimal_profile_with_topics_is_enough():
+    p = Profile(org_type="small_business", state="Ohio", focus_areas=["energy"])
+    assert p.org_name is None and p.project is None
+
+
+def test_profile_needs_a_topic_or_a_description():
+    with pytest.raises(ValueError, match="pick at least one topic"):
+        Profile(org_type="small_business", state="Ohio")
+
+
+def test_unknown_topic_rejected():
+    with pytest.raises(ValueError):
+        Profile(org_type="small_business", state="Ohio", focus_areas=["space_lasers"])
+
+
+def test_topics_become_searches_without_the_ai():
+    set_fake_handler(lambda m: pytest.fail("AI should not be called"))
+    p = Profile(org_type="nonprofit_501c3", state="Ohio", focus_areas=["housing", "jobs_training"])
+    assert search_queries(p) == ["housing", "workforce training"]
+    set_fake_handler(None)
+
+
+def test_missing_name_becomes_a_placeholder_for_the_draft():
+    from grants.ai import profile_block
+    block = profile_block(Profile(org_type="individual", state="Iowa", focus_areas=["arts_culture"]))
+    assert "[organization name]" in block and "Works on: arts culture" in block
+
+
+# --- find your nonprofit -----------------------------------------------------
+
+from grants import orglookup  # noqa: E402
+
+PROPUBLICA_HIT = {"ein": 142007220, "strein": "14-2007220", "name": "HABITAT FOR HUMANITY OF AUSTIN",
+                  "city": "AUSTIN", "state": "TX", "ntee_code": "L20", "subseccd": 3}
+
+
+def test_nonprofit_record_fills_the_form():
+    h = orglookup.to_profile_hint(PROPUBLICA_HIT)
+    assert h["name"] == "Habitat For Humanity Of Austin"
+    assert (h["state"], h["org_type"], h["focus_areas"]) == ("Texas", "nonprofit_501c3", ["housing"])
+    assert h["tax_status"] == "501(c)(3)" and h["category"] == "Housing and shelter"
+
+
+def test_non_501c3_nonprofit():
+    assert orglookup.to_profile_hint({**PROPUBLICA_HIT, "subseccd": 4})["org_type"] == "nonprofit_other"
+
+
+def test_org_lookup_endpoint(client, monkeypatch):
+    import httpx
+    orglookup._cache.clear()
+    monkeypatch.setattr(orglookup.httpx, "get", lambda url, **kw: httpx.Response(
+        200, json={"organizations": [PROPUBLICA_HIT]}, request=httpx.Request("GET", url)))
+    body = client.get("/api/orgs", params={"q": "habitat austin"}).json()
+    assert body["results"][0]["state"] == "Texas"
+
+
+def test_org_lookup_needs_three_letters(client):
+    assert client.get("/api/orgs", params={"q": "ha"}).json() == {"results": []}
+
+
+def test_org_lookup_no_match(client, monkeypatch):
+    import httpx
+    orglookup._cache.clear()
+    monkeypatch.setattr(orglookup.httpx, "get", lambda url, **kw: httpx.Response(404, request=httpx.Request("GET", url)))
+    assert client.get("/api/orgs", params={"q": "zzzzqqq"}).json() == {"results": []}

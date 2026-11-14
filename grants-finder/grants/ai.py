@@ -15,7 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 from llm import LLMError, complete, parse_json
 
-from .schemas import ORG_TYPE_LABELS, Assessment, Draft, Grant, Profile, RuleResult, SearchQueries
+from .schemas import FOCUS_AREAS, ORG_SIZES, ORG_TYPE_LABELS, Assessment, Draft, Grant, Profile, RuleResult, SearchQueries
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -50,14 +50,18 @@ def ask_json(system: str, user: str, model: type[T], max_repairs: int = 1) -> tu
 
 def profile_block(p: Profile) -> str:
     lines = [
-        f"Name: {p.org_name}",
+        f"Name: {p.org_name or '[organization name]'}",
         f"Type: {ORG_TYPE_LABELS[p.org_type]}",
         f"Based in: {p.state}",
-        f"What they do: {p.about}",
-        f"Project needing funding: {p.project}",
     ]
+    if p.org_size:
+        lines.append(f"Size: {ORG_SIZES[p.org_size]}")
+    if p.focus_areas:
+        lines.append(f"Works on: {', '.join(a.replace('_', ' ') for a in p.focus_areas)}")
+    lines.append(f"What they do: {p.about or 'not given'}")
+    lines.append(f"Project needing funding: {p.project or 'not given'}")
     if p.amount_needed:
-        lines.append(f"Amount needed: ${p.amount_needed:,}")
+        lines.append(f"Amount needed: up to ${p.amount_needed:,}")
     return "<applicant>\n" + "\n".join(lines) + "\n</applicant>"
 
 
@@ -89,16 +93,19 @@ Prefer the project's subject over the organization's type. Avoid generic words l
 
 
 def search_queries(profile: Profile) -> list[str]:
-    if profile.keywords and profile.keywords.strip():
-        terms = [t.strip() for t in re.split(r"[,;\n]", profile.keywords) if t.strip()]
-        return terms[:3]
+    """Search terms, cheapest source first: typed words, then tapped topics, then the AI."""
+    if profile.keywords:
+        return [t.strip() for t in re.split(r"[,;\n]", profile.keywords) if t.strip()][:3]
+    if profile.focus_areas:
+        return [FOCUS_AREAS[a] for a in profile.focus_areas][:3]
     try:
         q, _ = ask_json(QUERY_SYSTEM, profile_block(profile), SearchQueries)
         return [s.strip() for s in q.queries if s.strip()][:3]
     except AIError:
-        # No AI available: fall back to the longest words in the project description.
-        words = sorted(set(re.findall(r"[A-Za-z]{6,}", profile.project)), key=len, reverse=True)
-        return [" ".join(words[:2])] if words else [profile.project[:30]]
+        # No AI available: fall back to the longest words in what they wrote.
+        text = profile.project or profile.about or ""
+        words = sorted(set(re.findall(r"[A-Za-z]{6,}", text)), key=len, reverse=True)
+        return [" ".join(words[:2])] if words else [text[:30]]
 
 
 # --- 2. eligibility and fit --------------------------------------------------
@@ -148,6 +155,7 @@ def assess(profile: Profile, grant: Grant, rules: RuleResult) -> tuple[Assessmen
 DRAFT_SYSTEM = f"""You draft the core narrative of a US federal grant application.
 
 Write in the applicant's voice ("we"), plainly and specifically, using only facts in <applicant>.
+Where the applicant gave little detail, keep the draft short and use more placeholders rather than filling gaps.
 Never invent numbers, partners, results or history. Where a fact is needed but missing, write a
 placeholder in square brackets, like [number of people served last year].
 - project_title: short and specific.

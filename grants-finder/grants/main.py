@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 load_dotenv()
 
-from . import ai, grantsgov, rules  # noqa: E402
+from . import ai, grantsgov, orglookup, rules  # noqa: E402
 from .schemas import Assessment, GrantRequest, SearchRequest  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -32,12 +32,13 @@ RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "40"))
 _hits: dict[str, deque] = defaultdict(deque)
 
 
-def _limited(request: Request) -> JSONResponse | None:
+def _limited(request: Request, bucket: str = "api", limit: int | None = None) -> JSONResponse | None:
+    limit = limit or RATE_LIMIT
     ip = request.client.host if request.client else "unknown"
-    q, now = _hits[ip], time.time()
+    q, now = _hits[f"{bucket}:{ip}"], time.time()
     while q and now - q[0] > 60:
         q.popleft()
-    if len(q) >= RATE_LIMIT:
+    if len(q) >= limit:
         return JSONResponse(status_code=429, content={"error": "Too many requests. Wait a minute and try again."})
     q.append(now)
     return None
@@ -55,6 +56,20 @@ def home():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/orgs")
+def find_org(q: str, request: Request):
+    """Type-ahead: find a nonprofit in IRS records to pre-fill the form."""
+    if (r := _limited(request, bucket="lookup", limit=90)):
+        return r
+    if len(q.strip()) < 3:
+        return {"results": []}
+    try:
+        return {"results": orglookup.search(q[:100])}
+    except orglookup.LookupError as e:
+        log.warning("org_lookup_failed q=%r error=%s", q, e)
+        return _error(502, "The nonprofit lookup isn't answering. Fill in the form instead.")
 
 
 @app.post("/api/search")
