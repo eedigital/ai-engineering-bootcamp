@@ -9,6 +9,16 @@ Answer four quick questions, or pick your nonprofit from IRS records. Grant Find
 - **Explore by cause** (default, no organization needed): pick up to 3 causes, optionally who you are (woman-owned, minority-owned, veteran, rural, tribal, low-income, disability, under 25) and an amount. Each grant shows who can apply in plain words, an "Open to individuals" or "Needs an organization" badge, its key requirements quoted from the notice, and which of your criteria its text mentions. Grants that mention your criteria come first. Criteria mentions are found by plain text search, so the quote is always real.
 - **Check my organization**: pick your nonprofit from IRS records (via ProPublica) or answer a few dropdowns, then see whether you're eligible for each grant, why, and get a first draft. That flow is described below.
 
+## On every grant
+
+- **All results, 20 at a time.** Facts that come from code (who can apply, award, deadline, criteria mentions, contact) load for every grant without using the AI. The AI summary runs only when you open a grant's Details.
+- **Save** to a shortlist (kept on your device), shown under "Saved".
+- **How to apply** checklist: standard federal steps (SAM.gov, Grants.gov account, SF-424 forms) plus this grant's own requirements, quoted from the notice and fact-checked. Ticks are remembered.
+- **Contact** for the grant officer, when Grants.gov lists one, and a link to the agency's page.
+- **Add deadline to calendar** downloads a calendar file with a reminder a week before.
+
+Cheap lookups and AI calls have separate rate limits, so browsing many grants can't use up the AI allowance.
+
 ## How it works (organization mode)
 
 ```

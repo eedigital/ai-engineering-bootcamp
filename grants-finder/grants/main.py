@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse
 load_dotenv()
 
 from . import ai, explore, grantsgov, orglookup, rules  # noqa: E402
-from .schemas import Assessment, ExploreGrantRequest, ExploreRequest, GrantRequest, SearchRequest  # noqa: E402
+from .schemas import Assessment, ChecklistRequest, ExploreGrantRequest, ExploreRequest, GrantRequest, SearchRequest  # noqa: E402
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("grants")
@@ -27,8 +27,9 @@ log = logging.getLogger("grants")
 app = FastAPI(title="Grant Finder", version="0.1.0",
               description="Find US federal grants you can apply for, see why, and get a first draft.")
 
-MAX_CANDIDATES = int(os.getenv("MAX_CANDIDATES", "10"))
-RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "40"))
+MAX_CANDIDATES = int(os.getenv("MAX_CANDIDATES", "150"))  # the page shows them 20 at a time
+RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MIN", "40"))     # AI calls: these spend the free model quota
+FACTS_LIMIT = int(os.getenv("FACTS_LIMIT_PER_MIN", "300"))   # Grants.gov lookups only: cheap
 _hits: dict[str, deque] = defaultdict(deque)
 
 
@@ -100,7 +101,7 @@ def _collect(queries: list[str], org_type=None) -> JSONResponse | dict:
 
 @app.post("/api/search")
 def search(req: SearchRequest, request: Request):
-    if (r := _limited(request)):
+    if (r := _limited(request, bucket="ai")):
         return r
     return _collect(ai.search_queries(req.profile), req.profile.org_type)
 
@@ -108,7 +109,7 @@ def search(req: SearchRequest, request: Request):
 @app.post("/api/explore")
 def explore_search(req: ExploreRequest, request: Request):
     """Explore by cause: no organization needed."""
-    if (r := _limited(request)):
+    if (r := _limited(request, bucket="facts", limit=FACTS_LIMIT)):
         return r
     return _collect(explore.queries_for(req.causes, req.criteria))
 
@@ -116,7 +117,7 @@ def explore_search(req: ExploreRequest, request: Request):
 @app.post("/api/explore/grant")
 def explore_grant(req: ExploreGrantRequest, request: Request):
     """One grant's eligibility rules, in plain words, with the user's criteria checked against its text."""
-    if (r := _limited(request)):
+    if (r := _limited(request, bucket="ai") if req.brief else _limited(request, bucket="facts", limit=FACTS_LIMIT)):
         return r
     try:
         grant = grantsgov.fetch(req.grant_id)
@@ -130,6 +131,8 @@ def explore_grant(req: ExploreGrantRequest, request: Request):
         "brief": None,
         "provider": None,
     }
+    if not req.brief:
+        return out
     try:
         out["brief"], out["provider"] = explore.brief(grant)
     except explore.AIError as e:
@@ -140,7 +143,7 @@ def explore_grant(req: ExploreGrantRequest, request: Request):
 
 @app.post("/api/assess")
 def assess(req: GrantRequest, request: Request):
-    if (r := _limited(request)):
+    if (r := _limited(request, bucket="ai")):
         return r
     try:
         grant = grantsgov.fetch(req.grant_id)
@@ -159,9 +162,27 @@ def assess(req: GrantRequest, request: Request):
     return {"grant": grant, "rules": rule_result, "assessment": a, "provider": provider}
 
 
+@app.post("/api/checklist")
+def checklist(req: ChecklistRequest, request: Request):
+    """How to apply: standard federal steps (fixed, from code) plus this grant's own items (AI, quote-checked)."""
+    if (r := _limited(request, bucket="ai")):
+        return r
+    try:
+        grant = grantsgov.fetch(req.grant_id)
+    except grantsgov.GrantsGovError:
+        return _error(502, "Couldn't load this grant from Grants.gov.")
+    out = {"grant": grant, "standard": explore.STANDARD_STEPS, "specific": [], "ai_ok": True}
+    try:
+        out["specific"] = explore.checklist(grant).items
+    except explore.AIError as e:
+        log.warning("checklist_failed grant=%s error=%s", req.grant_id, e)
+        out["ai_ok"] = False
+    return out
+
+
 @app.post("/api/draft")
 def draft(req: GrantRequest, request: Request):
-    if (r := _limited(request)):
+    if (r := _limited(request, bucket="ai")):
         return r
     try:
         grant = grantsgov.fetch(req.grant_id)

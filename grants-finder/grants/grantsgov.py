@@ -53,7 +53,7 @@ def _post(path: str, body: dict) -> dict:
     return data
 
 
-def search(keyword: str, org_type: OrgType | None = None, rows: int = 15) -> list[dict]:
+def search(keyword: str, org_type: OrgType | None = None, rows: int = 50) -> list[dict]:
     """Open opportunities matching a keyword. Returns raw hits (id, title, agency...)."""
     body: dict = {"keyword": keyword, "oppStatuses": "posted", "rows": rows}
     if org_type is not None:
@@ -158,8 +158,34 @@ def normalize(raw: dict) -> Grant:
         eligibility_text=clean_text(_first(syn, "applicantEligibilityDesc"), 2500),
         description=clean_text(_first(syn, "synopsisDesc", "forecastDesc"), 4000),
         cost_sharing=syn.get("costSharing") if isinstance(syn.get("costSharing"), bool) else None,
+        **contact(syn, d),
         url=f"https://www.grants.gov/search-results-detail/{gid}",
     )
+
+
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_PHONE = re.compile(r"\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
+
+
+def contact(syn: dict, d: dict) -> dict:
+    """The grant officer's contact details. Field names vary, so try several and fall back to the text."""
+    note = clean_text(_first(syn, "agencyContactDesc", "agencyContactInfo"), 400) or None
+    email = _first(syn, "agencyContactEmail", "agencyContactEmailAddress")
+    if not email and note:
+        m = _EMAIL.search(note)
+        email = m.group(0) if m else None
+    phone = _first(syn, "agencyContactPhone", "agencyPhone")
+    if not phone and note:
+        m = _PHONE.search(note)
+        phone = m.group(0) if m else None
+    url = _first(syn, "fundingDescLinkUrl", "additionalInformationUrl") or _first(d, "fundingDescLinkUrl")
+    return {
+        "contact_name": clean_text(_first(syn, "agencyContactName"), 120) or None,
+        "contact_email": str(email).strip() if email else None,
+        "contact_phone": str(phone).strip() if phone else None,
+        "contact_note": note,
+        "more_info_url": url if isinstance(url, str) and url.startswith("http") else None,
+    }
 
 
 def from_hit(hit: dict) -> dict:

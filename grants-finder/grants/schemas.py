@@ -125,6 +125,11 @@ class Grant(BaseModel):
     eligibility_text: str = ""
     description: str = ""
     cost_sharing: bool | None = None
+    contact_name: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    contact_note: str | None = None
+    more_info_url: str | None = None
     url: str
 
 
@@ -199,6 +204,7 @@ class ExploreRequest(BaseModel):
 
 class ExploreGrantRequest(BaseModel):
     grant_id: str = Field(pattern=r"^\d{1,10}$")
+    brief: bool = False  # the AI summary costs quota, so the page asks for it only when Details opens
     criteria: list[str] = Field(default_factory=list, max_length=4)
     amount_needed: int | None = Field(default=None, ge=0, le=1_000_000_000)
 
@@ -212,6 +218,20 @@ class EligibilityPoint(BaseModel):
 class GrantBrief(BaseModel):
     summary: str = Field(max_length=500, description="What the grant pays for, in plain words")
     requirements: list[EligibilityPoint] = Field(default_factory=list, max_length=6)
+
+
+class ChecklistItem(BaseModel):
+    item: str = Field(max_length=200, description="One thing to prepare or do, as an instruction")
+    evidence: str = Field(default="", max_length=400, description="Exact words from the grant")
+    evidence_found: bool = True
+
+
+class Checklist(BaseModel):
+    items: list[ChecklistItem] = Field(default_factory=list, max_length=10)
+
+
+class ChecklistRequest(BaseModel):
+    grant_id: str = Field(pattern=r"^\d{1,10}$")
 
 
 class SearchRequest(BaseModel):

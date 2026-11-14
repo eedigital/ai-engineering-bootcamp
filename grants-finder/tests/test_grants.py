@@ -344,7 +344,7 @@ def test_explore_endpoints(client):
         {"requirement": "Invented", "evidence": "must be a unicorn"}]}))
     found = client.post("/api/explore", json={"causes": ["small_business"], "criteria": ["rural"]}).json()
     assert found["queries"] == ["small business", "rural small business"] and found["candidates"]
-    body = client.post("/api/explore/grant", json={"grant_id": "360001", "criteria": ["rural", "women"], "amount_needed": 900000}).json()
+    body = client.post("/api/explore/grant", json={"grant_id": "360001", "criteria": ["rural", "women"], "amount_needed": 900000, "brief": True}).json()
     assert body["who"]["needs_organization"] and "Nonprofits (501(c)(3))" in body["who"]["labels"]
     assert [m["criterion"] for m in body["mentions"]] == ["rural"]
     assert body["amount_note"].startswith("Awards are at most")
@@ -353,5 +353,44 @@ def test_explore_endpoints(client):
 
 def test_explore_grant_still_answers_when_ai_is_down(client):
     set_fake_handler(lambda m: "not json")
+    body = client.post("/api/explore/grant", json={"grant_id": "360001", "brief": True}).json()
+    assert body["brief"] is None and body["who"]["labels"]
+
+
+def test_explore_grant_skips_the_ai_unless_asked(client):
+    set_fake_handler(lambda m: pytest.fail("AI should not be called"))
     body = client.post("/api/explore/grant", json={"grant_id": "360001"}).json()
     assert body["brief"] is None and body["who"]["labels"]
+
+
+# --- contacts and checklist -------------------------------------------------------
+
+def test_contact_details_are_read():
+    raw = json.loads(json.dumps(FIXTURE))
+    raw["data"]["synopsis"].update({"agencyContactName": "Jane Smith", "agencyContactEmail": "jane.smith@usda.gov",
+                                    "agencyContactPhone": "202-555-0100", "fundingDescLinkUrl": "https://www.rd.usda.gov/rbdg"})
+    g = grantsgov.normalize(raw)
+    assert (g.contact_name, g.contact_email, g.contact_phone) == ("Jane Smith", "jane.smith@usda.gov", "202-555-0100")
+    assert g.more_info_url == "https://www.rd.usda.gov/rbdg"
+
+
+def test_contact_falls_back_to_the_text():
+    raw = json.loads(json.dumps(FIXTURE))
+    raw["data"]["synopsis"]["agencyContactDesc"] = "Questions? Email grants@epa.gov or call (202) 555-0199."
+    g = grantsgov.normalize(raw)
+    assert g.contact_email == "grants@epa.gov" and g.contact_phone == "(202) 555-0199"
+
+
+def test_checklist_has_standard_steps_and_checked_quotes(client):
+    set_fake_handler(lambda m: json.dumps({"items": [
+        {"item": "Show you're in a rural area", "evidence": "located in a rural area of 50,000 people or fewer"},
+        {"item": "Attach three letters of support", "evidence": "three letters of support are required"}]}))
+    body = client.post("/api/checklist", json={"grant_id": "360001"}).json()
+    assert any("SAM.gov" in s["item"] for s in body["standard"])
+    assert [i["evidence_found"] for i in body["specific"]] == [True, False]
+
+
+def test_checklist_still_gives_standard_steps_when_ai_is_down(client):
+    set_fake_handler(lambda m: "not json")
+    body = client.post("/api/checklist", json={"grant_id": "360001"}).json()
+    assert body["standard"] and body["specific"] == [] and body["ai_ok"] is False

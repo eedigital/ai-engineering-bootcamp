@@ -120,4 +120,36 @@ def brief(grant: Grant) -> tuple[GrantBrief, str]:
     return b, provider
 
 
+# Steps every Grants.gov applicant takes, whatever the grant. Fixed text, not AI.
+STANDARD_STEPS = [
+    {"item": "Register the organization in SAM.gov and get its Unique Entity ID (UEI). Registration can take several weeks, so start early.",
+     "link": "https://sam.gov/content/entity-registration"},
+    {"item": "Create a Grants.gov account and link it to the organization with the right roles (an E-Business Point of Contact must approve).",
+     "link": "https://www.grants.gov/applicants/registration"},
+    {"item": "Download the full notice (NOFO) and application package from the grant's Grants.gov page, and read the required sections and page limits.",
+     "link": None},
+    {"item": "Prepare the standard federal forms in the package, usually the SF-424 family (application, budget and assurances).",
+     "link": "https://www.grants.gov/forms"},
+    {"item": "Submit before the deadline, allowing a few days for Grants.gov validation emails and fixing any errors.",
+     "link": None},
+]
+
+CHECKLIST_SYSTEM = f"""You list what an applicant must prepare for one specific US federal grant, based only on its notice text.
+- items: up to 8 concrete things this grant asks for beyond the usual registrations: documents, letters of support,
+  matching funds, plans, data, eligibility proof, page limits, pre-application steps, deadlines.
+- Write each item as a short instruction ("Get a letter of support from your county").
+- For each, copy the grant's exact words as "evidence". Copy, don't paraphrase. Skip anything the text doesn't say.
+- Don't repeat generic steps (SAM.gov, Grants.gov account, SF-424): those are listed separately.
+{DATA_RULE}"""
+
+
+def checklist(grant: Grant):
+    from .schemas import Checklist
+    c, _ = ask_json(CHECKLIST_SYSTEM, grant_block(grant), Checklist)
+    source = _norm(" ".join([grant.title, grant.eligibility_text, grant.description, *grant.applicant_types]))
+    for it in c.items:
+        it.evidence_found = (not it.evidence) or (_norm(it.evidence) in source)
+    return c  # unverified quotes stay, flagged, so the page can warn instead of silently dropping
+
+
 __all__ = ["AIError", "who_can_apply", "queries_for", "criteria_mentions", "amount_note", "brief", "applicant_labels"]

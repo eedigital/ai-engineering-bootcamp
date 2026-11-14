@@ -183,6 +183,27 @@
   .verify h3 { margin: 0 0 0.4rem; font-size: 1rem; }
   .verify ul { margin: 0; padding-left: 1.25rem; }
 
+  .bar-right { display: flex; gap: 1.25rem; align-items: center; }
+  .c-badges { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .star { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 99px; padding: 0.2rem 0.75rem; cursor: pointer; font-size: 0.875rem; font-weight: 500; white-space: nowrap; }
+  .star[aria-pressed="true"] { border-color: #c9a400; background: #fff8d6; color: #6b5400; }
+  .btn.secondary { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--ink); padding: 0.5rem 1rem; font-size: 0.9375rem; }
+  .btn.secondary:hover { background: var(--soft); }
+  .btn.wide { display: block; width: 100%; margin-top: 1rem; padding: 0.85rem; font-size: 1rem; }
+  .btn.wide[hidden] { display: none; }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.875rem; }
+  .contact { margin: 0; display: grid; gap: 0.15rem; }
+  .contact a, .det a, .checklist a { color: var(--action); }
+  .skel-line { height: 3.5rem; margin-top: 1rem; border-radius: 6px; background: linear-gradient(90deg, #eceff2 0%, #f6f7f9 50%, #eceff2 100%); background-size: 200% 100%; animation: shimmer 1.4s infinite linear; }
+  .checklist { margin-top: 1rem; background: var(--soft); border-radius: var(--r-small); padding: 1rem 1.1rem; }
+  .checklist h4 { font-size: 0.875rem; color: var(--muted); margin: 0.9rem 0 0.4rem; }
+  .checklist ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+  .checklist label { display: flex; gap: 0.6rem; align-items: start; cursor: pointer; }
+  .checklist input { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; flex: none; accent-color: var(--ink); }
+  .checklist input:checked + span { color: var(--muted); text-decoration: line-through; }
+  .checklist blockquote { margin-left: 1.7rem; }
+  .cl-progress { margin: 0; }
   footer { max-width: 52rem; margin: 0 auto; padding: 0 1.25rem 2rem; color: var(--muted); font-size: 0.875rem; }
   footer a { color: var(--ink); }
   @media (prefers-reduced-motion: reduce) { .track i, .path { transition: none; } .skel { animation: none; } }
@@ -191,7 +212,10 @@
 <body>
 <div class="bar">
   <button class="brand" id="home" type="button"><span>Grant Finder</span></button>
-  <button class="link" id="restart" type="button" hidden>Start over</button>
+  <div class="bar-right">
+    <button class="link" id="saved-btn" type="button">Saved (0)</button>
+    <button class="link" id="restart" type="button" hidden>Start over</button>
+  </div>
 </div>
 
 <main>
@@ -307,6 +331,7 @@
     <div class="filters" id="filters" hidden></div>
     <p class="status" id="r-status" aria-live="polite"></p>
     <div class="cards" id="cards"></div>
+    <button class="btn secondary wide" id="more-results" type="button" hidden>Show more</button>
   </section>
 </main>
 
@@ -486,6 +511,9 @@ async function post(path, body, tries = 3) {
 }
 
 // --- shared result bits ---
+const PAGE = 20;          // grants shown per "Show more"
+const ORG_PAGE = 10;      // organization checks use the AI per grant, so fewer at a time
+const LOAD_PARALLEL = 4;  // code-only detail loads are cheap
 function daysLeft(iso) { return iso ? Math.round((new Date(iso + "T23:59:59") - new Date()) / 864e5) : null; }
 function dateText(iso) { return iso ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Not listed"; }
 function awardText(g) {
@@ -493,95 +521,199 @@ function awardText(g) {
   if (g.award_ceiling) return `Up to ${money(g.award_ceiling)}`;
   return "See notice";
 }
-function soonTag(g) { const d = daysLeft(g.close_date); return d != null && d <= 21 ? `<span class="soon">Closes in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
+function soonTag(g) { const d = daysLeft(g.close_date); return d != null && d >= 0 && d <= 21 ? `<span class="soon">Closes in ${d} day${d === 1 ? "" : "s"}</span>` : ""; }
 function quote(r) {
   return `${r.evidence ? `<blockquote>${esc(r.evidence)}</blockquote>` : ""}${r.evidence && !r.evidence_found ? `<span class="unverified">Not found in the grant text. Check the notice.</span>` : ""}`;
 }
 const skeletons = (n) => Array.from({ length: n }, () => `<div class="skel" aria-hidden="true"></div>`).join("");
 
-let results = { kind: null, items: [], filter: "all" };
+// --- saved grants and checklist ticks (this device only) ---
+let saved = store.get("gf-saved") || {};
+let ticks = store.get("gf-ticks") || {};
+function savedCount() { return Object.keys(saved).length; }
+function updateSavedButton() { $("saved-btn").textContent = `Saved (${savedCount()})`; }
+function toggleSave(item) {
+  const g = item.grant || item.hit;
+  if (saved[g.id]) delete saved[g.id];
+  else saved[g.id] = { hit: item.hit || g, grant: item.grant || null, who: item.who || null, brief: item.brief || null, savedAt: Date.now() };
+  store.set("gf-saved", saved); updateSavedButton();
+}
+
+// --- calendar file for a deadline ---
+function downloadIcs(g) {
+  if (!g.close_date) return;
+  const d = g.close_date.replace(/-/g, "");
+  const next = new Date(g.close_date + "T12:00:00"); next.setDate(next.getDate() + 1);
+  const end = next.toISOString().slice(0, 10).replace(/-/g, "");
+  const text = (s) => String(s).replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Grant Finder//EN", "BEGIN:VEVENT",
+    `UID:grant-${g.id}@grant-finder`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${end}`, `SUMMARY:${text("Grant deadline: " + g.title)}`,
+    `DESCRIPTION:${text("Check the exact time on the notice: " + g.url)}`, `URL:${g.url}`,
+    "BEGIN:VALARM", "TRIGGER:-P7D", "ACTION:DISPLAY", `DESCRIPTION:${text("One week until: " + g.title)}`, "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  a.download = `grant-deadline-${g.id}.ics`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+let results = { kind: null, items: [], shown: 0, filter: "all" };
 
 function setFilters(defs) {
   const f = $("filters");
   if (!defs) { f.hidden = true; return; }
   f.hidden = false;
-  f.innerHTML = defs.map(([k, label, n]) => `<button type="button" data-f="${k}" aria-pressed="${results.filter === k}">${esc(label)} (${n})</button>`).join("");
+  f.innerHTML = defs.map(([k, label, n]) => `<button type="button" data-f="${k}" aria-pressed="${results.filter === k}">${esc(label)}${n == null ? "" : ` (${n})`}</button>`).join("");
 }
 $("filters").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) { results.filter = b.dataset.f; draw(); } });
 
 function draw() {
-  const items = results.items, done = items.filter((i) => i.status !== "checking").length;
-  $("r-status").textContent = done === items.length ? "" : `Reading grant ${Math.min(done + 1, items.length)} of ${items.length}…`;
-  results.kind === "x" ? drawExplore(done === items.length) : drawOrg(done === items.length);
+  const vis = results.items.slice(0, results.shown);
+  const loading = vis.filter((i) => i.status === "checking").length;
+  $("r-status").textContent = loading ? `Loading ${loading} grant${loading === 1 ? "" : "s"}…` : "";
+  if (results.kind === "o") drawOrg(); else drawExplore();
+  const left = results.items.length - results.shown;
+  $("more-results").hidden = left <= 0 || results.kind === "saved";
+  $("more-results").textContent = results.kind === "o" ? `Check ${Math.min(ORG_PAGE, left)} more grants` : `Show ${Math.min(PAGE, left)} more of ${left}`;
 }
+
+// --- card parts used by every card ---
+function topRow(item, badge) {
+  const g = item.grant || item.hit;
+  const on = !!saved[g.id];
+  return `<div class="c-top"><div class="c-badges">${badge}${soonTag(g)}</div>
+    <button class="star" type="button" data-save="${g.id}" aria-pressed="${on}" aria-label="${on ? "Remove from saved" : "Save this grant"}">${on ? "★ Saved" : "☆ Save"}</button></div>`;
+}
+function contactBlock(g) {
+  if (!g.contact_name && !g.contact_email && !g.contact_phone && !g.contact_note) return "";
+  return `<div><h4>Contact</h4><p class="contact">
+    ${g.contact_name ? `<span>${esc(g.contact_name)}</span>` : ""}
+    ${g.contact_email ? `<a href="mailto:${esc(g.contact_email)}">${esc(g.contact_email)}</a>` : ""}
+    ${g.contact_phone ? `<a href="tel:${esc(g.contact_phone.replace(/[^\d+]/g, ""))}">${esc(g.contact_phone)}</a>` : ""}
+    ${!g.contact_email && !g.contact_phone && g.contact_note ? `<span>${esc(g.contact_note)}</span>` : ""}
+  </p></div>`;
+}
+function checklistPanel(item) {
+  const g = item.grant || item.hit;
+  if (!item.listOpen) return "";
+  if (!item.checklist) return `<div class="checklist"><p class="muted">Building the checklist from the notice…</p></div>`;
+  const c = item.checklist, mine = ticks[g.id] || [];
+  const box = (key, text, extra = "") => `<li><label><input type="checkbox" data-tick="${g.id}" value="${key}" ${mine.includes(key) ? "checked" : ""}><span>${text}</span></label>${extra}</li>`;
+  const std = c.standard.map((s, i) => box(`s${i}`, esc(s.item) + (s.link ? ` <a class="small" href="${esc(s.link)}" target="_blank" rel="noopener">How</a>` : ""))).join("");
+  const spec = c.specific.map((s, i) => box(`g${i}`, esc(s.item), quote(s))).join("");
+  const total = c.standard.length + c.specific.length, done = mine.length;
+  return `<div class="checklist">
+    <p class="cl-progress"><strong>${done} of ${total}</strong> done. Your ticks are saved on this device.</p>
+    ${spec ? `<h4>What this grant asks for</h4><ul>${spec}</ul>` : c.ai_ok ? "" : `<p class="muted">Couldn't read this grant's own requirements right now. The standard steps below still apply.</p>`}
+    <h4>Every federal grant</h4><ul>${std}</ul>
+    <p class="muted small">The summary on Grants.gov doesn't list every document. The full notice (NOFO) in the grant's application package has the complete list.</p>
+  </div>`;
+}
+function actions(item, extra = "") {
+  const g = item.grant || item.hit;
+  return `<div class="c-actions">
+    ${extra}
+    <button class="btn secondary" type="button" data-list="${g.id}" aria-expanded="${!!item.listOpen}">${item.listOpen ? "Hide checklist" : "How to apply"}</button>
+    ${g.close_date ? `<button class="link" type="button" data-ics="${g.id}">Add deadline to calendar</button>` : ""}
+    <a href="${esc(g.url)}" target="_blank" rel="noopener">Full notice on Grants.gov</a>
+  </div>${checklistPanel(item)}`;
+}
+function errCard(i, g) { return `<article class="card"><h3 class="c-title">${esc(g.title)}</h3><p class="c-sum err">${esc(i.error)} <button class="link" data-retry="${g.id}">Try again</button></p></article>`; }
 
 // --- explore results ---
 function xScore(i) {
-  if (i.status !== "done") return -1;
-  return i.mentions.length * 10 + (i.who.open_to_individuals ? 3 : 0) - (i.amount_note ? 2 : 0) + (i.brief ? 1 : 0);
+  if (i.status !== "done") return -100;
+  return i.mentions.length * 10 + (i.who.open_to_individuals ? 3 : 0) - (i.amount_note ? 2 : 0);
 }
-function drawExplore(finished) {
-  const ok = results.items.filter((i) => i.status === "done");
-  const defs = [["all", "All", results.items.length], ["indiv", "Open to individuals", ok.filter((i) => i.who.open_to_individuals).length]];
+function drawExplore() {
+  if (results.kind === "saved") {
+    const list = Object.values(saved).sort((a, b) => b.savedAt - a.savedAt).map((s) => results.items.find((i) => (i.grant || i.hit).id === (s.grant || s.hit).id)).filter(Boolean);
+    setFilters(null);
+    $("cards").innerHTML = list.length ? list.map(xCard).join("") : `<div class="empty">No saved grants yet. Tap ☆ Save on any grant to keep it here.</div>`;
+    return;
+  }
+  const vis = results.items.slice(0, results.shown), ok = vis.filter((i) => i.status === "done");
+  const defs = [["all", "All", null], ["indiv", "Open to individuals", ok.filter((i) => i.who.open_to_individuals).length]];
   if (results.req.criteria.length) defs.push(["you", "Mention you", ok.filter((i) => i.mentions.length).length]);
   setFilters(defs);
-  let list = [...results.items].sort((a, b) => xScore(b) - xScore(a));
+  // Loaded grants sort by relevance; ones still loading keep their place at the end.
+  let list = [...vis].sort((a, b) => xScore(b) - xScore(a));
   if (results.filter === "indiv") list = list.filter((i) => i.status === "done" && i.who.open_to_individuals);
   if (results.filter === "you") list = list.filter((i) => i.status === "done" && i.mentions.length);
-  $("cards").innerHTML = list.length ? list.map(xCard).join("") : `<div class="empty">No grants in this group${finished ? "" : " yet"}.</div>`;
+  $("cards").innerHTML = list.length ? list.map(xCard).join("") : `<div class="empty">None of the grants shown so far are in this group. Try "Show more" below.</div>`;
 }
-function errCard(i, g) { return `<article class="card"><h3 class="c-title">${esc(g.title)}</h3><p class="c-sum err">${esc(i.error)} <button class="link" data-retry="${g.id}">Try again</button></p></article>`; }
 function xCard(i) {
   const g = i.grant || i.hit;
-  if (i.status === "checking") return `<div class="skel" aria-hidden="true"></div>`;
+  if (i.status === "checking") return `<article class="card"><div class="c-top"><span class="badge plain">Loading</span></div><h3 class="c-title">${esc(g.title)}</h3><p class="c-agency">${esc(g.agency || "")}</p><div class="skel-line"></div></article>`;
   if (i.status === "error") return errCard(i, g);
   const w = i.who;
   const badge = w.open_to_individuals ? `<span class="badge good">Open to individuals</span>`
     : w.needs_organization ? `<span class="badge plain">Needs an organization</span>` : `<span class="badge plain">Check who can apply</span>`;
   const who = w.labels.length ? w.labels.slice(0, 2).join(", ") + (w.labels.length > 2 ? ` and ${w.labels.length - 2} more` : "") : "See notice";
   const reqs = (i.brief?.requirements || []).map((r) => `<li><span class="mk dot">•</span><div>${esc(r.requirement)}${quote(r)}</div></li>`).join("");
-  const mentions = i.mentions.map((m) => `<li><span class="mk met">✓</span><div>Mentions ${esc(m.label.toLowerCase())}<blockquote>${esc(m.quote)}</blockquote></div></li>`).join("");
+  const mentions = (i.mentions || []).map((m) => `<li><span class="mk met">✓</span><div>Mentions ${esc(m.label.toLowerCase())}<blockquote>${esc(m.quote)}</blockquote></div></li>`).join("");
+  const briefBit = i.brief ? `<p style="margin:0">${esc(i.brief.summary)}</p>`
+    : i.briefState === "loading" ? `<p class="muted" style="margin:0">Summarizing the notice…</p>`
+    : i.briefState === "failed" ? `<p class="muted" style="margin:0">Couldn't summarize right now. The facts above are still accurate.</p>` : "";
   return `<article class="card">
-    <div class="c-top">${badge}${soonTag(g)}</div>
+    ${topRow(i, badge)}
     <h3 class="c-title">${esc(g.title)}</h3>
     <p class="c-agency">${esc(g.agency || "")}</p>
-    ${i.brief ? `<p class="c-sum">${esc(i.brief.summary)}</p>` : ""}
-    ${i.mentions.length ? `<ul class="hits">${i.mentions.map((m) => `<li>Mentions ${esc(m.label.toLowerCase())}</li>`).join("")}</ul>` : ""}
+    ${(i.mentions || []).length ? `<ul class="hits">${i.mentions.map((m) => `<li>Mentions ${esc(m.label.toLowerCase())}</li>`).join("")}</ul>` : ""}
     ${i.amount_note ? `<p class="warnline">${esc(i.amount_note)}</p>` : ""}
     <dl class="facts"><div><dt>Award</dt><dd>${awardText(g)}</dd></div><div><dt>Deadline</dt><dd>${dateText(g.close_date)}</dd></div><div><dt>Who can apply</dt><dd>${esc(who)}</dd></div></dl>
-    ${w.labels.length || reqs || mentions ? `<details class="more"><summary>Details</summary><div class="det">
+    <details class="more" data-brief="${g.id}" ${i.open ? "open" : ""}><summary>Details: summary, requirements and contact</summary><div class="det">
+      ${briefBit ? `<div><h4>What it pays for</h4>${briefBit}</div>` : ""}
       ${w.labels.length ? `<div><h4>Who can apply</h4><p style="margin:0">${w.labels.map(esc).join(", ")}</p></div>` : ""}
       ${reqs ? `<div><h4>Requirements, in the grant's words</h4><ul>${reqs}</ul></div>` : ""}
       ${mentions ? `<div><h4>Where it mentions you</h4><ul>${mentions}</ul></div>` : ""}
-    </div></details>` : ""}
-    <div class="c-actions"><a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice on Grants.gov</a></div>
+      ${contactBlock(g)}
+      ${g.more_info_url ? `<div><h4>More information</h4><p style="margin:0"><a href="${esc(g.more_info_url)}" target="_blank" rel="noopener">The agency's page for this grant</a></p></div>` : ""}
+    </div></details>
+    ${actions(i)}
   </article>`;
 }
-async function runQueue(loader) {
-  const queue = [...results.items];
-  await Promise.all(Array.from({ length: PARALLEL }, async () => { while (queue.length) await loader(queue.shift()); }));
+
+async function loadPage(loader, size) {
+  const start = results.shown;
+  results.shown = Math.min(results.items.length, start + size);
+  const queue = results.items.slice(start, results.shown).filter((i) => i.status === "checking");
+  draw();
+  const par = results.kind === "o" ? PARALLEL : LOAD_PARALLEL;
+  await Promise.all(Array.from({ length: par }, async () => { while (queue.length) await loader(queue.shift()); }));
 }
 async function runExplore() {
   const req = { causes: picked("x-cause"), criteria: picked("x-crit"), amount_needed: radioVal("x-amt") ? Number(radioVal("x-amt")) : null };
   store.set("gf-explore", req);
-  results = { kind: "x", items: [], filter: "all", req };
+  results = { kind: "x", items: [], shown: 0, filter: "all", req };
+  $("edit").hidden = false;
   show("results");
   $("r-title").textContent = req.causes.map((c) => CAUSES.find(([k]) => k === c)[1]).join(", ");
   $("r-sub").textContent = "Searching open grants on Grants.gov…";
-  setFilters(null); $("r-status").textContent = ""; $("cards").innerHTML = skeletons(3);
+  setFilters(null); $("r-status").textContent = ""; $("more-results").hidden = true; $("cards").innerHTML = skeletons(3);
   try {
     const s = await post("/api/explore", req);
     if (!s.candidates.length) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty">No open grants right now for these causes. Try different or fewer causes.</div>`; return; }
-    $("r-sub").textContent = `${s.total_found} open grant${s.total_found === 1 ? "" : "s"} found. Showing the ${s.candidates.length} closest matches.`;
+    $("r-sub").textContent = `${s.candidates.length} open grant${s.candidates.length === 1 ? "" : "s"} found. ${req.criteria.length ? "Ones that mention you come first." : ""}`;
     results.items = s.candidates.map((hit) => ({ hit, status: "checking", mentions: [] }));
-    draw();
-    await runQueue(xLoad);
+    await loadPage(xLoad, PAGE);
   } catch (e) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty err">${esc(e.message)}</div>`; }
 }
 async function xLoad(item) {
-  item.status = "checking"; draw();
-  try { Object.assign(item, { status: "done", ...(await post("/api/explore/grant", { grant_id: item.hit.id, criteria: results.req.criteria, amount_needed: results.req.amount_needed })) }); }
+  item.status = "checking";
+  try { Object.assign(item, { status: "done", ...(await post("/api/explore/grant", { grant_id: item.hit.id, criteria: results.req?.criteria || [], amount_needed: results.req?.amount_needed ?? null })) }); }
   catch (e) { Object.assign(item, { status: "error", error: e.message }); }
+  draw();
+}
+async function loadBrief(item) {
+  if (item.brief || item.briefState === "loading") return;
+  item.briefState = "loading"; draw();
+  try {
+    const r = await post("/api/explore/grant", { grant_id: (item.grant || item.hit).id, brief: true });
+    item.brief = r.brief; item.briefState = r.brief ? "done" : "failed";
+    if (saved[r.grant.id]) { saved[r.grant.id].brief = r.brief; store.set("gf-saved", saved); }
+  } catch { item.briefState = "failed"; }
   draw();
 }
 
@@ -589,37 +721,35 @@ async function xLoad(item) {
 const VERDICT = { strong_match: ["good", "Strong match"], possible_match: ["okay", "Possible match"], not_eligible: ["bad", "Not eligible"] };
 const RANK = { strong_match: 0, possible_match: 1, not_eligible: 3 };
 const oRank = (i) => i.status === "done" ? RANK[i.assessment.verdict] * 1000 - i.assessment.fit_score : i.status === "error" ? 2500 : 2000;
-function drawOrg(finished) {
-  const ok = results.items.filter((i) => i.status === "done");
-  setFilters([["all", "All", results.items.length], ["eligible", "Worth a look", ok.filter((i) => i.assessment.verdict !== "not_eligible").length]]);
-  let list = [...results.items].sort((a, b) => oRank(a) - oRank(b));
+function drawOrg() {
+  const vis = results.items.slice(0, results.shown), ok = vis.filter((i) => i.status === "done");
+  setFilters([["all", "All checked", null], ["eligible", "Worth a look", ok.filter((i) => i.assessment.verdict !== "not_eligible").length]]);
+  let list = [...vis].sort((a, b) => oRank(a) - oRank(b));
   if (results.filter === "eligible") list = list.filter((i) => i.status === "done" && i.assessment.verdict !== "not_eligible");
-  $("cards").innerHTML = list.length ? list.map(oCard).join("") : `<div class="empty">No grants in this group${finished ? "" : " yet"}.</div>`;
+  $("cards").innerHTML = list.length ? list.map(oCard).join("") : `<div class="empty">None of the grants checked so far are in this group.</div>`;
 }
 function oCard(i) {
   const g = i.grant || i.hit;
-  if (i.status === "checking") return `<div class="skel" aria-hidden="true"></div>`;
+  if (i.status === "checking") return `<article class="card"><div class="c-top"><span class="badge plain">Checking</span></div><h3 class="c-title">${esc(g.title)}</h3><p class="c-agency">${esc(g.agency || "")}</p><div class="skel-line"></div></article>`;
   if (i.status === "error") return errCard(i, g);
   const a = i.assessment, [cls, label] = VERDICT[a.verdict];
-  const reqs = (a.requirements || []).map((r) => `<li><span class="mk ${r.status}" aria-label="${{ met: "Met", not_met: "Not met", unknown: "Unknown" }[r.status]}">${{ met: "✓", not_met: "✗", unknown: "?" }[r.status]}</span><div>${esc(r.requirement)}. <span style="color:var(--muted)">${esc(r.why)}</span>${quote(r)}</div></li>`).join("");
+  const reqs = (a.requirements || []).map((r) => `<li><span class="mk ${r.status}" aria-label="${{ met: "Met", not_met: "Not met", unknown: "Unknown" }[r.status]}">${{ met: "✓", not_met: "✗", unknown: "?" }[r.status]}</span><div>${esc(r.requirement)}. <span class="muted">${esc(r.why)}</span>${quote(r)}</div></li>`).join("");
   const qs = (a.questions || []).map((q) => `<li><span class="mk dot">•</span><div>${esc(q)}</div></li>`).join("");
   const notes = (i.rules?.reasons || []).map((x) => `<li><span class="mk dot">•</span><div>${esc(x)}</div></li>`).join("");
   return `<article class="card ${a.verdict === "not_eligible" ? "dim" : ""}">
-    <div class="c-top"><span class="badge ${cls}">${label}</span>${soonTag(g)}</div>
+    ${topRow(i, `<span class="badge ${cls}">${label}</span>`)}
     <h3 class="c-title">${esc(g.title)}</h3>
     <p class="c-agency">${esc(g.agency || "")}</p>
     <p class="c-sum">${esc(a.summary)}</p>
     ${a.verdict !== "not_eligible" ? `<div class="fit"><span class="meter"><i style="width:${a.fit_score}%"></i></span>Fit with your work: ${a.fit_score} out of 100</div>` : ""}
     <dl class="facts"><div><dt>Award</dt><dd>${awardText(g)}</dd></div><div><dt>Deadline</dt><dd>${dateText(g.close_date)}</dd></div><div><dt>Cost sharing</dt><dd>${g.cost_sharing === true ? "Required" : g.cost_sharing === false ? "Not required" : "See notice"}</dd></div></dl>
-    ${reqs || qs || notes ? `<details class="more"><summary>Why, and what to check</summary><div class="det">
+    <details class="more" ${i.open ? "open" : ""} data-open="${g.id}"><summary>Why, what to check, and contact</summary><div class="det">
       ${notes ? `<div><h4>Checked automatically</h4><ul>${notes}</ul></div>` : ""}
       ${reqs ? `<div><h4>Requirements</h4><ul>${reqs}</ul></div>` : ""}
       ${qs ? `<div><h4>Find out before applying</h4><ul>${qs}</ul></div>` : ""}
-    </div></details>` : ""}
-    <div class="c-actions">
-      ${a.verdict !== "not_eligible" ? `<button class="btn primary" type="button" data-draft="${g.id}">Draft the application</button>` : ""}
-      <a href="${esc(g.url)}" target="_blank" rel="noopener">Read the full notice</a>
-    </div>
+      ${contactBlock(g)}
+    </div></details>
+    ${actions(i, a.verdict !== "not_eligible" ? `<button class="btn primary" type="button" data-draft="${g.id}">Draft the application</button>` : "")}
   </article>`;
 }
 function orgProfile() {
@@ -633,33 +763,77 @@ function orgProfile() {
 async function runOrg() {
   const profile = orgProfile();
   store.set("gf-org", profile);
-  results = { kind: "o", items: [], filter: "all", profile };
+  results = { kind: "o", items: [], shown: 0, filter: "all", profile };
+  $("edit").hidden = false;
   show("results");
   $("r-title").textContent = profile.org_name || "Grants for your organization";
   $("r-sub").textContent = "Searching open grants on Grants.gov…";
-  setFilters(null); $("r-status").textContent = ""; $("cards").innerHTML = skeletons(3);
+  setFilters(null); $("r-status").textContent = ""; $("more-results").hidden = true; $("cards").innerHTML = skeletons(3);
   try {
     const s = await post("/api/search", { profile });
     if (!s.candidates.length) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty">No open grants matched. Try different topics.</div>`; return; }
-    $("r-sub").textContent = `${s.total_found} open grant${s.total_found === 1 ? "" : "s"} found. Checking the ${s.candidates.length} closest against your details.`;
+    $("r-sub").textContent = `${s.candidates.length} open grant${s.candidates.length === 1 ? "" : "s"} found. Checking them against your details, ${ORG_PAGE} at a time.`;
     results.items = s.candidates.map((hit) => ({ hit, status: "checking" }));
-    draw();
-    await runQueue(oLoad);
+    await loadPage(oLoad, ORG_PAGE);
   } catch (e) { $("r-sub").textContent = ""; $("cards").innerHTML = `<div class="empty err">${esc(e.message)}</div>`; }
 }
 async function oLoad(item) {
-  item.status = "checking"; draw();
+  item.status = "checking";
   try { Object.assign(item, { status: "done", ...(await post("/api/assess", { profile: results.profile, grant_id: item.hit.id })) }); }
   catch (e) { Object.assign(item, { status: "error", error: e.message }); }
   draw();
 }
 
-$("cards").addEventListener("click", (e) => {
-  const retry = e.target.closest("[data-retry]");
-  if (retry) { const it = results.items.find((x) => x.hit.id === retry.dataset.retry); results.kind === "x" ? xLoad(it) : oLoad(it); }
-  const d = e.target.closest("[data-draft]");
-  if (d) openDraft(d.dataset.draft);
+// --- saved view ---
+function showSaved() {
+  const items = Object.values(saved).map((s) => s.who
+    ? { hit: s.hit, grant: s.grant, who: s.who, brief: s.brief, mentions: [], status: "done" }
+    : { hit: s.hit, status: "checking", mentions: [] });
+  results = { kind: "saved", items, shown: items.length, filter: "all", req: { criteria: [] } };
+  show("results");
+  $("r-title").textContent = "Saved grants";
+  $("edit").hidden = true;
+  $("r-sub").textContent = items.length ? "Saved on this device." : "";
+  $("more-results").hidden = true;
+  draw();
+  items.filter((i) => i.status === "checking").forEach(xLoad);
+}
+$("saved-btn").addEventListener("click", showSaved);
+updateSavedButton();
+
+// --- card interactions ---
+const findItem = (id) => results.items.find((x) => (x.grant || x.hit).id === id);
+$("cards").addEventListener("click", async (e) => {
+  const el = e.target.closest("[data-retry],[data-draft],[data-save],[data-list],[data-ics]");
+  if (!el) return;
+  if (el.dataset.retry) { const it = findItem(el.dataset.retry); results.kind === "o" ? oLoad(it) : xLoad(it); }
+  if (el.dataset.draft) openDraft(el.dataset.draft);
+  if (el.dataset.save) { toggleSave(findItem(el.dataset.save)); draw(); }
+  if (el.dataset.ics) downloadIcs(findItem(el.dataset.ics).grant || findItem(el.dataset.ics).hit);
+  if (el.dataset.list) {
+    const it = findItem(el.dataset.list);
+    it.listOpen = !it.listOpen; draw();
+    if (it.listOpen && !it.checklist) {
+      try { it.checklist = await post("/api/checklist", { grant_id: el.dataset.list }); }
+      catch (err) { it.checklist = { standard: [], specific: [], ai_ok: false }; }
+      draw();
+    }
+  }
 });
+$("cards").addEventListener("change", (e) => {
+  const t = e.target.closest("[data-tick]"); if (!t) return;
+  const id = t.dataset.tick, set = new Set(ticks[id] || []);
+  t.checked ? set.add(t.value) : set.delete(t.value);
+  ticks[id] = [...set]; store.set("gf-ticks", ticks); draw();
+});
+// "toggle" doesn't bubble, so listen in the capture phase. Opening Details asks for the AI summary.
+$("cards").addEventListener("toggle", (e) => {
+  const d = e.target; if (!(d instanceof HTMLDetailsElement)) return;
+  const id = d.dataset.brief || d.dataset.open; const it = id && findItem(id); if (!it) return;
+  it.open = d.open;
+  if (d.open && d.dataset.brief && it.status === "done") loadBrief(it);
+}, true);
+$("more-results").addEventListener("click", () => results.kind === "o" ? loadPage(oLoad, ORG_PAGE) : loadPage(xLoad, PAGE));
 
 // --- nonprofit lookup (IRS records via ProPublica) ---
 const search = $("org_search"), list = $("org_results");
