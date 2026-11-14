@@ -56,3 +56,26 @@ services:
           type: web
           name: grant-finder
           envVarKey: GEMINI_API_KEY
+
+  - type: web
+    name: deal-desk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deal-desk/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: groq,gemini
+      - key: ALLOWED_ORIGINS
+        value: "*"   # set to One Click's domains for production
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GROQ_API_KEY
+      - key: GEMINI_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GEMINI_API_KEY

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Desk: get one export deal right</title>
+<meta name="description" content="Plan one export deal: the right Incoterms® 2020 rule, how to get paid safely, the documents you need, and a draft terms sheet. Concept prototype for ICC One Click.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2f4f1; --sheet: #fff; --ink: #172019; --muted: #566259; --line: #d6ddd6; --soft: #f7f9f6;
+    --accent: #0f6b4f; --accent-dark: #0b5340; --seller: #0f6b4f; --seller-bg: #dcefe5; --buyer: #3a4a9a; --buyer-bg: #e3e7f7;
+    --warn: #8a5a00; --warn-bg: #fdf1d8; --no: #a3301f; --no-bg: #fbe6e2; --marker: #f8e46a;
+    --r: 12px; --r-small: 8px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+  body.embed { background: transparent; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .bar { display: flex; justify-content: space-between; align-items: center; max-width: 54rem; margin: 0 auto; padding: 1.1rem 1.25rem; }
+  .brand { font-weight: 800; font-size: 1.125rem; letter-spacing: -0.01em; background: none; border: 0; padding: 0; cursor: pointer; }
+  .brand b { color: var(--accent); }
+  .tag { font-size: 0.8125rem; color: var(--muted); }
+  .link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.9375rem; }
+  main { max-width: 54rem; margin: 0 auto; padding: 0 1.25rem 7rem; }
+  .muted { color: var(--muted); }
+  .err { color: var(--no); font-weight: 500; }
+
+  .hero { padding: 2rem 0 1.5rem; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.04; letter-spacing: -0.03em; font-weight: 800; margin: 0 0 0.9rem; max-width: 36rem; }
+  .hero p { margin: 0; color: var(--muted); font-size: 1.1875rem; max-width: 38rem; }
+  .starts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1rem; }
+  @media (max-width: 44rem) { .starts { grid-template-columns: 1fr; } }
+  .panel { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.35rem; }
+  .panel h2 { font-size: 1.1875rem; margin: 0 0 0.3rem; }
+  .panel p { margin: 0 0 0.9rem; color: var(--muted); font-size: 0.9375rem; }
+  textarea, input[type=text], input[type=number], select {
+    width: 100%; font: inherit; color: var(--ink); background: var(--sheet); border: 1.5px solid var(--line); border-radius: var(--r-small); padding: 0.65rem 0.8rem;
+  }
+  textarea { min-height: 9rem; resize: vertical; font-size: 0.9375rem; }
+  .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.8rem; }
+  .btn { border: 0; border-radius: var(--r-small); padding: 0.75rem 1.35rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.primary[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.secondary { background: var(--sheet); border: 1.5px solid var(--ink); }
+  .file-btn { position: relative; overflow: hidden; }
+  .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .fineprint { margin-top: 2rem; color: var(--muted); font-size: 0.875rem; max-width: 42rem; }
+
+  /* wizard */
+  .progress { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0 1.75rem; color: var(--muted); font-size: 0.9375rem; }
+  .track { flex: 1; height: 4px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .track i { display: block; height: 100%; background: var(--ink); transition: width 250ms; }
+  .q { font-size: clamp(1.7rem, 4.5vw, 2.3rem); line-height: 1.1; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.4rem; outline: none; }
+  .q-hint { color: var(--muted); margin: 0 0 1.4rem; }
+  .fields { display: grid; gap: 1.1rem; max-width: 36rem; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .money { display: grid; grid-template-columns: 1fr 7rem; gap: 0.6rem; }
+  label.f, .legend { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+  .qblock { margin-bottom: 1.6rem; }
+  .qblock[hidden] { display: none; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.5rem; }
+  .choice { position: relative; display: flex; }
+  .choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .opt { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.1rem; min-height: 3.2rem; background: var(--sheet); border: 1.5px solid var(--line);
+         border-radius: var(--r-small); padding: 0.6rem 0.85rem; font-weight: 500; cursor: pointer; }
+  .opt small { color: var(--muted); font-weight: 400; font-size: 0.8125rem; line-height: 1.35; }
+  .choice:hover .opt { border-color: var(--muted); }
+  .choice input:checked + .opt { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); background: #fbfcfa; }
+  .choice input:focus-visible + .opt { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: rgb(242 244 241 / 0.94); backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+  body.embed .nav { position: sticky; }
+  .nav-in { max-width: 54rem; margin: 0 auto; padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+  .btn.ghost { background: none; padding-left: 0; }
+
+  /* deal pack */
+  .pack-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; flex-wrap: wrap; margin: 1.25rem 0 1.25rem; }
+  .pack-head h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.1; letter-spacing: -0.02em; margin: 0; }
+  .pack-head p { margin: 0.3rem 0 0; color: var(--muted); }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.4rem; margin-bottom: 1rem; }
+  .eyebrow { font-size: 0.875rem; font-weight: 700; color: var(--muted); margin: 0 0 0.35rem; }
+  .big { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin: 0 0 0.4rem; }
+  .big strong { font-size: 2.6rem; line-height: 1; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); }
+  .big span { font-size: 1.25rem; font-weight: 700; }
+  .write { display: inline-block; margin: 0.5rem 0 0; font-size: 0.9375rem; background: var(--soft); border: 1px dashed var(--line); border-radius: 6px; padding: 0.35rem 0.6rem; }
+  .why { margin: 0.9rem 0 0; padding-left: 1.2rem; }
+  .why li { margin-bottom: 0.25rem; }
+
+  /* the journey: who pays, where risk passes */
+  .journey { margin: 1.4rem 0 0.4rem; }
+  .legend-row { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.875rem; color: var(--muted); margin-bottom: 0.6rem; }
+  .key { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .key i { width: 0.9rem; height: 0.9rem; border-radius: 3px; display: inline-block; }
+  .stages { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; position: relative; }
+  .stage { border-radius: 6px; padding: 0.55rem 0.5rem 0.6rem; min-height: 5.6rem; font-size: 0.8125rem; line-height: 1.3; position: relative; }
+  .stage.seller { background: var(--seller-bg); color: #0b4a37; }
+  .stage.buyer { background: var(--buyer-bg); color: #263274; }
+  .stage b { display: block; font-size: 0.75rem; text-transform: none; margin-bottom: 0.2rem; opacity: 0.85; }
+  .stage.handover::after { content: ""; position: absolute; top: -6px; bottom: -6px; right: -4px; width: 4px; background: var(--ink); border-radius: 2px; }
+  .risk-note { margin: 0.75rem 0 0; font-size: 0.9375rem; }
+  .risk-note b { background: var(--marker); padding: 0 0.2em; border-radius: 2px; }
+  @media (max-width: 40rem) {
+    .stages { grid-template-columns: 1fr; gap: 3px; }
+    .stage { min-height: 0; display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.7rem; }
+    .stage b { order: 2; margin: 0; }
+    .stage.handover::after { top: auto; left: -4px; right: -4px; bottom: -4px; width: auto; height: 4px; }
+  }
+  .alts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 1rem; }
+  @media (max-width: 40rem) { .alts { grid-template-columns: 1fr; } }
+  .alt { background: var(--soft); border-radius: var(--r-small); padding: 0.75rem 0.9rem; font-size: 0.9375rem; }
+  .alt strong { display: block; }
+  .warns { display: grid; gap: 0.5rem; margin-top: 1rem; }
+  .warn { background: var(--warn-bg); border-radius: var(--r-small); padding: 0.7rem 0.9rem; font-size: 0.9375rem; }
+  .pay-how { margin: 0.4rem 0 0; }
+  .rules-ref { font-size: 0.875rem; color: var(--muted); margin: 0.5rem 0 0; }
+  .docs { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+  .docs label { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.5rem; cursor: pointer; }
+  .docs input { width: 1.1rem; height: 1.1rem; margin-top: 0.25rem; accent-color: var(--accent); }
+  .docs input:checked ~ div strong { text-decoration: line-through; color: var(--muted); }
+  .docs .who { font-size: 0.8125rem; font-weight: 700; color: var(--accent); }
+  .docs .note { display: block; color: var(--muted); font-size: 0.9375rem; }
+  .chamber { display: inline-block; margin-top: 0.3rem; font-size: 0.8125rem; font-weight: 700; background: var(--seller-bg); color: var(--seller); border-radius: 99px; padding: 0.1rem 0.6rem; }
+  .terms { white-space: pre-wrap; background: var(--soft); border-radius: var(--r-small); padding: 1rem; font-size: 0.9375rem; margin: 0.6rem 0 0; font-family: inherit; }
+  .ph { background: var(--marker); border-radius: 2px; padding: 0 0.15em; }
+  .flags { display: grid; gap: 0.6rem; }
+  .flag { border-left: 4px solid var(--no); background: var(--sheet); border-radius: 0 var(--r-small) var(--r-small) 0; padding: 0.75rem 1rem; border-top: 1px solid var(--line); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .flag.medium { border-left-color: var(--warn); }
+  .flag.low { border-left-color: var(--muted); }
+  .flag strong { display: block; }
+  .flag blockquote { margin: 0.35rem 0; padding-left: 0.6rem; border-left: 3px solid var(--marker); color: var(--muted); font-size: 0.9375rem; }
+  .unverified { color: var(--no); font-size: 0.8125rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin: 1.5rem 0; }
+  footer { max-width: 54rem; margin: 0 auto; padding: 0 1.25rem 2rem; color: var(--muted); font-size: 0.8125rem; }
+  footer a { color: var(--ink); }
+  .spin { width: 1rem; height: 1rem; border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media print {
+    .bar, .nav, .actions, footer, .no-print { display: none !important; }
+    body { background: #fff; } .card { break-inside: avoid; border-color: #bbb; }
+    main { padding: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .track i { transition: none; } .spin { animation-duration: 3s; } }
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <button class="brand" id="home" type="button">Deal <b>Desk</b></button>
+  <span class="tag">Concept prototype for ICC One Click</span>
+</div>
+
+<main>
+  <!-- start -->
+  <section class="screen" id="s-start">
+    <div class="hero">
+      <h1>Get one export deal right.</h1>
+      <p>Tell us about one deal. You'll get the right Incoterms® 2020 rule, how to get paid safely, the documents you need, and a draft terms sheet to send your buyer.</p>
+    </div>
+    <div class="starts">
+      <div class="panel">
+        <h2>Start from the buyer's message</h2>
+        <p>Paste their order, quote or email. We'll fill in the deal and flag risky terms, quoting their words.</p>
+        <label class="f" for="buyer-text" style="position:absolute;left:-9999px">The buyer's message</label>
+        <textarea id="buyer-text" placeholder="e.g. We would like to order 2,000 bottles of extra virgin olive oil at EUR 24 per bottle, FOB Valencia, payment 90 days after arrival…"></textarea>
+        <div class="row">
+          <button class="btn primary" type="button" id="read-btn">Read it</button>
+          <span class="btn secondary file-btn">Upload a PDF<input type="file" id="read-file" accept=".pdf,.txt,application/pdf,text/plain"></span>
+          <button class="link" type="button" id="sample">Try a sample</button>
+        </div>
+        <p class="err" id="read-err" role="alert" hidden style="margin:0.75rem 0 0"></p>
+        <p id="read-busy" hidden style="margin:0.75rem 0 0" class="muted"><span class="spin" aria-hidden="true"></span> Reading the buyer's terms…</p>
+      </div>
+      <div class="panel">
+        <h2>Or answer a few questions</h2>
+        <p>Three short steps about the goods, the shipping and the buyer. About a minute.</p>
+        <button class="btn secondary" type="button" id="manual">Fill in the deal</button>
+      </div>
+    </div>
+    <p class="fineprint">The buyer's text is sent to an AI service (Groq or Google) to be read. The delivery, payment and document advice comes from fixed rules, not AI. This is guidance, not legal advice.</p>
+  </section>
+
+  <!-- step 1: the deal -->
+  <section class="screen" id="s-d1" hidden>
+    <div class="progress"><span>Step 1 of 3</span><span class="track"><i style="width:33%"></i></span></div>
+    <h1 class="q">What are you selling, and where?</h1>
+    <p class="q-hint" id="filled-note">Leave anything you don't know yet.</p>
+    <div class="fields">
+      <div><label class="f" for="product">Goods</label><input type="text" id="product" maxlength="200" placeholder="e.g. 2,000 bottles of olive oil"></div>
+      <div class="two">
+        <div><label class="f" for="origin">From</label><select id="origin"></select></div>
+        <div><label class="f" for="destination">To</label><select id="destination"></select></div>
+      </div>
+      <div>
+        <label class="f" for="value">Deal value</label>
+        <div class="money"><input type="number" id="value" min="0" step="any" inputmode="decimal" placeholder="e.g. 48000">
+          <select id="currency" aria-label="Currency"></select></div>
+      </div>
+      <div class="two">
+        <div><label class="f" for="seller_name">Your company</label><input type="text" id="seller_name" maxlength="120"></div>
+        <div><label class="f" for="buyer_name">Buyer</label><input type="text" id="buyer_name" maxlength="120"></div>
+      </div>
+    </div>
+    <p class="err" id="d1-err" role="alert" hidden></p>
+  </section>
+
+  <!-- step 2: shipping -->
+  <section class="screen" id="s-d2" hidden>
+    <div class="progress"><span>Step 2 of 3</span><span class="track"><i style="width:66%"></i></span></div>
+    <h1 class="q">How will it ship?</h1>
+    <p class="q-hint">This decides your Incoterms® rule.</p>
+    <div class="qblock"><span class="legend" id="l-mode">Transport</span><div class="opts" id="o-mode" role="radiogroup" aria-labelledby="l-mode"></div></div>
+    <div class="qblock"><span class="legend" id="l-tb">Who books and pays for the main transport?</span><div class="opts" id="o-transport_by" role="radiogroup" aria-labelledby="l-tb"></div></div>
+    <div class="qblock" id="q-delivery"><span class="legend" id="l-dt">How far do you deliver?</span><div class="opts" id="o-delivery_to" role="radiogroup" aria-labelledby="l-dt"></div></div>
+    <div class="qblock" id="q-import"><span class="legend" id="l-ci">Can you handle import clearance and taxes in the buyer's country?</span><div class="opts" id="o-seller_clears_import" role="radiogroup" aria-labelledby="l-ci"></div></div>
+    <div class="qblock" id="q-insure"><span class="legend" id="l-ins">Who insures the goods in transit?</span><div class="opts" id="o-insurance_by" role="radiogroup" aria-labelledby="l-ins"></div></div>
+  </section>
+
+  <!-- step 3: buyer -->
+  <section class="screen" id="s-d3" hidden>
+    <div class="progress"><span>Step 3 of 3</span><span class="track"><i style="width:100%"></i></span></div>
+    <h1 class="q">About the buyer</h1>
+    <p class="q-hint">This decides how you should get paid.</p>
+    <div class="qblock"><span class="legend" id="l-rel">Have you sold to them before?</span><div class="opts" id="o-relationship" role="radiogroup" aria-labelledby="l-rel"></div></div>
+    <div class="qblock"><span class="legend" id="l-risk">How risky is the buyer's country for getting paid?</span><div class="opts" id="o-destination_risk" role="radiogroup" aria-labelledby="l-risk"></div></div>
+    <div class="qblock"><span class="legend" id="l-lc">Would they pay by letter of credit?</span><div class="opts" id="o-buyer_accepts_lc" role="radiogroup" aria-labelledby="l-lc"></div></div>
+    <div class="qblock"><span class="legend" id="l-coo">Do they need a certificate of origin?</span><div class="opts" id="o-needs_origin_certificate" role="radiogroup" aria-labelledby="l-coo"></div></div>
+  </section>
+
+  <!-- results -->
+  <section class="screen" id="s-pack" hidden>
+    <div id="pack"></div>
+  </section>
+</main>
+
+<nav class="nav" id="nav" hidden aria-label="Steps">
+  <div class="nav-in">
+    <button class="btn ghost" id="back" type="button">Back</button>
+    <button class="btn primary" id="next" type="button">Continue</button>
+  </div>
+</nav>
+
+<footer id="foot">
+  <p>Deal Desk is a concept prototype built for ICC One Click. It is not an official ICC product. Incoterms® is a registered trademark of the International Chamber of Commerce; rule summaries here are our own. Guidance, not legal advice. <a href="/integrate">Integrating with One Click</a> · <a href="https://github.com/eedigital/ai-engineering-bootcamp">Source code</a></p>
+</footer>
+
+<script>
+const EMBED = new URLSearchParams(location.search).get("embed") === "1";
+// Send deal packs only to the page that embedded us, never to "any page".
+const PARENT_ORIGIN = (() => { try { return document.referrer ? new URL(document.referrer).origin : null; } catch { return null; } })();
+const toHost = (msg) => { if (EMBED && parent !== window && PARENT_ORIGIN) parent.postMessage(msg, PARENT_ORIGIN); };
+if (EMBED) { document.body.classList.add("embed"); document.getElementById("bar").hidden = true; }
+
+const SAMPLE_TEXT = `Dear Maria,
+Further to our call, Feinkost Weber GmbH (Munich) would like to order 2,000 bottles of your extra virgin olive oil, 750 ml, at EUR 24.00 per bottle, total EUR 48,000.
+Delivery: DDP Munich warehouse, by road, before 15 March.
+Payment: 100% by bank transfer 90 days after we have sold the goods.
+Please note our bank details have changed. Send the pro-forma to our new account at the bank below and ship urgently, as our customer is waiting.
+Any dispute will be settled exclusively by the courts of Munich under German law. Goods may be rejected at our discretion on arrival.
+Kind regards, Jonas Weber, Purchasing`;
+
+// Countries: codes here, names from the browser in the reader's language.
+const CODES = "AF AL DZ AD AO AG AR AM AU AT AZ BS BH BD BB BY BE BZ BJ BT BO BA BW BR BN BG BF BI CV KH CM CA CF TD CL CN CO KM CG CD CR CI HR CU CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FJ FI FR GA GM GE DE GH GR GD GT GN GW GY HT HN HK HU IS IN ID IR IQ IE IL IT JM JP JO KZ KE KI KW KG LA LV LB LS LR LY LI LT LU MO MG MW MY MV ML MT MH MR MU MX FM MD MC MN ME MA MZ MM NA NR NP NL NZ NI NE NG MK NO OM PK PW PS PA PG PY PE PH PL PT PR QA RO RU RW KN LC VC WS SM ST SA SN RS SC SL SG SK SI SB SO ZA KR SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TV UG UA AE GB US UY UZ VU VE VN YE ZM ZW".split(" ");
+const regionNames = new Intl.DisplayNames([navigator.language || "en", "en"], { type: "region" });
+const COUNTRIES = CODES.map((c) => [c, regionNames.of(c)]).sort((a, b) => a[1].localeCompare(b[1]));
+const CURRENCIES = ["USD", "EUR", "GBP", "CNY", "JPY", "INR", "AED", "SAR", "CAD", "AUD", "CHF", "BRL", "MXN", "ZAR", "NGN", "KES", "EGP", "TRY", "SGD", "HKD"];
+
+const OPTIONS = {
+  mode: [["sea_container", "Sea, in containers"], ["sea_bulk", "Sea, bulk", "Not in containers"], ["air", "Air"], ["road", "Road"], ["rail", "Rail"], ["multimodal", "Several", "e.g. truck then ship"]],
+  transport_by: [["seller", "We do", "We book and pay the freight"], ["buyer", "The buyer does", "Their carrier collects"]],
+  delivery_to: [["port", "To the departure port or terminal", "The buyer takes it from there"], ["buyer_site", "To the buyer's door", "We deliver all the way"]],
+  seller_clears_import: [["no", "No", "The buyer clears import"], ["yes", "Yes", "We can pay duties and taxes there"]],
+  insurance_by: [["seller", "We do"], ["buyer", "The buyer does"]],
+  relationship: [["new", "New buyer", "First order"], ["some", "A few orders", "Paid fine so far"], ["established", "Long-standing", "Always paid on time"]],
+  destination_risk: [["low", "Low", "Stable, easy to enforce payment"], ["medium", "Medium"], ["high", "High", "Currency controls, instability"], ["unsure", "Not sure"]],
+  buyer_accepts_lc: [["yes", "Yes"], ["no", "No"], ["unsure", "Not sure"]],
+  needs_origin_certificate: [["yes", "Yes"], ["no", "No"], ["unsure", "Not sure"]],
+};
+const DEFAULTS = { mode: "sea_container", transport_by: "seller", delivery_to: "port", seller_clears_import: "no", insurance_by: "seller",
+  relationship: "new", destination_risk: "unsure", buyer_accepts_lc: "unsure", needs_origin_certificate: "unsure" };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const withPh = (s) => esc(s).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>');
+const store = { get(k) { try { return JSON.parse(sessionStorage.getItem(k) || "null"); } catch { return null; } }, set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+// --- build the form ---
+function fillSelect(el, items, blank) {
+  el.innerHTML = (blank ? `<option value="">${blank}</option>` : "") + items.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+}
+fillSelect($("origin"), COUNTRIES, "Choose");
+fillSelect($("destination"), COUNTRIES, "Choose");
+fillSelect($("currency"), CURRENCIES.map((c) => [c, c]));
+for (const [name, opts] of Object.entries(OPTIONS)) {
+  $(`o-${name}`).innerHTML = opts.map(([v, l, sub]) =>
+    `<label class="choice"><input type="radio" name="${name}" value="${v}"><span class="opt">${esc(l)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></label>`).join("");
+}
+const radio = (n) => document.querySelector(`input[name="${n}"]:checked`)?.value;
+const setRadio = (n, v) => { const i = document.querySelector(`input[name="${n}"][value="${v}"]`); if (i) i.checked = true; };
+Object.entries(DEFAULTS).forEach(([k, v]) => setRadio(k, v));
+
+function countryCode(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (CODES.includes(s.toUpperCase())) return s.toUpperCase();
+  const hit = COUNTRIES.find(([, n]) => n.toLowerCase() === s.toLowerCase())
+    || COUNTRIES.find(([, n]) => n.toLowerCase().startsWith(s.toLowerCase()) || s.toLowerCase().startsWith(n.toLowerCase()));
+  return hit ? hit[0] : "";
+}
+function prefill(d) {
+  if (!d) return;
+  if (d.product) $("product").value = d.product;
+  if (d.origin || d.origin_country) $("origin").value = countryCode(d.origin || d.origin_country);
+  if (d.destination || d.destination_country) $("destination").value = countryCode(d.destination || d.destination_country);
+  if (d.value) $("value").value = d.value;
+  if (d.currency && CURRENCIES.includes(String(d.currency).toUpperCase())) $("currency").value = String(d.currency).toUpperCase();
+  if (d.buyer || d.buyer_name) $("buyer_name").value = d.buyer || d.buyer_name;
+  if (d.seller || d.seller_name) $("seller_name").value = d.seller || d.seller_name;
+  if (d.mode && OPTIONS.mode.some(([m]) => m === d.mode)) setRadio("mode", d.mode);
+  syncShipping();
+}
+
+// Only ask what matters for the answers already given.
+function syncShipping() {
+  const sellerShips = radio("transport_by") === "seller";
+  $("q-delivery").hidden = !sellerShips;
+  $("q-import").hidden = !(sellerShips && radio("delivery_to") === "buyer_site");
+  $("q-insure").hidden = !sellerShips || radio("delivery_to") === "buyer_site";
+}
+["o-transport_by", "o-delivery_to"].forEach((id) => $(id).addEventListener("change", syncShipping));
+syncShipping();
+
+function deal() {
+  const name = (id) => { const c = $(id).value; return c ? regionNames.of(c) : ""; };
+  return {
+    product: $("product").value.trim(), origin_country: name("origin"), destination_country: name("destination"),
+    value: $("value").value ? Number($("value").value) : null, currency: $("currency").value,
+    seller_name: $("seller_name").value.trim(), buyer_name: $("buyer_name").value.trim(),
+    mode: radio("mode"), transport_by: radio("transport_by"), delivery_to: radio("delivery_to"),
+    seller_clears_import: radio("seller_clears_import") === "yes", insurance_by: radio("insurance_by"),
+    relationship: radio("relationship"), destination_risk: radio("destination_risk"),
+    buyer_accepts_lc: radio("buyer_accepts_lc"), needs_origin_certificate: radio("needs_origin_certificate"),
+  };
+}
+
+// --- screens ---
+const STEPS = ["d1", "d2", "d3"];
+let screen = "start", reading = null, lastPack = null;
+function show(id) {
+  document.querySelectorAll(".screen").forEach((s) => (s.hidden = s.id !== `s-${id}`));
+  screen = id;
+  const wiz = STEPS.includes(id);
+  $("nav").hidden = !wiz;
+  $("next").textContent = id === "d3" ? "Build my deal pack" : "Continue";
+  window.scrollTo({ top: 0 });
+  const h = document.querySelector(`#s-${id} h1`); if (h && id !== "start") { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+  postHeight();
+}
+$("home").addEventListener("click", () => show("start"));
+$("manual").addEventListener("click", () => { reading = null; $("filled-note").textContent = "Leave anything you don't know yet."; show("d1"); });
+$("back").addEventListener("click", () => { const i = STEPS.indexOf(screen); show(i > 0 ? STEPS[i - 1] : "start"); });
+$("next").addEventListener("click", () => {
+  if (screen === "d1" && !$("destination").value) { $("d1-err").textContent = "Choose where the goods are going."; $("d1-err").hidden = false; $("destination").focus(); return; }
+  $("d1-err").hidden = true;
+  const i = STEPS.indexOf(screen);
+  if (i < STEPS.length - 1) show(STEPS[i + 1]); else build();
+});
+
+// --- read the buyer's message (the only AI step) ---
+$("sample").addEventListener("click", () => { $("buyer-text").value = SAMPLE_TEXT; $("buyer-text").focus(); });
+$("read-btn").addEventListener("click", () => {
+  const t = $("buyer-text").value.trim();
+  if (t.length < 20) { readErr("Paste the buyer's message first: a sentence or two at least."); return; }
+  const fd = new FormData(); fd.append("text", t); readIt(fd);
+});
+$("read-file").addEventListener("change", (e) => { const f = e.target.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); readIt(fd); e.target.value = ""; });
+function readErr(m) { $("read-err").textContent = m; $("read-err").hidden = false; }
+async function readIt(fd) {
+  $("read-err").hidden = true; $("read-busy").hidden = false; $("read-btn").disabled = true;
+  try {
+    let r, data;
+    for (let i = 1; i <= 3; i++) {
+      r = await fetch("/api/read", { method: "POST", body: fd });
+      data = await r.json().catch(() => ({}));
+      if (r.ok || ![429, 502].includes(r.status) || i === 3) break;
+      await new Promise((res) => setTimeout(res, 4000 * i));
+    }
+    if (!r.ok) throw new Error(data.error || "Couldn't read that.");
+    reading = data;
+    const d = data.deal;
+    prefill({ ...d, buyer_name: d.buyer_name, seller_name: d.seller_name });
+    const found = [d.product && "goods", d.destination_country && "destination", d.value && "value", d.buyer_name && "buyer"].filter(Boolean);
+    $("filled-note").textContent = found.length ? `Filled in from the buyer's message: ${found.join(", ")}. Check and complete it.` : "We couldn't find the deal details in the message. Fill them in below.";
+    show("d1");
+  } catch (e) { readErr(e.message); }
+  finally { $("read-busy").hidden = true; $("read-btn").disabled = false; }
+}
+
+// --- build the deal pack (rules only, instant) ---
+async function build() {
+  const d = deal();
+  $("next").disabled = true;
+  try {
+    const r = await fetch("/api/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+    const p = await r.json();
+    if (!r.ok) throw new Error(p.error || "Couldn't build the deal pack. Check the details and try again.");
+    lastPack = { ...p, red_flags: reading?.red_flags || [], buyer_terms: reading?.deal || null, created: new Date().toISOString() };
+    store.set("dd-pack", lastPack);
+    renderPack(lastPack);
+    show("pack");
+    toHost({ type: "dealdesk:complete", pack: lastPack });
+  } catch (e) { $("d1-err").textContent = e.message; } finally { $("next").disabled = false; }
+}
+
+function journey(rule) {
+  const handoverIdx = rule.chain.findIndex((s) => s.risk === "buyer") - 1;
+  const stages = rule.chain.map((s, i) => `<div class="stage ${s.pays} ${i === handoverIdx ? "handover" : ""}"><b>${s.pays === "seller" ? "You pay" : "Buyer pays"}</b>${esc(s.stage)}</div>`).join("");
+  const where = handoverIdx < 0 ? "before anything leaves your site" : handoverIdx >= rule.chain.length - 1 ? "only once the goods are unloaded at the destination" : `after “${rule.chain[handoverIdx].stage.toLowerCase()}”`;
+  return `<div class="journey" role="img" aria-label="Who pays for each stage, and where risk passes to the buyer">
+    <div class="legend-row"><span class="key"><i style="background:var(--seller-bg);border:1px solid var(--seller)"></i>You pay</span><span class="key"><i style="background:var(--buyer-bg);border:1px solid var(--buyer)"></i>Buyer pays</span><span class="key"><i style="background:var(--ink);width:4px"></i>Risk passes to the buyer</span></div>
+    <div class="stages">${stages}</div>
+    <p class="risk-note">Risk passes to the buyer <b>${esc(where)}</b>.</p></div>`;
+}
+
+function renderPack(p) {
+  const d = p.deal, inc = p.incoterm.recommended, pay = p.payment.recommended;
+  const val = d.value ? new Intl.NumberFormat(undefined, { style: "currency", currency: d.currency, maximumFractionDigits: 0 }).format(d.value) : null;
+  const flags = (p.red_flags || []).map((f) => `<div class="flag ${f.severity}"><strong>${esc(f.flag)}</strong>
+      ${f.quote ? `<blockquote>${esc(f.quote)}</blockquote>` : ""}${f.quote && !f.quote_found ? `<span class="unverified">Not found word for word in the buyer's message. Check it yourself.</span>` : ""}
+      <span class="muted" style="font-size:0.9375rem">${esc(f.why)}</span></div>`).join("");
+  const docs = p.documents.map((x, i) => `<li><label><input type="checkbox" data-doc="${i}"><div><strong>${esc(x.doc)}</strong> <span class="who">${esc(x.who)}</span>
+      <span class="note">${esc(x.note)}</span>${x.chamber ? `<span class="chamber">In One Click: hand off to your chamber</span>` : ""}</div></label></li>`).join("");
+  const buyerAsked = p.buyer_terms?.incoterm_mentioned && !p.buyer_terms.incoterm_mentioned.toUpperCase().startsWith(inc.code)
+    ? `<div class="warn">The buyer asked for <b>${esc(p.buyer_terms.incoterm_mentioned)}</b>. Based on your answers, <b>${inc.code}</b> suits you better. Compare the two before you reply.</div>` : "";
+  $("pack").innerHTML = `
+    <div class="pack-head">
+      <div><h1>Your deal pack</h1><p>${esc([d.product, d.destination_country && `to ${d.destination_country}`, val].filter(Boolean).join(", ")) || "Your export deal"}</p></div>
+      <button class="link no-print" type="button" id="edit">Change answers</button>
+    </div>
+    ${flags ? `<div class="card"><p class="eyebrow">Red flags in the buyer's terms</p><div class="flags">${flags}</div></div>` : ""}
+    <div class="card">
+      <p class="eyebrow">Delivery terms</p>
+      <div class="big"><strong>${esc(inc.code)}</strong><span>${esc(inc.name)}</span></div>
+      <p style="margin:0">${esc(inc.summary)}</p>
+      <span class="write">Write it as: <b>${esc(inc.how_to_write)}</b></span>
+      <ul class="why">${inc.why.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+      ${journey(inc)}
+      ${buyerAsked}
+      <div class="alts">${p.incoterm.alternatives.map((a) => `<div class="alt"><strong>${esc(a.label)}</strong>${esc(a.why_short)}</div>`).join("")}</div>
+      <div class="warns">${p.incoterm.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Getting paid</p>
+      <div class="big"><span>${esc(pay.name)}</span></div>
+      <p style="margin:0">${esc(pay.why)}</p>
+      <p class="pay-how"><b>How it works:</b> ${esc(pay.how)} ${esc(pay.protects)}</p>
+      ${pay.rules ? `<p class="rules-ref">Follows ${esc(pay.rules)}.</p>` : ""}
+      ${p.payment.notes.length ? `<div class="warns">${p.payment.notes.map((n) => `<div class="warn">${esc(n)}</div>`).join("")}</div>` : ""}
+      <div class="alts">${p.payment.alternatives.map((a) => `<div class="alt"><strong>${esc(a.name)}</strong>${esc(a.how)}</div>`).join("")}</div>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Documents to prepare</p>
+      <ul class="docs">${docs}</ul>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Draft terms to send the buyer</p>
+      <pre class="terms" id="terms">${withPh(p.terms_sheet)}</pre>
+      <div class="row no-print"><button class="btn secondary" type="button" id="copy-terms">Copy</button><span class="muted" style="font-size:0.875rem">Fill in the highlighted parts before sending.</span></div>
+    </div>
+    <div class="actions">
+      ${EMBED ? `<button class="btn primary" type="button" id="to-plan">Save to my trade action plan</button>` : ""}
+      <button class="btn secondary" type="button" id="print">Print or save as PDF</button>
+      <button class="btn secondary" type="button" id="download">Download deal pack</button>
+      <button class="link" type="button" id="again">Plan another deal</button>
+    </div>`;
+  $("edit").addEventListener("click", () => show("d1"));
+  $("again").addEventListener("click", () => { reading = null; $("buyer-text").value = ""; show("start"); });
+  $("print").addEventListener("click", () => window.print());
+  $("copy-terms").addEventListener("click", (e) => navigator.clipboard?.writeText(p.terms_sheet).then(() => { e.target.textContent = "Copied"; setTimeout(() => (e.target.textContent = "Copy"), 1500); }));
+  $("download").addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }));
+    a.download = `deal-pack-${(d.destination_country || "deal").toLowerCase().replace(/\W+/g, "-")}.json`; a.click();
+  });
+  if ($("to-plan")) $("to-plan").addEventListener("click", (e) => { toHost({ type: "dealdesk:complete", pack: p }); e.target.textContent = "Saved to your plan"; });
+}
+
+// --- embedding: report height, accept prefill from the host page ---
+function postHeight() { toHost({ type: "dealdesk:height", height: document.documentElement.scrollHeight }); }
+if (EMBED) {
+  new ResizeObserver(postHeight).observe(document.body);
+  window.addEventListener("message", (e) => {
+    if (e.origin !== PARENT_ORIGIN) return;  // only the embedding page may prefill
+    if (e.data?.type === "dealdesk:prefill") { prefill(e.data.deal); show("d1"); }
+  });
+}
+
+// launch link: /?destination=Germany&product=...
+const q = Object.fromEntries(new URLSearchParams(location.search));
+if (q.destination || q.product || q.origin) { prefill(q); $("filled-note").textContent = "Filled in from One Click. Check and complete it."; show("d1"); }
+else show("start");
+</script>
+</body>
+</html>

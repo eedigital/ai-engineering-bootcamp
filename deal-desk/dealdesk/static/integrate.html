@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Desk: integrating with One Click</title>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #f2f4f1; color: #172019; font: 400 1.0625rem/1.6 "Schibsted Grotesk", system-ui, sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 0.75rem; }
+  h2 { font-size: 1.375rem; margin: 2.25rem 0 0.5rem; letter-spacing: -0.01em; }
+  p, li { color: #3e4a40; }
+  pre { background: #172019; color: #e6efe7; padding: 1rem 1.1rem; border-radius: 8px; overflow: auto; font-size: 0.875rem; line-height: 1.5; }
+  code { font-size: 0.9em; }
+  a { color: #0f6b4f; }
+  .note { background: #fff; border: 1px solid #d6ddd6; border-radius: 10px; padding: 1rem 1.1rem; margin-top: 2rem; font-size: 0.9375rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; margin-top: 0.5rem; }
+  th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid #d6ddd6; vertical-align: top; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="/">← Back to Deal Desk</a></p>
+  <h1>Plugging Deal Desk into One Click</h1>
+  <p>Deal Desk is built to sit inside One Click's existing journey rather than beside it. One Click has no public API, so Deal Desk offers the four standard ways a platform adds a tool. Each works on its own; together they cover the Trade Action Plan, the AI assistant and the SME Trade Catalogue.</p>
+
+  <table>
+    <tr><th>Where in One Click</th><th>How Deal Desk connects</th></tr>
+    <tr><td>Trade Action Plan: shipping and getting paid steps</td><td>Embed (2) or launch link (1), with the deal pack saved back to the plan</td></tr>
+    <tr><td>AI assistant</td><td>Tool definitions (3), so it can answer "which Incoterm?" from rules, not guesses</td></tr>
+    <tr><td>SME Trade Catalogue</td><td>Launch link (1) as a catalogue entry</td></tr>
+    <tr><td>Chambers</td><td>Certificate-of-origin handoff in every deal pack</td></tr>
+  </table>
+
+  <h2>1. Launch link</h2>
+  <p>Open Deal Desk with the deal already filled in. Any field can be left out. Countries can be names or two-letter codes.</p>
+  <pre><code>/?product=Olive%20oil&amp;origin=ES&amp;destination=Germany&amp;value=48000&amp;currency=EUR&amp;mode=road&amp;buyer=Feinkost%20GmbH</code></pre>
+  <p><code>mode</code> is one of <code>sea_container</code>, <code>sea_bulk</code>, <code>air</code>, <code>road</code>, <code>rail</code>, <code>multimodal</code>.</p>
+
+  <h2>2. Embed</h2>
+  <p>One line places Deal Desk inside a One Click page. It resizes itself and hands the finished deal pack back to the page.</p>
+  <pre><code>&lt;div id="deal-desk"&gt;&lt;/div&gt;
+&lt;script src="https://YOUR-DEAL-DESK-HOST/embed.js"
+        data-target="#deal-desk" data-destination="Germany" data-currency="EUR"&gt;&lt;/script&gt;
+&lt;script&gt;
+  document.querySelector('#deal-desk').addEventListener('dealdesk:complete', (e) =&gt; {
+    // e.detail is the deal pack: deal, Incoterms rule, payment, documents, terms sheet
+    saveToTradeActionPlan(e.detail);
+  });
+  // Later, e.g. when the SME picks a market in the Trade Navigator:
+  // DealDesk.prefill({ destination: 'Kenya', mode: 'air' });
+&lt;/script&gt;</code></pre>
+
+  <h2>3. AI assistant tools</h2>
+  <p><a href="/api/tools"><code>GET /api/tools</code></a> returns function definitions in the common tool-calling format. One Click's assistant can call <code>deal_desk_plan</code> to answer delivery and payment questions from fixed rules, and <code>deal_desk_read</code> to check a buyer's message for risky terms.</p>
+
+  <h2>4. API</h2>
+  <p><code>POST /api/plan</code> takes a deal and returns the full plan instantly. It uses rules only, no AI, so the same deal always gets the same advice. <code>POST /api/read</code> reads a buyer's text or PDF. Full reference: <a href="/docs">/docs</a>.</p>
+
+  <h2>For production</h2>
+  <ul>
+    <li><strong>Accounts:</strong> pass One Click's signed-in user through a short-lived signed token so deal packs save to their account.</li>
+    <li><strong>Allowed sites:</strong> set <code>ALLOWED_ORIGINS</code> to One Click's domains.</li>
+    <li><strong>Languages:</strong> One Click runs in English, Arabic, French and Spanish; Deal Desk's text is kept in one place to translate.</li>
+    <li><strong>Content:</strong> link each rule to ICC's official Incoterms® 2020 text and model contracts, and route expert reviews to chambers.</li>
+  </ul>
+
+  <p class="note">Deal Desk is a concept prototype built for ICC One Click. It is not an official ICC product. Incoterms® is a registered trademark of the International Chamber of Commerce; rule summaries here are our own plain-language descriptions.</p>
+</main>
+</body>
+</html>
