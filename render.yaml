@@ -81,3 +81,33 @@ services:
           type: web
           name: grant-finder
           envVarKey: GEMINI_API_KEY
+
+  # Experiment Designer: a Linear agent. @mention it on an issue for a test plan.
+  - type: web
+    name: experiment-agent
+    runtime: docker
+    plan: free
+    dockerfilePath: ./experiment-agent/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: groq,gemini
+      - key: STATE_SECRET
+        generateValue: true   # signs the install link's state
+      - key: LINEAR_CLIENT_ID
+        sync: false   # from the Linear app settings
+      - key: LINEAR_CLIENT_SECRET
+        sync: false
+      - key: LINEAR_WEBHOOK_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GROQ_API_KEY
+      - key: GEMINI_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GEMINI_API_KEY

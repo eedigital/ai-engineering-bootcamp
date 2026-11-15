@@ -8,6 +8,7 @@ Four deployable AI projects in four weeks, using only free tools.
 | + | [Grant Finder: eligible US federal grants, with reasons and a first draft](grants-finder/) | Live: [try it](https://grant-finder-fhuv.onrender.com) |
 | + | [Pitch Perfect: pitch deck review, numbers check and investor practice](pitch-perfect/) | Live: [try it](https://pitch-perfect-j6rj.onrender.com) |
 | + | [Deal Desk: get one export deal right (concept for ICC One Click)](deal-desk/) | Live: [try it](https://deal-desk-gzud.onrender.com) |
+| + | [Experiment Designer: a Linear agent that plans A/B tests](experiment-agent/) | Mention it on a Linear issue; live link below once deployed |
 | 2 | [RAG pipeline: measured, broken, fixed](week2-rag/) | Not started |
 | 3 | [Agent from the raw loop up, then ADK or LangGraph with MCP](week3-agent/) | Not started |
 | 4 | [TRACE evals and an agent with memory](week4-evals-memory/) | Not started |

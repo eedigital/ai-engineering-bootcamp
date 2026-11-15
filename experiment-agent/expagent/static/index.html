@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment Designer: a Linear agent for A/B tests</title>
+<meta name="description" content="Mention it on a Linear issue and it replies with a hypothesis, sample size, duration, guardrail metrics and a PostHog query.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f4f4f7; --sheet: #fff; --ink: #191a23; --muted: #5d6070; --line: #dcdde5; --accent: #4a4fd1; --accent-dark: #3a3eb0;
+          --a: #4a4fd1; --b: #d1714a; --ok: #2f7d55; --ok-bg: #e5f3eb; --warn-bg: #fdf3dd; --r: 10px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 1rem/1.6 "IBM Plex Sans", system-ui, sans-serif; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  main { max-width: 58rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  a { color: var(--accent); }
+  .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 2.5rem; align-items: center; margin-bottom: 3rem; }
+  @media (max-width: 46rem) { .hero { grid-template-columns: 1fr; gap: 1.5rem; } }
+  h1 { font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 1rem; font-weight: 700; }
+  .lede { font-size: 1.125rem; color: var(--muted); margin: 0 0 1.25rem; }
+  .mention { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem 1.2rem; font-size: 0.9375rem;
+             box-shadow: 0 14px 34px -24px rgb(25 26 35 / 0.45); }
+  .mention .issue { font-weight: 600; margin-bottom: 0.6rem; }
+  .mention .issue span { color: var(--muted); font-weight: 500; margin-right: 0.4rem; font-family: "IBM Plex Mono", monospace; font-size: 0.8125rem; }
+  .mention .you { background: var(--bg); border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.6rem; }
+  .mention .you b { color: var(--accent); font-weight: 600; }
+  .mention .bot { border-left: 3px solid var(--accent); padding: 0.1rem 0 0.1rem 0.8rem; }
+  .split { display: flex; height: 0.55rem; border-radius: 4px; overflow: hidden; margin: 0.6rem 0 0.25rem; }
+  .split i { flex: 1; } .split i:first-child { background: var(--a); } .split i:last-child { background: var(--b); }
+  .split-key { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--muted); }
+  h2 { font-size: 1.375rem; letter-spacing: -0.015em; margin: 0 0 0.4rem; }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.4rem 1.5rem; margin-bottom: 1.25rem; }
+  .card > p { margin: 0 0 1rem; color: var(--muted); }
+  textarea { width: 100%; min-height: 7rem; border: 1.5px solid var(--line); border-radius: 8px; padding: 0.75rem 0.85rem; font: inherit; resize: vertical; }
+  textarea:focus { outline: none; border-color: var(--ink); }
+  .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem; }
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 0.65rem 1.2rem; font: 600 1rem "IBM Plex Sans", sans-serif; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn:hover { background: var(--accent-dark); }
+  .btn[disabled] { opacity: 0.6; cursor: progress; }
+  .chip { background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 0.25rem 0.75rem; font-size: 0.875rem; cursor: pointer; }
+  .muted { color: var(--muted); font-size: 0.9375rem; }
+  .err { color: #a3301f; }
+  #out { margin-top: 1.25rem; }
+  .plan { border-top: 1px solid var(--line); padding-top: 1rem; }
+  .plan h2 { font-size: 1.25rem; margin-top: 0.4rem; } .plan h3 { font-size: 1.0625rem; margin: 1.4rem 0 0.4rem; }
+  .plan table { border-collapse: collapse; width: 100%; max-width: 34rem; font-size: 0.9375rem; }
+  .plan td { border-bottom: 1px solid var(--line); padding: 0.4rem 0.6rem 0.4rem 0; }
+  .plan td:first-child { color: var(--muted); }
+  .plan pre { background: #15161e; color: #e6e7ef; padding: 1rem; border-radius: 8px; overflow: auto; font: 0.8125rem/1.5 "IBM Plex Mono", monospace; }
+  .plan code { font-family: "IBM Plex Mono", monospace; font-size: 0.875em; background: var(--bg); padding: 0.05rem 0.3rem; border-radius: 4px; }
+  .plan pre code { background: none; padding: 0; }
+  .plan sub { color: var(--muted); }
+  ol.steps { padding-left: 1.2rem; margin: 0; } ol.steps li { margin-bottom: 0.7rem; }
+  .copy { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem; }
+  .copy code { flex: 1; font: 0.8125rem "IBM Plex Mono", monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.55rem; overflow-x: auto; white-space: nowrap; }
+  .copy button { border: 1px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 0.35rem 0.6rem; cursor: pointer; font-size: 0.8125rem; }
+  .status { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.4rem 0 1rem; }
+  .status span { border-radius: 99px; padding: 0.15rem 0.65rem; font-size: 0.8125rem; font-weight: 600; }
+  .yes { background: var(--ok-bg); color: var(--ok); } .no { background: var(--warn-bg); color: #7a5300; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div>
+      <h1>Mention it on a Linear issue. Get a test plan back.</h1>
+      <p class="lede">Experiment Designer turns “Test shorter checkout” into a hypothesis, the sample size and how long to run, the guardrail metrics to watch, and a PostHog query to measure the result.</p>
+      <p class="muted">The sample size and the query are calculated in code, so the numbers are always right. AI writes the words.</p>
+    </div>
+    <div class="mention" aria-hidden="true">
+      <div class="issue"><span>GRO-42</span>Test shorter checkout</div>
+      <div class="you"><b>@Experiment Designer</b> plan this. Checkout converts at 3.2%, about 2,000 visitors a day.</div>
+      <div class="bot"><b>49,777 users per variant · 8 weeks</b>
+        <div class="split"><i></i><i></i></div>
+        <div class="split-key"><span>Control</span><span>Shorter checkout</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="try-title">
+    <h2 id="try-title">Try it here</h2>
+    <p>Paste an issue the way your team writes them. Mention the conversion rate, the lift you care about and your traffic, or leave them out and it will say what it assumed.</p>
+    <label for="issue" class="muted">Issue</label>
+    <textarea id="issue">Test shorter checkout
+
+Our checkout has 4 steps. Cut it to 2 (shipping and payment on one page). Checkout converts at 3.2% today, about 2,000 visitors a day. We'd want to detect a 10% lift.</textarea>
+    <div class="row">
+      <button class="btn" id="go" type="button">Plan the test</button>
+      <button class="chip" type="button" data-ex="1">Pricing page, little detail</button>
+      <button class="chip" type="button" data-ex="2">Onboarding, percentage points</button>
+    </div>
+    <div id="out" aria-live="polite"></div>
+  </section>
+
+  <section class="card" aria-labelledby="setup-title">
+    <h2 id="setup-title">Add it to your Linear workspace</h2>
+    <div class="status" id="status"></div>
+    <ol class="steps">
+      <li>In Linear, open <a href="https://linear.app/settings/api/applications/new" target="_blank" rel="noopener">Settings → API → New application</a>. Name it <b>Experiment Designer</b>.</li>
+      <li>Callback URL:<div class="copy"><code id="cb">…</code><button type="button" data-copy="cb">Copy</button></div></li>
+      <li>Turn on <b>Webhooks</b>, paste this URL, and tick <b>Agent session events</b>:<div class="copy"><code id="wh">…</code><button type="button" data-copy="wh">Copy</button></div></li>
+      <li>Turn on <b>Client credentials</b>, save, and copy the client ID, client secret and webhook signing secret into Render as <code>LINEAR_CLIENT_ID</code>, <code>LINEAR_CLIENT_SECRET</code> and <code>LINEAR_WEBHOOK_SECRET</code>.</li>
+      <li>As a workspace admin: <a class="btn" href="/install" id="install">Install in Linear</a></li>
+    </ol>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const EX = {
+  1: "New pricing page\n\nShow annual pricing first, with the monthly price crossed out.",
+  2: "Shorter onboarding\n\nSkip the team-invite step during signup. Activation rate is 40%. We want to detect a 3 percentage point lift. 12k signups per month.",
+};
+document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#issue").value = EX[b.dataset.ex]; $("#issue").focus(); }));
+
+// small Markdown renderer for the plan: headings, tables, code blocks, lists, bold, inline code
+function md(src) {
+  const out = []; const lines = src.split("\n"); let i = 0;
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/&lt;sub&gt;(.*?)&lt;\/sub&gt;/g, "<sub>$1</sub>");
+  while (i < lines.length) {
+    const l = lines[i];
+    if (l.startsWith("```")) { const code = []; i++; while (i < lines.length && !lines[i].startsWith("```")) code.push(lines[i++]); i++; out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`); continue; }
+    if (l.startsWith("### ")) { out.push(`<h3>${inline(l.slice(4))}</h3>`); i++; continue; }
+    if (l.startsWith("## ")) { out.push(`<h2>${inline(l.slice(3))}</h2>`); i++; continue; }
+    if (l.startsWith("|")) { const rows = []; while (i < lines.length && lines[i].startsWith("|")) rows.push(lines[i++]);
+      const body = rows.filter((r) => !/^\|\s*-/.test(r) && r.replace(/[|\s]/g, ""));  // drop separator and empty header rows
+      out.push("<table>" + body.map((r) => "<tr>" + r.split("|").slice(1, -1).map((c) => `<td>${inline(c.trim())}</td>`).join("") + "</tr>").join("") + "</table>"); continue; }
+    if (l.startsWith("- ")) { const items = []; while (i < lines.length && lines[i].startsWith("- ")) items.push(`<li>${inline(lines[i++].slice(2))}</li>`); out.push(`<ul>${items.join("")}</ul>`); continue; }
+    if (l.trim()) out.push(`<p>${inline(l)}</p>`);
+    i++;
+  }
+  return out.join("");
+}
+
+$("#go").addEventListener("click", async () => {
+  const btn = $("#go"); btn.disabled = true; btn.textContent = "Planning…"; $("#out").innerHTML = "";
+  try {
+    const r = await fetch("/api/design", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: $("#issue").value }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || (d.detail ? "Write a little more about the change." : "Something went wrong."));
+    $("#out").innerHTML = `<div class="plan">${md(d.markdown)}</div>`;
+  } catch (e) { $("#out").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  finally { btn.disabled = false; btn.textContent = "Plan the test"; }
+});
+
+fetch("/api/status").then((r) => r.json()).then((s) => {
+  $("#cb").textContent = s.callback_url; $("#wh").textContent = s.webhook_url;
+  const c = s.configured;
+  $("#status").innerHTML = [["Client ID", c.client_id], ["Client secret", c.client_secret], ["Webhook secret", c.webhook_secret]]
+    .map(([n, ok]) => `<span class="${ok ? "yes" : "no"}">${n}: ${ok ? "set" : "not set"}</span>`).join("");
+}).catch(() => {});
+document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+  navigator.clipboard?.writeText($("#" + b.dataset.copy).textContent); b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1500);
+}));
+</script>
+</body>
+</html>
