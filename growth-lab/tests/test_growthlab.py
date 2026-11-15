@@ -164,9 +164,11 @@ def test_quote_in_network_complete_care():
 
 
 def test_quote_self_pay_and_one_off():
-    assert launch.quote("Complete Care", "TX", True).lines[0]["low"] == 3300  # TX isn't in the in-network list
+    assert launch.quote("Complete Care", "TX", True).lines[0]["low"] == 1800  # in-network with select plans nationwide
+    assert launch.quote("Complete Care", "FL", False).lines[0]["low"] == 3300  # self-pay, Medicare or no insurance
     q = launch.quote("Longevity Labs", "CA", False)
-    assert q.low == q.high == 499 and len(q.lines) == 1
+    assert q.low == q.high == 350 and len(q.lines) == 1
+    assert launch.quote("BYO Labs Review", "NY", True).low == 250  # self-pay only, insurance or not
 
 
 def test_hogql_quotes_the_flag_property():

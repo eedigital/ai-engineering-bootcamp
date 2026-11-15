@@ -1,6 +1,6 @@
 """Invented data for the prototype: 12 weeks of a membership sign-up funnel, three product lines, four channels.
 
-Nothing here is Parsley's real data. Prices follow Parsley's public pricing where it's published (Complete Care:
+Nothing here is Parsley's real data. Prices follow Parsley's public pricing (checked 15 Nov 2026) (Complete Care:
 $150/month in-network, $275/month self-pay) and are invented where it isn't (Longevity Labs, BYO Labs Review).
 Rates are plausible for a considered-purchase healthcare membership and deliberately include the problem the
 prototype is about: many people reach the pricing page and stop.
@@ -19,11 +19,11 @@ SEED = 20261115
 
 PRODUCTS = {
     # name: share of sessions, first-year value (USD), step rates for the direct path, rep-assisted rates
-    "Complete Care": {"share": 0.60, "value": 2_400, "price_note": "Blend of in-network $1,800/yr and self-pay $3,300/yr (public pricing)",
+    "Complete Care": {"share": 0.60, "value": 2_400, "price_note": "Blend of in-network $150/mo and self-pay $275/mo, 12 months (public pricing)",
                       "start": 0.18, "pricing": 0.58, "checkout": 0.12, "paid": 0.46, "book": 0.050, "held": 0.70, "rep_paid": 0.38},
-    "Longevity Labs": {"share": 0.25, "value": 499, "price_note": "Invented price for the prototype",
+    "Longevity Labs": {"share": 0.25, "value": 350, "price_note": "From $350/year, self-pay (public pricing)",
                        "start": 0.22, "pricing": 0.66, "checkout": 0.20, "paid": 0.58, "book": 0.015, "held": 0.72, "rep_paid": 0.30},
-    "BYO Labs Review": {"share": 0.15, "value": 249, "price_note": "Invented price for the prototype",
+    "BYO Labs Review": {"share": 0.15, "value": 250, "price_note": "$250 one-time, self-pay (public pricing)",
                         "start": 0.25, "pricing": 0.70, "checkout": 0.24, "paid": 0.62, "book": 0.010, "held": 0.75, "rep_paid": 0.28},
 }
 CHANNELS = {"Paid search": 0.34, "Paid social": 0.26, "Organic": 0.28, "Referral": 0.12}
@@ -92,6 +92,6 @@ PROSPECTS = [
      "goal": "Wants a longevity baseline; already wears a CGM", "product": "Longevity Labs"},
     {"id": "lena", "name": "Lena K.", "age": 29, "state": "CA", "insurance": "Blue Shield", "in_network": True,
      "goal": "Bloating and irregular cycles; has Function Health results", "product": "BYO Labs Review"},
-    {"id": "sam", "name": "Sam O.", "age": 52, "state": "FL", "insurance": "UnitedHealthcare", "in_network": False,
+    {"id": "sam", "name": "Sam O.", "age": 66, "state": "FL", "insurance": "Medicare (not accepted)", "in_network": False,
      "goal": "Pre-diabetes; doctor said 'watch it'", "product": "Complete Care"},
 ]

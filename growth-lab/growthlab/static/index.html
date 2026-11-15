@@ -205,7 +205,7 @@ const TABS = {
       <div class="card"><h2>Try it</h2><div class="persona">${d.prospects.map((p) => `<button type="button" data-p='${esc(JSON.stringify(p))}'>${esc(p.name)} · ${esc(p.state)} · ${esc(p.product)}</button>`).join("")}</div>
         <div class="quote"><div>
           <p><label>Product <select id="q-product"><option>Complete Care</option><option>Longevity Labs</option><option>BYO Labs Review</option></select></label></p>
-          <p><label>State <input id="q-state" value="NY" maxlength="2" size="3"></label> <label><input type="checkbox" id="q-ins" checked> I have insurance</label></p>
+          <p><label>State <input id="q-state" value="NY" maxlength="2" size="3"></label> <label><input type="checkbox" id="q-ins" checked> Commercial insurance (not Medicare or Medicaid)</label></p>
           <p class="muted small" id="q-who"></p></div><div id="q-out"></div></div></div>
       <div class="card md">${mdBlock(d.spec)}</div>`;
   },
@@ -230,7 +230,7 @@ async function quote() {
   const q = await get(`/api/quote?product=${encodeURIComponent($("#q-product").value)}&state=${encodeURIComponent($("#q-state").value)}&insurance=${$("#q-ins").checked}`);
   $("#q-out").innerHTML = `<table>${q.lines.map((l) => `<tr><td>${esc(l.label)}</td><td class="num">${l.low === l.high ? money(l.low) : money(l.low) + "–" + money(l.high)}</td></tr>`).join("")}
     <tr><td><b>First year, all in</b></td><td class="num"><b>${q.low === q.high ? money(q.low) : money(q.low) + "–" + money(q.high)}</b></td></tr></table>
-    <p class="small"><b>First visit:</b> about ${q.first_visit_days} days from joining in ${esc(q.state)}. ${q.in_network ? "Likely in-network." : "Self-pay or out-of-network."}</p>
+    <p class="small"><b>First visit:</b> about ${q.first_visit_days} days from joining in ${esc(q.state)}. ${q.in_network ? "Likely in-network; the plan is confirmed before payment." : "Self-pay."}</p>
     <p class="muted small">${q.notes.map(esc).join(" ")} Illustrative figures.</p>`;
 }
 
@@ -242,7 +242,7 @@ async function show(tab) {
   if (tab === "launch") {
     ["#q-product", "#q-state", "#q-ins"].forEach((s) => $(s).addEventListener("change", quote));
     document.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
-      const p = JSON.parse(b.dataset.p); $("#q-product").value = p.product; $("#q-state").value = p.state; $("#q-ins").checked = p.in_network || p.insurance !== "None (HSA)";
+      const p = JSON.parse(b.dataset.p); $("#q-product").value = p.product; $("#q-state").value = p.state; $("#q-ins").checked = p.in_network;
       $("#q-who").textContent = `${p.name}, ${p.age}: ${p.goal}. Insurance: ${p.insurance}.`; quote();
     }));
     quote();

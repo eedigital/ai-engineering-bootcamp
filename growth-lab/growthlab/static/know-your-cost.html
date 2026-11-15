@@ -46,8 +46,8 @@
       <div><label for="product">What are you looking for?</label><select id="product"><option>Complete Care</option><option>Longevity Labs</option><option>BYO Labs Review</option></select></div>
       <div><label for="state">Your state</label><select id="state"><option>NY</option><option>CA</option><option>TX</option><option>FL</option><option>WA</option><option>OR</option><option>IL</option><option>MA</option></select></div>
     </div>
-    <label id="ins-label">Do you have health insurance?</label>
-    <div class="seg" role="group" aria-labelledby="ins-label"><button type="button" data-ins="true" aria-pressed="true">Yes</button><button type="button" data-ins="false" aria-pressed="false">No, or I'll pay myself</button></div>
+    <label id="ins-label">Do you have commercial health insurance?</label>
+    <div class="seg" role="group" aria-labelledby="ins-label"><button type="button" data-ins="true" aria-pressed="true">Yes</button><button type="button" data-ins="false" aria-pressed="false">No, Medicare, or Medicaid</button></div>
   </div>
   <div class="card" id="result" aria-live="polite"></div>
   <button class="btn" id="checkout" type="button">Continue to checkout</button>
@@ -68,7 +68,7 @@ async function render() {
   $("#result").innerHTML = `<table>${q.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${range(l.low, l.high)}</td></tr>`).join("")}
     <tr class="total"><td>Your first year, all in</td><td>${range(q.low, q.high)}</td></tr></table>
     <div class="visit"><b>${q.first_visit_days}</b><span>days, typically, to your first visit in ${esc(q.state)}</span></div>
-    <p class="muted">${q.in_network ? "You're likely in-network." : "We'll show self-pay pricing. You can still use HSA or FSA funds."} ${q.notes.map(esc).join(" ")}</p>`;
+    <p class="muted">${q.in_network ? "You're likely in-network. We check your plan before you pay." : "This is the self-pay price. You can use HSA or FSA funds."} ${q.notes.map(esc).join(" ")}</p>`;
   track("cost_estimate_shown", { product_line: q.product, state: q.state, in_network: q.in_network, low: q.low, high: q.high, first_visit_days: q.first_visit_days });
 }
 track("pricing_viewed", { product_line: $("#product").value });

@@ -4,22 +4,25 @@ they can be seen, before checkout.
 Why: the biggest leak is pricing → checkout, and reviews cite surprise costs (membership, then visits billed to
 insurance, then specialty labs) and long waits. The calculator makes the total and the wait visible up front.
 
-All costs below are ILLUSTRATIVE, for the prototype. Membership prices follow Parsley's public pricing; visit
-copays, lab costs and waits are invented and would come from RevOps, billing and scheduling data in production.
+Membership and product prices follow Parsley's public pricing (checked 15 Nov 2026): Complete Care $150/month in-network,
+$275/month self-pay, 12-month commitment; Longevity Labs from $350/year; BYO Labs Review $250 one-time. Visit copays,
+lab costs and waits are ILLUSTRATIVE and would come from RevOps, billing and scheduling data in production.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-MEMBERSHIP = {"Complete Care": {"in_network": 150 * 12, "self_pay": 275 * 12}}
-ONE_OFF = {"Longevity Labs": 499, "BYO Labs Review": 249}  # invented
+MEMBERSHIP = {"Complete Care": {"in_network": 150 * 12, "self_pay": 275 * 12}}  # paid monthly; public pricing
+ANNUAL_UPFRONT = {"in_network": 1_500, "self_pay": 2_750}  # public pricing: pay the year upfront, 2 months free
+ONE_OFF = {"Longevity Labs": ("Longevity Labs, annual panel (from)", 350),
+           "BYO Labs Review": ("BYO Labs Review, one-time visit", 250)}  # public pricing
 VISITS_PER_YEAR = 5
 TYPICAL_COPAY = {"in_network": 40, "self_pay": 0}  # self-pay visits are included in the higher membership (illustrative)
 SPECIALTY_LABS = (0, 350)  # some members add specialty tests not in the fee; range, illustrative
 WAIT_DAYS = {"NY": 9, "CA": 11, "TX": 16, "FL": 14, "WA": 12, "OR": 12}  # invented
 DEFAULT_WAIT = 18
-IN_NETWORK_STATES = {"NY", "CA", "WA", "OR"}  # public site mentions coverage for selected plans in these states; illustrative
+# Parsley is in-network with select commercial plans nationwide; not with Medicare, Medicare Advantage, Medicaid or Medi-Cal.
 
 
 @dataclass
@@ -37,22 +40,22 @@ class Quote:
 
 def quote(product: str, state: str, has_insurance: bool) -> Quote:
     state = state.upper()[:2]
-    in_net = has_insurance and state in IN_NETWORK_STATES
+    in_net = has_insurance  # has_insurance means a commercial plan; we confirm the specific plan before payment
     lines, notes = [], []
     if product in MEMBERSHIP:
         key = "in_network" if in_net else "self_pay"
         m = MEMBERSHIP[product][key]
-        lines.append({"label": f"Membership ({'in-network' if in_net else 'self-pay'}), 12 months", "low": m, "high": m})
+        lines.append({"label": f"Membership ({'in-network' if in_net else 'self-pay'}), 12 months paid monthly", "low": m, "high": m})
         copay = TYPICAL_COPAY[key] * VISITS_PER_YEAR
         if copay:
             lines.append({"label": f"About {VISITS_PER_YEAR} clinician visits, billed to your insurance (typical copay)", "low": copay, "high": copay})
-            notes.append("Visit costs depend on your plan's copay and deductible. We confirm your in-network status before you pay.")
+            notes.append("Visit costs depend on your plan's copay and deductible.")
         lines.append({"label": "Specialty lab tests, only if your clinician recommends them", "low": SPECIALTY_LABS[0], "high": SPECIALTY_LABS[1]})
-        notes.append("Membership is a 12-month commitment, payable monthly or yearly. HSA/FSA eligible.")
+        notes.append(f"Membership is a 12-month commitment. Paying the year upfront is ${ANNUAL_UPFRONT[key]:,} (2 months free). HSA/FSA eligible.")
     else:
-        price = ONE_OFF[product]
-        lines.append({"label": f"{product}, one-time", "low": price, "high": price})
-        notes.append("One-time price, HSA/FSA eligible. Clinical follow-up is optional.")
+        label, price = ONE_OFF[product]
+        lines.append({"label": label, "low": price, "high": price})
+        notes.append("Self-pay only, not covered by insurance. HSA/FSA eligible.")
     low, high = sum(x["low"] for x in lines), sum(x["high"] for x in lines)
     return Quote(product, state, in_net, lines, low, high, round(high / 12) if product in MEMBERSHIP else high,
                  WAIT_DAYS.get(state, DEFAULT_WAIT), notes)
