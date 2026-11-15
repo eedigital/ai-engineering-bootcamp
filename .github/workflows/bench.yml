@@ -1,0 +1,45 @@
+name: week1-benchmark
+
+# Runs the Week 1 benchmark against the live service and commits the results to week1-llm-service/BENCHMARK.md.
+# Start it from the Actions tab ("Run workflow"), or by changing week1-llm-service/bench-request.txt.
+# Uses the live service's own AI keys on Render: nothing secret is needed here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      n:
+        description: "How many calls (the free AI tier allows about 16 a run comfortably)"
+        default: "16"
+  push:
+    branches: [main]
+    paths: [week1-llm-service/bench-request.txt]
+
+permissions:
+  contents: write
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - name: Let any deploy from this push finish, then wake the free service
+        run: |
+          sleep 150
+          for i in $(seq 1 20); do
+            curl -sf -m 30 https://week1-job-extractor.onrender.com/health && break
+            sleep 10
+          done
+      - name: Run the benchmark
+        run: python week1-llm-service/scripts/bench.py --url https://week1-job-extractor.onrender.com --n "${{ github.event.inputs.n || '16' }}" --out week1-llm-service/BENCHMARK.md
+      - name: Save the results
+        run: |
+          git config user.name "benchmark-bot"
+          git config user.email "benchmark-bot@users.noreply.github.com"
+          git add week1-llm-service/BENCHMARK.md
+          git commit -m "Week 1 benchmark results [skip ci]" || exit 0
+          git pull --rebase origin main
+          git push
