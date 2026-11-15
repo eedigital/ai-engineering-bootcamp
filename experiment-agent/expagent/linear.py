@@ -103,6 +103,8 @@ def exchange_code(code: str, redirect_uri: str) -> dict:
     """Finish the install. Keeps the token in memory as a fallback, and returns the app's identity."""
     r = httpx.post(TOKEN_URL, data={"code": code, "redirect_uri": redirect_uri, "client_id": client_id(),
                                     "client_secret": client_secret(), "grant_type": "authorization_code"}, timeout=20)
+    if r.status_code != 200:
+        log.warning("code_exchange_failed status=%s body=%s", r.status_code, r.text[:300])
     r.raise_for_status()
     body = r.json()
     _install_token.update(value=body["access_token"], expires=time.time() + float(body.get("expires_in", 86_000)) - 300)
@@ -114,7 +116,7 @@ def _client_credentials() -> tuple[str, float] | None:
     if not (client_id() and client_secret()):
         return None
     r = httpx.post(TOKEN_URL, data={"grant_type": "client_credentials", "client_id": client_id(), "client_secret": client_secret(),
-                                    "scope": "read,write,comments:create"}, timeout=20)
+                                    "scope": SCOPES}, timeout=20)  # all five, or Linear narrows the app's permissions
     if r.status_code != 200:
         log.warning("client_credentials_failed status=%s body=%s", r.status_code, r.text[:300])
         return None

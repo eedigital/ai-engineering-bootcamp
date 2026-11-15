@@ -33,6 +33,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("expagent")
 
 app = FastAPI(title="Experiment Designer", version="1.0")
+
+
+@app.on_event("startup")
+def _mint_token() -> None:
+    """Fetch an app token with all five scopes at start, so the app keeps its mention and assign permissions."""
+    if not (linear.client_id() and linear.client_secret()):
+        return
+    import threading
+
+    def run() -> None:
+        try:
+            linear.token(force_new=True)
+            log.info("startup_token ok scopes=%s", linear.SCOPES)
+        except Exception as e:  # noqa: BLE001
+            log.warning("startup_token_failed %s", e)
+    threading.Thread(target=run, daemon=True).start()
 STATIC = Path(__file__).parent / "static"
 STATE_SECRET = (os.getenv("STATE_SECRET") or secrets.token_hex(16)).encode()
 seen = linear.Seen()
