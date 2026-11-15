@@ -151,7 +151,10 @@ async def webhook(request: Request, background: BackgroundTasks):
     raw = await request.body()
     ok, why = linear.verify(raw, request.headers.get("linear-signature"))
     if not ok:
-        log.warning("webhook_rejected reason=%s", why)
+        sec = linear.webhook_secret()
+        log.warning("webhook_rejected reason=%s secret_len=%d secret_prefix_ok=%s secret_has_quote_or_space=%s sig_len=%d",
+                    why, len(sec), sec.startswith("lin_wh_"), any(c in sec for c in "\"' =\n"),
+                    len(request.headers.get("linear-signature") or ""))
         return JSONResponse(status_code=401, content={"error": why})
     payload = await request.json()
     if payload.get("type") != "AgentSessionEvent" and request.headers.get("linear-event") != "AgentSessionEvent":
