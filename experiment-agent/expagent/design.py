@@ -41,6 +41,9 @@ def numbers(text: str) -> dict:
         out["baseline"] = _pct(m.group(1))
     m = re.search(r"(?:mde|minimum detectable(?: effect)?|detect(?: a)?|lift(?: of)?|improve(?:ment)?(?: of| by)?|increase(?: of| by)?)"
                   r"\D{0,25}?(\d+(?:[.,]\d+)?)\s*(%|pp\b|percentage points?|points?)(\s*(?:relative|rel\.?))?(\s*(?:absolute|abs\.?))?", t)
+    if not m:  # number first: "a 10% lift", "15 pp relative improvement", "5% uplift"
+        m = re.search(r"(\d+(?:[.,]\d+)?)\s*(%|pp\b|percentage points?|points?)(\s*(?:relative|rel\.?))?(\s*(?:absolute|abs\.?))?"
+                      r"\s*(?:relative\s+|absolute\s+)?(?:up)?(?:lift|improvement|increase|effect|mde|change)", t)
     if m:
         v = _pct(m.group(1))
         absolute = m.group(2) != "%" or bool(m.group(4))

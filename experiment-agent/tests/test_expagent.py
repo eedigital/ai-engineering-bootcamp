@@ -243,3 +243,17 @@ def test_status_shows_the_urls_to_paste_into_linear(client):
     s = client.get("/api/status").json()
     assert s["callback_url"].endswith("/oauth/callback") and s["webhook_url"].endswith("/webhooks/linear")
     assert s["configured"] == {"client_id": True, "client_secret": True, "webhook_secret": True}
+
+
+def test_lift_with_the_number_first():
+    from expagent import design
+    assert design.numbers("what if we only care about a 10% lift?")["mde"] == pytest.approx(0.10)
+    assert design.numbers("a 15% relative improvement")["mde"] == pytest.approx(0.15)
+    assert design.numbers("baseline 12.5%, a 2 pp absolute lift")["mde"] == pytest.approx(0.16)
+
+
+def test_a_follow_up_lift_overrides_the_issue():
+    from expagent import design
+    out = design.build("Checkout converts at 12.5%. We care about a 15% relative lift. 1,600 people a week.",
+                       "what if we only care about a 10% lift?", use_ai=False)
+    assert out["plan"].mde_relative == pytest.approx(0.10)
