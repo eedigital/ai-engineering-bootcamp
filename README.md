@@ -1,6 +1,6 @@
 # AI Engineering Bootcamp: the free build
 
-Four deployable AI projects in four weeks, using only free tools.
+Deployable AI projects built with free tools: a four-week bootcamp, plus product prototypes built on the same stack. Every project below is live.
 
 | Week | Project | Status |
 | --- | --- | --- |
@@ -28,6 +28,8 @@ week1-llm-service/   FastAPI service, guardrails, tests, Dockerfile
 grants-finder/       grant search, eligibility checks, application drafts
 pitch-perfect/       pitch deck review, numbers check, investor practice
 deal-desk/           export deal planner, built to plug into ICC One Click
+experiment-agent/    Linear agent: assign it an issue, get an A/B test plan back
+growth-lab/          a growth PM's first 90 days: funnel, sized roadmap, readouts, launch
 week2-rag/ ...       one folder per week
 render.yaml          Render deploy config
 ```
