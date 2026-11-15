@@ -11,9 +11,15 @@ spec.loader.exec_module(bench)
 
 
 def test_every_sample_has_an_expected_answer_for_every_field():
-    posts = [l for l in (ROOT / "samples" / "job_posts.jsonl").read_text().splitlines() if l.strip()]
-    expected = [json.loads(l) for l in (ROOT / "samples" / "expected.jsonl").read_text().splitlines() if l.strip()]
-    assert len(posts) == len(expected) and all(set(bench.FIELDS) <= set(e) for e in expected)
+    for posts_file, expected_file in bench.SETS.values():
+        posts = [l for l in posts_file.read_text().splitlines() if l.strip()]
+        expected = [json.loads(l) for l in expected_file.read_text().splitlines() if l.strip()]
+        assert len(posts) == len(expected) and all(set(bench.FIELDS) <= set(e) for e in expected)
+
+
+def test_held_out_posts_are_not_in_the_dev_set():
+    (dev, _), (held, _) = bench.SETS["dev"], bench.SETS["heldout"]
+    assert not set(dev.read_text().splitlines()) & set(held.read_text().splitlines())
 
 
 def test_text_fields_match_loosely():

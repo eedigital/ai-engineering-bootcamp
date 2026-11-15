@@ -26,8 +26,12 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-SAMPLES = ROOT / "samples" / "job_posts.jsonl"
-EXPECTED = ROOT / "samples" / "expected.jsonl"
+SETS = {
+    # the 8 posts used while building and fixing: good for catching regressions, too familiar to judge accuracy
+    "dev": (ROOT / "samples" / "job_posts.jsonl", ROOT / "samples" / "expected.jsonl"),
+    # 15 posts kept aside: never used to change the code, so their score is the honest one
+    "heldout": (ROOT / "samples" / "heldout_posts.jsonl", ROOT / "samples" / "heldout_expected.jsonl"),
+}
 FIELDS = ["title", "company", "location", "work_mode", "seniority", "salary_min", "salary_max", "currency", "skills"]
 
 
@@ -70,10 +74,14 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=16)
     ap.add_argument("--sleep", type=float, default=4.0)
     ap.add_argument("--out", help="also write the report to this Markdown file")
+    ap.add_argument("--set", choices=list(SETS), default="dev", help="dev: the posts used while fixing; heldout: never-seen posts")
     args = ap.parse_args()
 
-    posts = [json.loads(line)["text"] for line in SAMPLES.read_text().splitlines() if line.strip()]
-    expected = [json.loads(line) for line in EXPECTED.read_text().splitlines() if line.strip()]
+    posts_file, expected_file = SETS[args.set]
+    posts = [json.loads(line)["text"] for line in posts_file.read_text().splitlines() if line.strip()]
+    expected = [json.loads(line) for line in expected_file.read_text().splitlines() if line.strip()]
+    if args.n <= 0:
+        args.n = len(posts)
     rows = []
     for i, (k, text) in zip(range(args.n), itertools.cycle(enumerate(posts))):
         t0 = time.perf_counter()
@@ -99,7 +107,8 @@ def main() -> None:
     perfect = sum(all(m is not False for m in r["marks"].values()) for r in ok)
     providers = {p: sum(r["provider"] == p for r in ok) for p in sorted({r["provider"] for r in ok if r["provider"]})}
 
-    lines = [f"Run {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC against {args.url}, {n} calls over {len(posts)} sample posts.", "",
+    lines = [f"Run {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC against {args.url}, {n} calls over {len(posts)} posts "
+             f"({'held-out: never used to change the code' if args.set == 'heldout' else 'dev set: the posts used while fixing'}).", "",
              "| Metric | Value |", "| --- | --- |",
              f"| Field accuracy | {acc:.0%} ({sum(m for _, m in scored)}/{len(scored)} fields) |",
              f"| Posts with every field right | {perfect}/{len(ok)} |",

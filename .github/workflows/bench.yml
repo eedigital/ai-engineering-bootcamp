@@ -7,9 +7,12 @@ name: week1-benchmark
 on:
   workflow_dispatch:
     inputs:
+      set:
+        description: "dev (the 8 posts used while fixing) or heldout (15 never-seen posts)"
+        default: "heldout"
       n:
-        description: "How many calls (the free AI tier allows about 16 a run comfortably)"
-        default: "16"
+        description: "How many calls (0 = each post once)"
+        default: "0"
   push:
     branches: [main]
     paths: [week1-llm-service/bench-request.txt]
@@ -34,12 +37,17 @@ jobs:
             sleep 10
           done
       - name: Run the benchmark
-        run: python week1-llm-service/scripts/bench.py --url https://week1-job-extractor.onrender.com --n "${{ github.event.inputs.n || '16' }}" --out week1-llm-service/BENCHMARK.md
+        run: |
+          # On push, the set is read from bench-request.txt ("set: heldout"); default heldout
+          SET="${{ github.event.inputs.set }}"
+          [ -z "$SET" ] && SET=$(grep -oP '^set:\s*\K\w+' week1-llm-service/bench-request.txt || echo heldout)
+          OUT=week1-llm-service/BENCHMARK.md; [ "$SET" = "heldout" ] && OUT=week1-llm-service/BENCHMARK-heldout.md
+          python week1-llm-service/scripts/bench.py --url https://week1-job-extractor.onrender.com --set "$SET" --n "${{ github.event.inputs.n || '0' }}" --out "$OUT"
       - name: Save the results
         run: |
           git config user.name "benchmark-bot"
           git config user.email "benchmark-bot@users.noreply.github.com"
-          git add week1-llm-service/BENCHMARK.md
+          git add week1-llm-service/BENCHMARK*.md
           git commit -m "Week 1 benchmark results [skip ci]" || exit 0
           git pull --rebase origin main
           git push
