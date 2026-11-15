@@ -43,3 +43,18 @@ def test_pii_is_redacted():
 def test_salary_numbers_are_not_mistaken_for_phones():
     text, n = redact_pii("Salary 90000-110000 GBP")
     assert n == 0 and "90000" in text
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("salary", ["95.000 - 120.000 EUR", "95,000 - 120,000 USD", "95 000 - 120 000 EUR", "€38,000-€45,000"])
+def test_salary_ranges_with_thousands_separators_are_kept(salary):
+    # Found by the benchmark: European-format salaries were redacted as phone numbers.
+    text, n = redact_pii(f"Pay: {salary}. Call +49 30 1234 5678.")
+    assert text.startswith(f"Pay: {salary}") and n == 1
+
+
+def test_phone_numbers_with_dashes_are_still_redacted():
+    text, n = redact_pii("Call 020-7946-0958 or 415-555-0199")
+    assert "[PHONE]" in text and "7946" not in text and "555" not in text

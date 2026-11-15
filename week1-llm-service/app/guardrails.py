@@ -35,7 +35,9 @@ class GuardResult:
     redactions: int = 0
 
 
-_NUMBER_RANGE_RE = re.compile(r"^\d+\s*-\s*\d+$")  # "90000-110000" is a salary, not a phone
+# A range of amounts is a salary, not a phone: "90000-110000", "95.000 - 120.000", "95,000 - 120,000".
+_AMOUNT = r"\d{1,3}(?:[.,\s]\d{3})+|\d+"
+_NUMBER_RANGE_RE = re.compile(rf"^(?:{_AMOUNT})\s*-\s*(?:{_AMOUNT})$")
 
 
 def _phone_or_keep(m: re.Match) -> str:
