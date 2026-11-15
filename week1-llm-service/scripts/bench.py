@@ -33,6 +33,8 @@ SETS = {
     "heldout": (ROOT / "samples" / "heldout_posts.jsonl", ROOT / "samples" / "heldout_expected.jsonl"),
     # 10 more, written after the long-number fix to check it on numbers it never saw
     "heldout2": (ROOT / "samples" / "heldout2_posts.jsonl", ROOT / "samples" / "heldout2_expected.jsonl"),
+    # 5 more, written after raising the salary limit, to check it on currencies it never saw
+    "heldout3": (ROOT / "samples" / "heldout3_posts.jsonl", ROOT / "samples" / "heldout3_expected.jsonl"),
 }
 FIELDS = ["title", "company", "location", "work_mode", "seniority", "salary_min", "salary_max", "currency", "skills"]
 

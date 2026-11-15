@@ -43,3 +43,10 @@ def test_the_api_reports_a_correction(client, fake_llm):
                          "salary_min": 8000000, "salary_max": 10000000, "currency": "JPY", "skills": ["Go"]}))
     body = client.post("/extract", json={"text": YEN}).json()
     assert body["ok"] and body["data"]["salary_max"] == 11_000_000 and body["salary_corrected"] is True
+
+
+def test_salaries_in_large_currencies_are_valid():
+    # Found by the second held-out set: KRW and IDR salaries above 10 million were rejected by the schema
+    from app.schemas import JobPosting
+    p = JobPosting(title="Mobile Developer", salary_min=240_000_000, salary_max=360_000_000, currency="IDR")
+    assert p.salary_max == 360_000_000

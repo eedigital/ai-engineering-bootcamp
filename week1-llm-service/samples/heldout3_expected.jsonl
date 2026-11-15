@@ -1,0 +1,5 @@
+{"title": "Backend Developer", "company": null, "location": "Ho Chi Minh City", "work_mode": "hybrid", "seniority": ["unknown", "mid"], "salary_min": 480000000, "salary_max": 720000000, "currency": "VND", "skills": ["Node.js", "MongoDB"]}
+{"title": "Data Analyst", "company": null, "location": "Bogot", "work_mode": "remote", "seniority": ["unknown", "mid", "junior"], "salary_min": 84000000, "salary_max": 108000000, "currency": "COP", "skills": ["Power BI", "SQL"]}
+{"title": "Product Manager", "company": null, "location": "Lagos", "work_mode": "onsite", "seniority": "senior", "salary_min": 30000000, "salary_max": 42000000, "currency": "NGN", "skills": "*"}
+{"title": "QA Engineer", "company": null, "location": "Seoul", "work_mode": "hybrid", "seniority": ["unknown", "mid"], "salary_min": 45000000, "salary_max": 58000000, "currency": "KRW", "skills": ["Selenium", "Cypress"]}
+{"title": "DevOps Engineer", "company": "Komodo Cloud", "location": "Jakarta", "work_mode": "remote", "seniority": ["unknown", "mid"], "salary_min": 300000000, "salary_max": 420000000, "currency": "IDR", "skills": ["Kubernetes", "GitLab CI"]}

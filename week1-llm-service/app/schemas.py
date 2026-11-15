@@ -31,8 +31,8 @@ class JobPosting(BaseModel):
     location: str | None = Field(default=None, max_length=120)
     work_mode: WorkMode = WorkMode.unknown
     seniority: Seniority = Seniority.unknown
-    salary_min: int | None = Field(default=None, ge=0, le=10_000_000)
-    salary_max: int | None = Field(default=None, ge=0, le=10_000_000)
+    salary_min: int | None = Field(default=None, ge=0, le=100_000_000_000)  # large enough for KRW, IDR, VND salaries
+    salary_max: int | None = Field(default=None, ge=0, le=100_000_000_000)  # large enough for KRW, IDR, VND salaries
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     skills: list[str] = Field(default_factory=list, max_length=25)
 
