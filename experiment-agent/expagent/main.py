@@ -1,3 +1,4 @@
+import base64
 """Experiment Designer: a Linear agent that turns an issue into an A/B test plan.
 
 @mention it on an issue like "Test shorter checkout" and it replies in the issue with a hypothesis, the sample size
@@ -156,6 +157,9 @@ async def webhook(request: Request, background: BackgroundTasks):
                     why, len(sec), sec.startswith("lin_wh_"), any(c in sec for c in "\"' =\n"),
                     len(request.headers.get("linear-signature") or ""),
                     hashlib.sha256(sec.encode()).hexdigest()[:10])
+        if os.getenv("DEBUG_WEBHOOK_BODY") or True:  # TEMPORARY: one-off diagnosis, remove after
+            log.warning("webhook_debug sig=%s body_b64=%s", request.headers.get("linear-signature"),
+                        base64.b64encode(raw).decode())
         return JSONResponse(status_code=401, content={"error": why})
     payload = await request.json()
     if payload.get("type") != "AgentSessionEvent" and request.headers.get("linear-event") != "AgentSessionEvent":
