@@ -26,8 +26,8 @@ There's also a try-it box on the home page that needs no Linear.
 ## Set up
 
 1. In Linear: **Settings → API → New application**. Name it *Experiment Designer*.
-2. Callback URL: `https://<your-service>.onrender.com/oauth/callback`
-3. Webhooks on, URL `https://<your-service>.onrender.com/webhooks/linear`, tick **Agent session events**.
+2. Callback URL: `https://experiment-agent.onrender.com/oauth/callback`
+3. Webhooks on, URL `https://experiment-agent.onrender.com/webhooks/linear`, tick **Agent session events**.
 4. Turn on **Client credentials**. Save, then put the client ID, client secret and webhook signing secret into Render as `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET` and `LINEAR_WEBHOOK_SECRET`.
 5. As a workspace admin, open the service's home page and click **Install in Linear**.
 
