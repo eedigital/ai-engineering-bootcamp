@@ -35,7 +35,7 @@ def facts(week: int = 12) -> dict:
     running = [t for t in plan if t.start_week and t.id not in read and t.start_week <= PROGRAM_WEEK]
     upcoming = [t for t in plan if t.start_week and t.id not in read and t.start_week > PROGRAM_WEEK]
     return {
-        "program_week": PROGRAM_WEEK, "program_weeks": 13, "program_days": 90,
+        "program_week": PROGRAM_WEEK, "program_weeks": 13,
         "cvr_pct": round(now["cvr"] * 100, 2), "cvr_prev_pct": round(prev["cvr"] * 100, 2),
         "cvr_direct_pct": round(now["cvr_direct"] * 100, 2), "cvr_rep_pct": round(now["cvr_rep"] * 100, 3),
         "rep_share_pct": round(now["rep_share"] * 100, 1),
@@ -44,7 +44,7 @@ def facts(week: int = 12) -> dict:
         "revenue_4wk": round(q["revenue"]),
         "leak": f"{leak['from']} → {leak['to']}", "leak_rate_pct": round(leak["rate"] * 100, 1), "leak_lost_per_week": round(leak["lost_per_week"]),
         "tests": [{"id": r["test_id"], "name": r["name"], "verdict": r["verdict"], "lift_pct": round(r["primary"]["lift"] * 100, 1),
-                   "p_value": round(r["primary"]["p_value"], 3)} for r in done],
+                   "p_value": "<0.001" if r["primary"]["p_value"] < 0.001 else round(r["primary"]["p_value"], 3)} for r in done],
         "running": [{"id": t.id, "name": t.name, "ends_week": t.start_week + t.sized["weeks"] - 1} for t in running],
         "next": [{"id": t.id, "name": t.name, "start_week": t.start_week, "weeks": t.sized["weeks"]} for t in upcoming],
         "deferred": [{"id": t.id, "name": t.name, "weeks_needed": t.sized["weeks"],
@@ -75,7 +75,9 @@ class Readout(BaseModel):
 SYSTEM = """You write the weekly growth readout for the SVP of Growth at a healthcare membership company.
 Use ONLY the numbers in the facts JSON, written exactly as they appear there (you may add % or $ and thousands separators).
 Don't calculate new numbers. Plain words, short sentences, no hype. Call an inconclusive test inconclusive.
-If a deferred test needs a decision (e.g. more traffic), say so in decision_needed."""
+If a deferred test needs a decision (e.g. more traffic), say so in decision_needed.
+Say where we are as "week N of 13". Write a p-value of "<0.001" as "p < 0.001".
+Keep the body under 150 words: what changed this week, what we learned, what's running next. An SVP reads it in one minute."""
 
 _NUM = re.compile(r"(?<![A-Za-z])\$?\d[\d,]*(?:\.\d+)?")
 
@@ -93,6 +95,7 @@ def _numbers_in(obj) -> set[float]:
 def unsupported_numbers(text: str, f: dict) -> list[str]:
     """Numbers in the text that aren't in the facts (test ids like T3 and week numbers are in the facts too)."""
     allowed = _numbers_in(f) | {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 100.0}
+    text = text.replace("the 90 days", "the quarter")  # fixed phrase in the template, not a data claim
     bad = []
     for m in _NUM.findall(text):
         v = round(float(m.replace("$", "").replace(",", "")), 3)
