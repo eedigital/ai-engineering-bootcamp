@@ -54,15 +54,23 @@ The free instance sleeps when idle, so the first request after a while takes lon
 
 ## What I measured
 
-Run `python week1-llm-service/scripts/bench.py --url <your-url> --n 50` and paste the table it prints here.
+The benchmark sends the 8 sample posts (twice each) to the live service and scores every field against a hand-written correct answer (`samples/expected.jsonl`). Where a post is genuinely ambiguous, it accepts more than one answer. It runs on GitHub Actions against Render (`.github/workflows/bench.yml`) and saves the results to [BENCHMARK.md](BENCHMARK.md).
 
-| Metric | Value |
-| --- | --- |
-| Calls | |
-| Success rate | |
-| Validation failures (502) | |
-| Needed a repair re-prompt | |
-| Median latency | |
-| p90 latency | |
+| | First run | After fixes |
+| --- | --- | --- |
+| Field accuracy | 90% (121/134) | **100% (134/134)** |
+| Posts with every field right | 10/16 | 16/16 |
+| Success rate | 100% | 100% |
+| Validation failures | 0% | 0% |
+| Needed a repair re-prompt | 0% | 0% |
+| Median latency | 625 ms | 522 ms |
+| p90 latency | 693 ms | 573 ms |
 
-**What broke and what I changed:** _(fill this in: the most useful part of the README)_
+**What the first run found, and the fixes:**
+- **A bug in my own guardrail, not the AI.** The privacy filter treated "95.000 - 120.000 EUR" (European number format) as a phone number and blanked it out, so the model never saw the salary. Ranges with thousands separators are now kept, and a regression test covers it.
+- **A gap in the prompt.** With no rule for skills, the model only listed skills marked "required", so "Java or C#" came back empty. The prompt now asks for every technology the post names.
+- **An unmapped title.** "Staff Platform Engineer" came back as unknown seniority. Staff, Principal and Head of now count as lead.
+
+**What this doesn't prove:** 8 posts is a small set, and the fixes were made by looking at these same posts, so 100% here overstates real accuracy. The next step is a held-out set of new posts the fixes never saw.
+
+Full results: [benchmarks/1-baseline.md](benchmarks/1-baseline.md), [benchmarks/2-after-fixes.md](benchmarks/2-after-fixes.md).
