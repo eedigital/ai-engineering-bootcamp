@@ -73,20 +73,25 @@ The benchmark sends the 8 sample posts (twice each) to the live service and scor
 
 **Why that 100% isn't the real score:** the fixes were made by looking at these same 8 posts, so they fit them. The honest test is posts the fixes never saw.
 
-### The held-out test: 15 new posts
+### Held-out tests: posts the fixes never saw
 
-15 different posts (`samples/heldout_*.jsonl`), harder on purpose: Spanish, yen, Indian "LPA" salaries, day rates, hourly pay, "up to" salaries, and an ad with almost no detail. They're scored, but never used to change the code.
+Each fix was checked on a fresh set written after the fix, so no set is scored on code tuned to it.
 
-| | Held-out (never seen) |
-| --- | --- |
-| Field accuracy | **99% (121/122)** |
-| Posts with every field right | 14/15 |
-| Success rate | 100% |
-| Needed a repair re-prompt | 7% (1 call) |
-| Median latency | 522 ms |
+| Run | Dev (8) | Held-out (15) | Held-out 2 (10) | Held-out 3 (5) |
+| --- | --- | --- | --- | --- |
+| First run | 90% | | | |
+| Fixes 1–3 (phone filter, skills, Staff) | 100% | **99%** | | |
+| Fix 4 (salary checked against the post) | 100% | 100% | **96%** | |
+| Fix 5 (salary limit for large currencies) | 100% | 100% | 100% | **100%** |
 
-The one miss: "¥8,000,000–¥11,000,000" came back with a maximum of 10,000,000, a real mistake reading a long number. It's left unfixed on purpose: fixing it would turn these posts into another set the code is tuned to. A fix would need a new held-out set to prove it.
+The bold number in each row is the honest one: a set nobody had seen when the code was last changed.
 
-**Caveats:** I wrote the new posts and their answers myself, and some fields accept more than one answer where the post is genuinely ambiguous. Real job ads from job boards would be a tougher test.
+**What each fresh set found:**
+- **Held-out:** "¥8,000,000–¥11,000,000" came back with a maximum of 10,000,000. Fix: after the model answers, plain code reads every salary range in the post (`app/grounding.py`). If one end of the model's range matches and the other doesn't, the other end is taken from the post. Nothing is invented, and the response says `salary_corrected: true`.
+- **Held-out 2:** Korean won and Indonesian rupiah salaries came back blank. The schema capped salaries at 10 million, so correct answers failed validation and the retry gave up (20% of calls needed one). Fix: a cap of 100 billion. Held-out 3 (Vietnamese dong, Colombian and Nigerian currencies, won, rupiah) then scored 100% with no retries.
 
-Full results: [benchmarks/1-baseline.md](benchmarks/1-baseline.md), [benchmarks/2-after-fixes.md](benchmarks/2-after-fixes.md), [benchmarks/3-heldout.md](benchmarks/3-heldout.md).
+Two of the five problems were in my own code (the phone filter and the salary cap), not the AI. Prompt tuning alone would never have found them.
+
+**Caveats:** I wrote all the posts and their answers myself, and some fields accept more than one answer where a post is genuinely ambiguous. Real job ads would be a tougher test.
+
+Full results: [benchmarks/](benchmarks/) and the latest runs in `BENCHMARK*.md`.
