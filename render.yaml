@@ -92,7 +92,9 @@ services:
     healthCheckPath: /health
     envVars:
       - key: LLM_PROVIDERS
-        value: groq,gemini
+        value: claude,groq,gemini
+      - key: ANTHROPIC_API_KEY
+        sync: false   # Claude writes the test plan when set; Groq and Gemini are the fallback
       - key: STATE_SECRET
         generateValue: true   # signs the install link's state
       - key: LINEAR_CLIENT_ID
