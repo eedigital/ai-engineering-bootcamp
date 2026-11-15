@@ -1,4 +1,4 @@
-Run 2026-11-15 08:25 UTC against https://week1-job-extractor.onrender.com, 15 calls over 15 posts (held-out: never used to change the code).
+Run 2026-11-15 08:31 UTC against https://week1-job-extractor.onrender.com, 15 calls over 15 posts (held-out: never used to change the code).
 
 | Metric | Value |
 | --- | --- |
@@ -6,11 +6,11 @@ Run 2026-11-15 08:25 UTC against https://week1-job-extractor.onrender.com, 15 ca
 | Posts with every field right | 15/15 |
 | Success rate | 100% |
 | Validation failures (502) | 0% |
-| Needed a repair re-prompt | 7% |
+| Needed a repair re-prompt | 0% |
 | Rate limited (429) | 0 |
 | Answered by | groq 15 |
-| Median latency | 534 ms |
-| p90 latency | 821 ms |
+| Median latency | 529 ms |
+| p90 latency | 625 ms |
 
 Accuracy by field:
 

@@ -1,4 +1,4 @@
-Run 2026-11-15 08:26 UTC against https://week1-job-extractor.onrender.com, 8 calls over 8 posts (dev set: the posts used while fixing).
+Run 2026-11-15 08:32 UTC against https://week1-job-extractor.onrender.com, 8 calls over 8 posts (dev set: the posts used while fixing).
 
 | Metric | Value |
 | --- | --- |
@@ -9,8 +9,8 @@ Run 2026-11-15 08:26 UTC against https://week1-job-extractor.onrender.com, 8 cal
 | Needed a repair re-prompt | 0% |
 | Rate limited (429) | 0 |
 | Answered by | groq 8 |
-| Median latency | 495 ms |
-| p90 latency | 530 ms |
+| Median latency | 493 ms |
+| p90 latency | 510 ms |
 
 Accuracy by field:
 
