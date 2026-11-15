@@ -47,7 +47,7 @@ def _locations(name: str) -> list[str] | str:
     if re.fullmatch(r"\s*(n/?a|tbd|various|multiple locations?)?\s*", name or "", re.I):
         return "*"
     parts = [p.strip() for p in re.split(r";|\||•|·| or |\n|/(?! )", name or "") if p.strip()]
-    parts = [p for p in parts if not re.fullmatch(r"(remote|hybrid|anywhere|n/?a|various|multiple)(\s*[-–(].*)?", p, re.I)]
+    parts = [p for p in parts if not re.fullmatch(r"(remote|hybrid|anywhere|in[- ]office|on[- ]?site|n/?a|various|multiple)(\s*[-–(,].*)?", p, re.I)]
     # "US - Remote" -> "US"
     parts = [re.sub(r"\s*[-–]\s*(remote|hybrid).*$", "", p, flags=re.I).strip() or p for p in parts]
     # "San Francisco, CA" -> also accept "San Francisco"

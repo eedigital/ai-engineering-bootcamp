@@ -92,6 +92,21 @@ The bold number in each row is the honest one: a set nobody had seen when the co
 
 Two of the five problems were in my own code (the phone filter and the salary cap), not the AI. Prompt tuning alone would never have found them.
 
-**Caveats:** I wrote all the posts and their answers myself, and some fields accept more than one answer where a post is genuinely ambiguous. Real job ads would be a tougher test.
+### Real job ads
+
+The posts above were written by me, so the real test uses **real ads from public company job boards** (Greenhouse's public Job Board API: Airbnb, Stripe, GitLab, Figma, Discord, Cloudflare). The ads are fetched fresh each run and never stored here. The correct answers come from **the employer's own data**: the job title, location and published salary range. The salary is only scored when the ad states it. No one writes the answers.
+
+| | First real run (12 ads) | After fixes, fresh real ads (12) |
+| --- | --- | --- |
+| Ads processed | **50%** | **100%** |
+| Field accuracy | 75% | **100% (45/45)** |
+| Salary right (where stated) | 4/4 | 8/8 |
+| Median latency | 1.2 s | 0.8 s |
+
+**What real ads found that my own posts never did:**
+- **Real ads are long.** The median was 7,400 characters and 5 of 12 were over the 8,000-character limit, so they were refused. Long ads are now trimmed to their start plus any lines about pay or location, which usually sit at the bottom.
+- **Real ads name lots of skills.** One listed 41, over the limit of 25, so a correct answer was rejected. The first 25 are now kept.
+- **Free AI limits matter at real-ad size.** Long ads use about four times the tokens. Rerunning the first set used up Groq's free daily allowance, and 4 calls failed when the Gemini fallback was also overloaded. That's a hosting limit, not an accuracy problem, but it's what a real user would hit.
+- **My first test harness was too strict.** Employers keep the location in a separate field, so the test now uses the page text a person would copy (title, location, ad), and treats "US" and "United States" alike.
 
 Full results: [benchmarks/](benchmarks/) and the latest runs in `BENCHMARK*.md`.
