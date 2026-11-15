@@ -96,3 +96,24 @@ def test_gives_up_after_the_second_try(fake_http):
     with pytest.raises(LLMError):
         complete([], providers=["groq"], max_retries=0)
     assert calls == ["groq", "groq"]
+
+
+def test_claude_provider_skips_temperature_and_response_format(monkeypatch):
+    # Claude's OpenAI-compatible layer rejects temperatures below 1 on current models
+    import httpx
+
+    from llm import client
+    monkeypatch.setenv("LLM_PROVIDERS", "claude")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    sent = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        sent.update(url=url, body=json, headers=headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{\"ok\": true}"}}], "usage": {}},
+                              request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(client.httpx, "post", fake_post)
+    r = client.complete([{"role": "user", "content": "hi"}], json_mode=True)
+    assert r.provider == "claude" and sent["url"].startswith("https://api.anthropic.com/v1")
+    assert "temperature" not in sent["body"] and "response_format" not in sent["body"] and sent["body"]["max_tokens"] == 2048
+    assert sent["headers"]["Authorization"] == "Bearer sk-ant-test"

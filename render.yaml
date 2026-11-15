@@ -111,3 +111,31 @@ services:
           type: web
           name: grant-finder
           envVarKey: GEMINI_API_KEY
+
+  # Growth Lab: a growth PM's first 90 days for a membership health company, on invented data.
+  - type: web
+    name: growth-lab
+    runtime: docker
+    plan: free
+    dockerfilePath: ./growth-lab/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: claude,groq,gemini
+      - key: ANTHROPIC_API_KEY
+        sync: false   # optional: Claude writes the exec readout when set
+      - key: POSTHOG_KEY
+        sync: false   # optional: the prospect page sends events when set
+      - key: LINEAR_API_KEY
+        sync: false   # optional: "Send" creates the Linear issue when set
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GROQ_API_KEY
+      - key: GEMINI_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GEMINI_API_KEY

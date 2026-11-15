@@ -3,7 +3,7 @@
 Every provider here speaks the OpenAI-compatible /chat/completions API, so
 switching between Gemini, Groq and a local Ollama model is one env var.
 
-    LLM_PROVIDERS=gemini,groq,ollama   # tried in order; next one on rate limit / outage
+    LLM_PROVIDERS=claude,groq,gemini,ollama   # tried in order; next one on rate limit / outage
 
 The "fake" provider returns canned answers so tests and CI never need a key.
 """
@@ -29,6 +29,8 @@ class Provider:
     model: str
     api_key_env: str | None  # None = no key needed (Ollama)
     extra: dict = field(default_factory=dict)  # provider-specific request fields
+    send_temperature: bool = True  # Claude's OpenAI-compatible layer rejects temperatures below 1 on current models
+    native_json_mode: bool = True  # whether to send response_format; otherwise the prompt asks for JSON
 
 
 def _providers() -> dict[str, Provider]:
@@ -52,6 +54,16 @@ def _providers() -> dict[str, Provider]:
             groq_model,
             "GROQ_API_KEY",
             groq_extra,
+        ),
+        # Claude through Anthropic's OpenAI-compatible endpoint: https://platform.claude.com/docs/en/api/openai-sdk
+        "claude": Provider(
+            "claude",
+            "https://api.anthropic.com/v1",
+            os.getenv("CLAUDE_MODEL", "claude-haiku-5-5"),
+            "ANTHROPIC_API_KEY",
+            {"max_tokens": int(os.getenv("CLAUDE_MAX_TOKENS", "2048"))},
+            send_temperature=False,
+            native_json_mode=False,
         ),
         "ollama": Provider(
             "ollama",
@@ -134,8 +146,10 @@ def _call_provider(
             raise LLMError(f"{p.name}: {p.api_key_env} is not set")
         headers["Authorization"] = f"Bearer {key}"
 
-    body: dict = {"model": p.model, "messages": messages, "temperature": temperature, **p.extra}
-    if json_mode:
+    body: dict = {"model": p.model, "messages": messages, **p.extra}
+    if p.send_temperature:
+        body["temperature"] = temperature
+    if json_mode and p.native_json_mode:
         body["response_format"] = {"type": "json_object"}
 
     errors: list[str] = []

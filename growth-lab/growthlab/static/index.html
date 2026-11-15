@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Growth Lab: the first 90 days, on invented data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f5f6f4; --sheet: #fff; --ink: #14201b; --muted: #59645e; --line: #dde2de; --soft: #eef1ee;
+          --a: #1f5fa8; --a-soft: #e3ecf7; --good: #24734f; --good-soft: #e1f1e8; --bad: #b4462c; --bad-soft: #f8e5df;
+          --warn: #8a6100; --warn-soft: #fbf0d6; --grey-soft: #eceeec; --r: 10px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 0.9875rem/1.55 Figtree, system-ui, sans-serif; }
+  :focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+  a { color: var(--a); }
+  .shell { display: grid; grid-template-columns: 15rem 1fr; min-height: 100vh; }
+  nav { background: var(--ink); color: #dfe7e2; padding: 1.4rem 1rem; position: sticky; top: 0; height: 100vh; }
+  nav .brand { font-weight: 800; font-size: 1.15rem; color: #fff; margin: 0 0 0.2rem; }
+  nav .sub { font-size: 0.8125rem; color: #9fb0a7; margin: 0 0 1.4rem; }
+  nav button { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 0.5rem 0.7rem; border-radius: 7px; cursor: pointer; margin-bottom: 0.15rem; }
+  nav button:hover { background: rgb(255 255 255 / 0.07); }
+  nav button[aria-current="true"] { background: #fff; color: var(--ink); font-weight: 600; }
+  nav .foot { position: absolute; bottom: 1.2rem; left: 1rem; right: 1rem; font-size: 0.75rem; color: #8ea098; line-height: 1.45; }
+  main { padding: 2rem clamp(1rem, 3vw, 2.5rem) 4rem; max-width: 72rem; }
+  @media (max-width: 52rem) {
+    .shell { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; display: flex; gap: 0.3rem; overflow-x: auto; padding: 0.8rem; align-items: center; }
+    nav .brand { margin: 0 0.6rem 0 0; white-space: nowrap; } nav .sub, nav .foot { display: none; }
+    nav button { white-space: nowrap; width: auto; margin: 0; }
+  }
+  h1 { font-size: clamp(1.6rem, 3.5vw, 2.1rem); letter-spacing: -0.025em; line-height: 1.15; margin: 0 0 0.4rem; }
+  .lede { color: var(--muted); margin: 0 0 1.6rem; max-width: 46rem; }
+  h2 { font-size: 1.125rem; margin: 0 0 0.8rem; letter-spacing: -0.01em; }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1.2rem 1.3rem; margin-bottom: 1.1rem; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 0.8rem; margin-bottom: 1.1rem; }
+  .kpi { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 0.9rem 1rem; }
+  .kpi span { display: block; font-size: 0.8125rem; color: var(--muted); }
+  .kpi b { font-size: 1.55rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--muted); }
+  .funnel { display: grid; gap: 0.45rem; }
+  .frow { display: grid; grid-template-columns: 10rem 1fr 5.5rem; gap: 0.8rem; align-items: center; font-size: 0.9375rem; }
+  .bar { height: 1.6rem; background: var(--soft); border-radius: 5px; overflow: hidden; position: relative; }
+  .bar i { display: block; height: 100%; background: var(--a); border-radius: 5px; }
+  .bar.leak i { background: var(--bad); }
+  .frow .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .frow .drop { grid-column: 2 / 4; font-size: 0.8125rem; color: var(--muted); margin: -0.2rem 0 0.1rem; }
+  .frow .drop.leak { color: var(--bad); font-weight: 600; }
+  .callout { background: var(--bad-soft); border-radius: 8px; padding: 0.8rem 1rem; margin-top: 1rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+  @media (max-width: 60rem) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.8125rem; border-bottom: 1.5px solid var(--line); padding: 0.45rem 0.5rem 0.45rem 0; }
+  td { border-bottom: 1px solid var(--line); padding: 0.5rem 0.5rem 0.5rem 0; vertical-align: top; }
+  td a { white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .gantt { display: grid; grid-template-columns: 13rem repeat(13, 1fr); gap: 2px 0; font-size: 0.8125rem; }
+  .gantt .wk { text-align: center; color: var(--muted); padding-bottom: 0.3rem; border-bottom: 1px solid var(--line); }
+  .gantt .name { padding: 0.35rem 0.6rem 0.35rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gantt .slot { border-left: 1px dashed var(--line); }
+  .gantt .run { background: var(--a); color: #fff; border-radius: 5px; margin: 0.25rem 1px; padding: 0.1rem 0.4rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; }
+  .gantt .run.launch { background: var(--good); } .gantt .run.build { background: repeating-linear-gradient(45deg, #b6c9bd, #b6c9bd 6px, #c7d6cd 6px, #c7d6cd 12px); color: var(--ink); }
+  .gantt .deferred { grid-column: 2 / -1; white-space: normal; color: var(--muted); font-style: italic; padding: 0.35rem 0; }
+  .chip { display: inline-block; border-radius: 99px; padding: 0.1rem 0.65rem; font-size: 0.8125rem; font-weight: 700; }
+  .ship { background: var(--good-soft); color: var(--good); } .inconclusive { background: var(--grey-soft); color: var(--muted); }
+  .dont { background: var(--bad-soft); color: var(--bad); } .harm { color: var(--bad); font-weight: 600; }
+  .ci { position: relative; height: 1.4rem; background: var(--soft); border-radius: 4px; margin: 0.4rem 0 0.2rem; }
+  .ci .zero { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+  .ci .range { position: absolute; top: 4px; height: calc(100% - 8px); background: var(--a); border-radius: 3px; }
+  .ci .pt { position: absolute; top: 1px; width: 4px; height: calc(100% - 2px); background: var(--ink); border-radius: 2px; }
+  .ci-key { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); }
+  .md p { margin: 0 0 0.8rem; } .md p:last-child { margin: 0; }
+  .src { font-size: 0.8125rem; color: var(--muted); margin-top: 0.8rem; }
+  .btn { background: var(--a); color: #fff; border: 0; border-radius: 7px; padding: 0.5rem 0.95rem; font: 600 0.9375rem Figtree, sans-serif; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.ghost { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--line); }
+  .btn[disabled] { opacity: 0.6; }
+  pre { background: #121a16; color: #e2ebe5; padding: 0.9rem; border-radius: 8px; overflow: auto; font: 0.8125rem/1.5 ui-monospace, Menlo, monospace; }
+  code { font: 0.875em ui-monospace, Menlo, monospace; background: var(--soft); padding: 0.05rem 0.3rem; border-radius: 4px; }
+  .quote { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 60rem) { .quote { grid-template-columns: 1fr; } }
+  select, input { font: inherit; border: 1.5px solid var(--line); border-radius: 7px; padding: 0.4rem 0.55rem; background: #fff; }
+  .muted { color: var(--muted); } .small { font-size: 0.875rem; }
+  .persona { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0.4rem 0 1rem; }
+  .persona button { border: 1px solid var(--line); background: var(--sheet); border-radius: 99px; padding: 0.25rem 0.75rem; cursor: pointer; font: inherit; font-size: 0.875rem; }
+  .spark { width: 100%; height: 70px; }
+  .note { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 0.6rem 0.85rem; font-size: 0.875rem; margin-bottom: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav aria-label="Sections">
+    <p class="brand">Growth Lab</p>
+    <p class="sub">The first 90 days as Parsley Health's growth PM. A prototype on invented data.</p>
+    <button data-tab="overview" aria-current="true">Funnel</button>
+    <button data-tab="roadmap">Roadmap</button>
+    <button data-tab="readouts">Readouts</button>
+    <button data-tab="exec">Exec readout</button>
+    <button data-tab="launch">Launch</button>
+    <button data-tab="data">Instrumentation</button>
+    <p class="foot">Invented data: not Parsley Health's numbers, and not affiliated with Parsley Health. Membership prices follow its public pricing.</p>
+  </nav>
+  <main id="view" aria-live="polite"></main>
+</div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (v, d = 1) => (v * 100).toFixed(d) + "%";
+const money = (v) => "$" + Math.round(v).toLocaleString("en-US");
+const int = (v) => Math.round(v).toLocaleString("en-US");
+const get = (u) => fetch(u).then((r) => r.json());
+const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split(/\n\n+/).map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+
+const TABS = {
+  async overview() {
+    const d = await get("/api/overview"), s = d.summary, steps = s.steps, max = steps[0].count;
+    const leakKey = steps.slice(1).reduce((a, b) => (b.from_prev < a.from_prev ? b : a)).key;
+    const w = d.weekly, ys = w.map((x) => x.cvr), lo = Math.min(...ys) * 0.95, hi = Math.max(...ys) * 1.05;
+    const pts = w.map((x, i) => `${(i / (w.length - 1)) * 300},${70 - ((x.cvr - lo) / (hi - lo)) * 60 - 5}`).join(" ");
+    return `<h1>Where new members are lost</h1>
+      <p class="lede">12 weeks of an invented sign-up funnel across three product lines and four channels. The question for the first 90 days: where is the biggest leak, and what will fix it?</p>
+      <div class="kpis">
+        <div class="kpi"><span>CVR (paid ÷ sessions)</span><b>${pct(s.cvr, 2)}</b></div>
+        <div class="kpi"><span>Direct CVR</span><b>${pct(s.cvr_direct, 2)}</b></div>
+        <div class="kpi"><span>Rep-assisted CVR</span><b>${pct(s.cvr_rep, 3)}</b><small> · ${pct(s.rep_share)} of members</small></div>
+        <div class="kpi"><span>First-year revenue, 12 weeks</span><b>${money(s.revenue)}</b></div>
+        <div class="kpi"><span>Revenue per session</span><b>$${s.revenue_per_session.toFixed(2)}</b></div>
+      </div>
+      <div class="card"><h2>The funnel, direct path</h2><div class="funnel">
+        ${steps.map((x) => `<div class="frow"><span>${esc(x.label)}</span><div class="bar ${x.key === leakKey ? "leak" : ""}"><i style="width:${Math.max(0.6, (x.count / max) * 100)}%"></i></div><span class="n">${int(x.count)}</span>
+          ${x.from_prev != null ? `<span class="drop ${x.key === leakKey ? "leak" : ""}">${pct(x.from_prev)} of the step before continue${x.key === leakKey ? " · biggest leak" : ""}</span>` : ""}</div>`).join("")}
+      </div>
+      <div class="callout"><b>Biggest leak: ${esc(d.leak.from)} → ${esc(d.leak.to)}.</b> Only ${pct(d.leak.rate)} continue, about ${int(d.leak.lost_per_week)} people a week. Public reviews point to unclear total cost and long waits. That's what the launch, <b>Know your cost</b>, targets.</div></div>
+      <div class="grid2">
+        <div class="card"><h2>By product line</h2><table><tr><th>Product</th><th class="num">CVR</th><th class="num">Members</th><th class="num">Revenue</th></tr>
+          ${d.by_product.map((p) => `<tr><td>${esc(p.name)}<br><span class="muted small">${esc(d.products[p.name])}</span></td><td class="num">${pct(p.cvr, 2)}</td><td class="num">${int(p.paid)}</td><td class="num">${money(p.revenue)}</td></tr>`).join("")}</table>
+          <p class="muted small">Complete Care brings most of the revenue but converts lowest, so a small lift there is worth the most.</p></div>
+        <div class="card"><h2>By channel</h2><table><tr><th>Channel</th><th class="num">Sessions</th><th class="num">CVR</th><th class="num">Revenue / session</th></tr>
+          ${d.by_channel.map((p) => `<tr><td>${esc(p.name)}</td><td class="num">${int(p.sessions)}</td><td class="num">${pct(p.cvr, 2)}</td><td class="num">$${p.revenue_per_session.toFixed(2)}</td></tr>`).join("")}</table>
+          <h2 style="margin-top:1rem">Weekly CVR</h2><svg class="spark" viewBox="0 0 300 70" preserveAspectRatio="none" role="img" aria-label="Weekly CVR over 12 weeks"><polyline points="${pts}" fill="none" stroke="var(--a)" stroke-width="2"/></svg>
+          <div class="ci-key"><span>Week 1 · ${pct(w[0].cvr, 2)}</span><span>Week 12 · ${pct(w[11].cvr, 2)}</span></div></div>
+      </div>`;
+  },
+
+  async roadmap() {
+    const d = await get("/api/roadmap"), H = d.horizon_weeks;
+    const planned = d.tests.filter((t) => t.start_week), deferred = d.tests.filter((t) => !t.start_week);
+    const row = (t, i) => {
+      const r = `grid-row:${i + 2}`;
+      const build = t.kind === "launch" ? `<div class="run build" style="${r};grid-column:2 / ${t.start_week + 1}">Build</div>` : "";
+      return `<div class="name" style="${r};grid-column:1" title="${esc(t.name)}"><b>${t.id}</b> ${esc(t.name)}</div>${build}<div class="run ${t.kind === "launch" ? "launch" : ""}" style="${r};grid-column:${t.start_week + 1} / span ${t.sized.weeks}">${t.sized.weeks} wk · n ${int(t.sized.per_variant)}/arm</div>`;
+    };
+    return `<h1>The 90-day testing roadmap</h1>
+      <p class="lede">Eight hypotheses, each sized with power maths (5% significance, 80% power) on the real traffic of its surface. They're sequenced so tests on the same page never overlap, with the highest expected value per unit of effort first. <b>${planned.length} fit in 13 weeks</b>; ${deferred.length} don't, and the reason is stated.</p>
+      <div class="card" style="overflow-x:auto"><div class="gantt" style="min-width:44rem">
+        <div style="grid-row:1;grid-column:1"></div>${Array.from({ length: H }, (_, i) => `<div class="wk" style="grid-row:1;grid-column:${i + 2}">W${i + 1}</div>`).join("")}
+        ${planned.map(row).join("")}
+        ${deferred.map((t, j) => `<div class="name" style="grid-row:${planned.length + j + 2};grid-column:1"><b>${t.id}</b> ${esc(t.name)}</div><div class="deferred" style="grid-row:${planned.length + j + 2}">Next quarter: ${esc(t.defer_reason)}</div>`).join("")}
+      </div></div>
+      <div class="card" style="overflow-x:auto"><h2>Sizing and priority</h2><table style="min-width:52rem"><tr><th>Test</th><th>Primary metric</th><th class="num">Baseline</th><th class="num">MDE</th><th class="num">Per arm</th><th class="num">Weeks</th><th class="num">Value if real</th><th class="num">Confidence</th><th>Linear</th></tr>
+        ${d.tests.map((t) => `<tr><td><b>${t.id}</b> ${esc(t.name)}${t.kind === "launch" ? ' <span class="chip ship">Launch</span>' : ""}<br><span class="muted small">${esc(t.hypothesis)}</span></td><td>${esc(t.metric)}</td>
+          <td class="num">${pct(t.sized.baseline)}</td><td class="num">${pct(t.mde, 0)}</td><td class="num">${int(t.sized.per_variant)}</td><td class="num">${t.sized.weeks}</td>
+          <td class="num">${money(t.sized.annual_value)}/yr</td><td class="num">${pct(t.confidence, 0)}</td>
+          <td>${t.linear ? `<a href="${t.linear.url}" target="_blank" rel="noopener">${t.linear.id}</a>` : `<button class="btn ghost" data-linear="${t.id}">Send</button>`}</td></tr>`).join("")}</table>
+        <p class="muted small">Value if real = extra paid members a week if the lift holds × first-year value × 52. Priority = value × confidence ÷ effort.</p></div>`;
+  },
+
+  async readouts() {
+    const d = await get("/api/readouts");
+    const cls = { Ship: "ship", Inconclusive: "inconclusive", "Don't ship as is": "dont", "Don't ship": "dont", Invalid: "dont" };
+    const ci = (p) => {
+      const lo = Math.min(p.ci_low, 0) - 0.01, hi = Math.max(p.ci_high, 0) + 0.01, x = (v) => ((v - lo) / (hi - lo)) * 100;
+      return `<div class="ci" role="img" aria-label="95% confidence interval for the difference"><div class="range" style="left:${x(p.ci_low)}%;width:${x(p.ci_high) - x(p.ci_low)}%"></div><div class="pt" style="left:calc(${x(p.variant - p.control)}% - 2px)"></div><div class="zero" style="left:${x(0)}%"></div></div>
+        <div class="ci-key"><span>${p.ci_low > 0 ? "+" : ""}${(p.ci_low * 100).toFixed(2)} pts</span><span>95% interval of the difference; the line is zero</span><span>+${(p.ci_high * 100).toFixed(2)} pts</span></div>`;
+    };
+    return `<h1>Readouts and findings</h1>
+      <p class="lede">The decision rule is written down before any data arrives. These three readouts are <b>simulated</b> from the invented funnel to show the format: one ships, one wins on its metric but fails a guardrail, and one is inconclusive.</p>
+      ${d.readouts.map((r) => `<div class="card"><h2>${r.test_id} · ${esc(r.name)} <span class="chip ${cls[r.verdict]}">${esc(r.verdict)}</span></h2>
+        <p class="muted small">${esc(r.weeks)} · ${esc(r.context)}</p><p>${esc(r.why)}</p>
+        ${ci(r.primary)}
+        <table style="margin-top:0.9rem"><tr><th>Metric</th><th class="num">Control</th><th class="num">Variant</th><th class="num">Change</th><th class="num">p</th></tr>
+          <tr><td><b>${esc(r.primary.name)}</b> (primary)</td><td class="num">${pct(r.primary.control)}</td><td class="num">${pct(r.primary.variant)}</td><td class="num">${(r.primary.lift * 100).toFixed(1)}%</td><td class="num">${r.primary.p_value.toFixed(3)}</td></tr>
+          ${r.guardrails.map((g) => `<tr><td>${esc(g.name)} (guardrail)${g.harmed ? ' <span class="harm">harmed</span>' : ""}</td><td class="num">${pct(g.control)}</td><td class="num">${pct(g.variant)}</td><td class="num">${(g.lift * 100).toFixed(1)}%</td><td class="num">${g.p_value.toFixed(3)}</td></tr>`).join("")}
+        </table><p class="muted small">Split check (sample ratio mismatch): p = ${r.primary.srm_p.toFixed(2)}${r.primary.srm_p < 0.01 ? ", invalid" : ", fine"}. n = ${int(r.primary.control_n)} vs ${int(r.primary.variant_n)}.</p></div>`).join("")}
+      <div class="card"><h2>Findings library</h2><table><tr><th>Test</th><th>Finding</th><th>What it taught us, and what's next</th></tr>
+        ${d.findings.map((f) => `<tr><td>${f.test_id} <span class="chip ${cls[f.verdict]}">${esc(f.verdict)}</span></td><td><b>${esc(f.title)}</b></td><td>${esc(f.learning)}</td></tr>`).join("")}</table></div>`;
+  },
+
+  async exec() {
+    const d = await get("/api/exec");
+    if (d.error) return `<h1>Weekly exec readout</h1><p class="note">${esc(d.error)}</p>`;
+    const by = d.source === "template" ? "the template (no AI)" : `${esc(d.source)}, then checked`;
+    return `<h1>Weekly exec readout</h1>
+      <p class="lede">For the SVP of Growth. Code computes the facts; the AI (Claude first, when a key is set) writes the readout from them, and code checks that every number in its draft is in the facts before showing it.</p>
+      ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
+      <div class="card md">${md(d.markdown)}<p class="src">Written by ${by}. Every number checked against the computed facts.</p></div>
+      <button class="btn ghost" id="regen" type="button">Write it again</button>
+      <details class="card" style="margin-top:1rem"><summary>The facts it was written from</summary><pre>${esc(JSON.stringify(d.facts, null, 2))}</pre></details>`;
+  },
+
+  async launch() {
+    const d = await get("/api/launch");
+    return `<h1>The launch: Know your cost</h1>
+      <p class="lede">A pricing-page step that shows the whole first-year cost and the earliest appointment before checkout. Try it as one of the invented prospects, or open the <a href="/know-your-cost" target="_blank" rel="noopener">prospect-facing page</a>, which sends PostHog events when a project key is set.</p>
+      <div class="card"><h2>Try it</h2><div class="persona">${d.prospects.map((p) => `<button type="button" data-p='${esc(JSON.stringify(p))}'>${esc(p.name)} · ${esc(p.state)} · ${esc(p.product)}</button>`).join("")}</div>
+        <div class="quote"><div>
+          <p><label>Product <select id="q-product"><option>Complete Care</option><option>Longevity Labs</option><option>BYO Labs Review</option></select></label></p>
+          <p><label>State <input id="q-state" value="NY" maxlength="2" size="3"></label> <label><input type="checkbox" id="q-ins" checked> I have insurance</label></p>
+          <p class="muted small" id="q-who"></p></div><div id="q-out"></div></div></div>
+      <div class="card md">${mdBlock(d.spec)}</div>`;
+  },
+
+  async data() {
+    const d = await get("/api/instrumentation");
+    return `<h1>Instrumentation</h1>
+      <p class="lede">Every test and the launch ship with their events and a PostHog feature flag, so readouts come straight from PostHog. Payment is tracked server-side, so ad blockers can't hide revenue. PostHog on the prospect page: <b>${d.posthog_live ? "live" : "off (no POSTHOG_KEY set)"}</b>.</p>
+      <div class="card"><h2>Event schema</h2><table><tr><th>Event</th><th>When</th><th>Properties</th></tr>${d.events.map((e) => `<tr><td><code>${esc(e.event)}</code></td><td>${esc(e.when)}</td><td>${esc(e.properties)}</td></tr>`).join("")}</table></div>
+      <div class="card"><h2>Feature flags</h2><p>${Object.entries(d.flags).map(([k, v]) => `${k} <code>${esc(v)}</code>`).join(" · ")}</p></div>
+      ${Object.entries(d.queries).map(([k, q]) => `<div class="card"><h2>${esc(k)}</h2><pre>${esc(q)}</pre></div>`).join("")}`;
+  },
+};
+
+function mdBlock(s) {
+  return esc(s).split(/\n\n+/).map((b) => b.startsWith("## ") ? `<h2>${b.slice(3)}</h2>` : b.includes("\n- ")
+    ? `<p>${b.split("\n- ")[0].replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")}</p><ul>${b.split("\n- ").slice(1).map((li) => `<li>${li}</li>`).join("")}</ul>`
+    : `<p>${b.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")}</p>`).join("");
+}
+
+async function quote() {
+  const q = await get(`/api/quote?product=${encodeURIComponent($("#q-product").value)}&state=${encodeURIComponent($("#q-state").value)}&insurance=${$("#q-ins").checked}`);
+  $("#q-out").innerHTML = `<table>${q.lines.map((l) => `<tr><td>${esc(l.label)}</td><td class="num">${l.low === l.high ? money(l.low) : money(l.low) + "–" + money(l.high)}</td></tr>`).join("")}
+    <tr><td><b>First year, all in</b></td><td class="num"><b>${q.low === q.high ? money(q.low) : money(q.low) + "–" + money(q.high)}</b></td></tr></table>
+    <p class="small"><b>First visit:</b> about ${q.first_visit_days} days from joining in ${esc(q.state)}. ${q.in_network ? "Likely in-network." : "Self-pay or out-of-network."}</p>
+    <p class="muted small">${q.notes.map(esc).join(" ")} Illustrative figures.</p>`;
+}
+
+async function show(tab) {
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab));
+  $("#view").innerHTML = `<p class="muted">Loading…</p>`;
+  $("#view").innerHTML = await TABS[tab]();
+  if (location.hash !== "#" + tab) history.replaceState(null, "", "#" + tab);
+  if (tab === "launch") {
+    ["#q-product", "#q-state", "#q-ins"].forEach((s) => $(s).addEventListener("change", quote));
+    document.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
+      const p = JSON.parse(b.dataset.p); $("#q-product").value = p.product; $("#q-state").value = p.state; $("#q-ins").checked = p.in_network || p.insurance !== "None (HSA)";
+      $("#q-who").textContent = `${p.name}, ${p.age}: ${p.goal}. Insurance: ${p.insurance}.`; quote();
+    }));
+    quote();
+  }
+  if (tab === "exec") $("#regen")?.addEventListener("click", async () => { $("#regen").disabled = true; await get("/api/exec?refresh=true"); show("exec"); });
+  if (tab === "roadmap") document.querySelectorAll("[data-linear]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true; const r = await fetch("/api/linear/" + b.dataset.linear, { method: "POST" }).then((x) => x.json());
+    b.outerHTML = r.created ? `<a href="${r.url}" target="_blank" rel="noopener">${esc(r.identifier)}</a>` : `<span class="muted small">${esc(r.note || "Copied")}</span>`;
+  }));
+}
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+window.addEventListener("hashchange", () => TABS[location.hash.slice(1)] && show(location.hash.slice(1)));
+show(TABS[location.hash.slice(1)] ? location.hash.slice(1) : "overview");
+</script>
+</body>
+</html>

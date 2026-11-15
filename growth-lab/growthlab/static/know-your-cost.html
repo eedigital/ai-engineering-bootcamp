@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Know your cost (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!--POSTHOG-->
+<style>
+  :root { --bg: #f5f6f4; --ink: #14201b; --muted: #59645e; --line: #dde2de; --a: #1f5fa8; --good: #24734f; --good-soft: #e1f1e8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 1.0625rem/1.55 Figtree, system-ui, sans-serif; }
+  :focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+  .banner { background: var(--ink); color: #dfe7e2; font-size: 0.8125rem; text-align: center; padding: 0.45rem 1rem; }
+  main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: clamp(1.9rem, 6vw, 2.6rem); letter-spacing: -0.03em; line-height: 1.08; margin: 0 0 0.7rem; }
+  .lede { color: var(--muted); margin: 0 0 1.8rem; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 1.4rem; margin-bottom: 1rem; }
+  label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 30rem) { .row { grid-template-columns: 1fr; } }
+  select { width: 100%; font: inherit; border: 1.5px solid var(--line); border-radius: 8px; padding: 0.55rem 0.65rem; background: #fff; }
+  .seg { display: flex; gap: 0.5rem; }
+  .seg button { flex: 1; font: inherit; border: 1.5px solid var(--line); background: #fff; border-radius: 8px; padding: 0.55rem; cursor: pointer; }
+  .seg button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .btn { width: 100%; background: var(--a); color: #fff; border: 0; border-radius: 9px; padding: 0.85rem; font: 700 1.0625rem Figtree, sans-serif; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 1rem; }
+  tr.total td { border-bottom: 0; font-weight: 800; font-size: 1.15rem; }
+  .visit { display: flex; gap: 0.8rem; align-items: center; background: var(--good-soft); color: var(--good); border-radius: 9px; padding: 0.75rem 0.95rem; margin: 1rem 0; font-weight: 600; }
+  .visit b { font-size: 1.6rem; }
+  .muted { color: var(--muted); font-size: 0.9375rem; }
+  #done { display: none; }
+</style>
+</head>
+<body>
+<div class="banner">Prototype for a job application, with invented figures. Not affiliated with Parsley Health; no sign-up happens here.</div>
+<main>
+  <h1>Know your cost before you join.</h1>
+  <p class="lede">Your whole first year, what's included and what isn't, and how soon you can be seen. No surprises after you sign up.</p>
+  <div class="card">
+    <div class="row">
+      <div><label for="product">What are you looking for?</label><select id="product"><option>Complete Care</option><option>Longevity Labs</option><option>BYO Labs Review</option></select></div>
+      <div><label for="state">Your state</label><select id="state"><option>NY</option><option>CA</option><option>TX</option><option>FL</option><option>WA</option><option>OR</option><option>IL</option><option>MA</option></select></div>
+    </div>
+    <label id="ins-label">Do you have health insurance?</label>
+    <div class="seg" role="group" aria-labelledby="ins-label"><button type="button" data-ins="true" aria-pressed="true">Yes</button><button type="button" data-ins="false" aria-pressed="false">No, or I'll pay myself</button></div>
+  </div>
+  <div class="card" id="result" aria-live="polite"></div>
+  <button class="btn" id="checkout" type="button">Continue to checkout</button>
+  <p class="muted" id="done">This is where checkout would open. The prototype records <code>checkout_started</code> with <code>from_estimate: true</code> and stops here.</p>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const money = (v) => "$" + Math.round(v).toLocaleString("en-US");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let insured = true, last = null;
+const track = (event, props = {}) => { try { window.posthog?.capture(event, { ...props, "$feature/know-your-cost": "test" }); } catch {} };
+
+async function render() {
+  const product = $("#product").value, state = $("#state").value;
+  const q = await fetch(`/api/quote?product=${encodeURIComponent(product)}&state=${state}&insurance=${insured}`).then((r) => r.json());
+  last = q;
+  const range = (a, b) => (a === b ? money(a) : `${money(a)}–${money(b)}`);
+  $("#result").innerHTML = `<table>${q.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${range(l.low, l.high)}</td></tr>`).join("")}
+    <tr class="total"><td>Your first year, all in</td><td>${range(q.low, q.high)}</td></tr></table>
+    <div class="visit"><b>${q.first_visit_days}</b><span>days, typically, to your first visit in ${esc(q.state)}</span></div>
+    <p class="muted">${q.in_network ? "You're likely in-network." : "We'll show self-pay pricing. You can still use HSA or FSA funds."} ${q.notes.map(esc).join(" ")}</p>`;
+  track("cost_estimate_shown", { product_line: q.product, state: q.state, in_network: q.in_network, low: q.low, high: q.high, first_visit_days: q.first_visit_days });
+}
+track("pricing_viewed", { product_line: $("#product").value });
+track("cost_estimate_started", { product_line: $("#product").value });
+document.querySelectorAll("[data-ins]").forEach((b) => b.addEventListener("click", () => {
+  insured = b.dataset.ins === "true"; document.querySelectorAll("[data-ins]").forEach((x) => x.setAttribute("aria-pressed", x === b)); render();
+}));
+["#product", "#state"].forEach((s) => $(s).addEventListener("change", render));
+$("#checkout").addEventListener("click", () => {
+  track("checkout_started", { product_line: last?.product, plan: "annual", from_estimate: true }); $("#done").style.display = "block";
+});
+render();
+</script>
+</body>
+</html>
