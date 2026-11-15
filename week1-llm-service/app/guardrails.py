@@ -9,8 +9,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-MAX_CHARS = 8_000
+MAX_CHARS = 8_000          # the most text sent to the model
+MAX_INPUT_CHARS = 60_000   # longer than this is refused outright
 MIN_CHARS = 20
+# Lines worth keeping from the end of a long ad: pay and location usually sit near the bottom.
+_KEEP_LINE = re.compile(r"salary|pay range|compensation|base pay|per (year|annum|hour)|[$€£¥₹₩]\s?\d|\b(USD|EUR|GBP|CAD|AUD|INR|JPY)\b|"
+                        r"location|remote|hybrid|on-?site|in[- ]office", re.I)
 
 INJECTION_PATTERNS = [
     r"ignore (all |any )?(the )?(previous|prior|above) (instructions|prompts?)",
@@ -33,6 +37,23 @@ class GuardResult:
     text: str
     reason: str | None = None
     redactions: int = 0
+    trimmed: bool = False
+
+
+def trim_long(text: str) -> tuple[str, bool]:
+    """Real ads run past 8,000 characters with benefits and legal text. Keep the start of the ad, plus any later
+    line about pay or location, instead of refusing the ad (found by the real-ads benchmark: 5 of 12 were refused)."""
+    if len(text) <= MAX_CHARS:
+        return text, False
+    head = text[: MAX_CHARS - 2_000]
+    head = head[: head.rfind("\n")] if "\n" in head[-500:] else head
+    kept, room = [], MAX_CHARS - len(head) - 10
+    for line in text[len(head):].splitlines():
+        line = line.strip()
+        if line and _KEEP_LINE.search(line) and len(line) + 1 <= room:
+            kept.append(line)
+            room -= len(line) + 1
+    return head + "\n[...]\n" + "\n".join(kept), True
 
 
 # A range of amounts is a salary, not a phone: "90000-110000", "95.000 - 120.000", "95,000 - 120,000".
@@ -59,9 +80,10 @@ def check_input(text: str) -> GuardResult:
     stripped = text.strip()
     if len(stripped) < MIN_CHARS:
         return GuardResult(False, text, f"input too short (min {MIN_CHARS} characters)")
-    if len(stripped) > MAX_CHARS:
-        return GuardResult(False, text, f"input too long (max {MAX_CHARS} characters)")
+    if len(stripped) > MAX_INPUT_CHARS:
+        return GuardResult(False, text, f"input too long (max {MAX_INPUT_CHARS:,} characters)")
     if _INJECTION_RE.search(stripped):
         return GuardResult(False, text, "input looks like a prompt-injection attempt")
-    clean, n = redact_pii(stripped)
-    return GuardResult(True, clean, redactions=n)
+    short, trimmed = trim_long(stripped)
+    clean, n = redact_pii(short)
+    return GuardResult(True, clean, redactions=n, trimmed=trimmed)

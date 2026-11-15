@@ -44,8 +44,12 @@ def _written(amount: int, text: str) -> bool:
 
 
 def _locations(name: str) -> list[str] | str:
-    parts = [p.strip() for p in re.split(r";|\||/| or |\n", name or "") if p.strip()]
-    parts = [p for p in parts if not re.fullmatch(r"(remote|hybrid|anywhere)(\s*[-–(].*)?", p, re.I)]
+    if re.fullmatch(r"\s*(n/?a|tbd|various|multiple locations?)?\s*", name or "", re.I):
+        return "*"
+    parts = [p.strip() for p in re.split(r";|\||•|·| or |\n|/(?! )", name or "") if p.strip()]
+    parts = [p for p in parts if not re.fullmatch(r"(remote|hybrid|anywhere|n/?a|various|multiple)(\s*[-–(].*)?", p, re.I)]
+    # "US - Remote" -> "US"
+    parts = [re.sub(r"\s*[-–]\s*(remote|hybrid).*$", "", p, flags=re.I).strip() or p for p in parts]
     # "San Francisco, CA" -> also accept "San Francisco"
     out = []
     for p in parts:
@@ -74,8 +78,15 @@ def expected_for(job: dict, text: str) -> dict:
     return exp
 
 
-def load(n: int = 12, per_board: int = 2, timeout: float = 20) -> list[dict]:
-    """[{url, board, text, expected}], spread across boards, preferring jobs that publish a salary."""
+def page_text(job: dict) -> str:
+    """What a person copies from the job page: the title, the location line, then the ad."""
+    loc = (job.get("location") or {}).get("name", "")
+    return "\n".join(x for x in [job.get("title", ""), f"Location: {loc}" if loc else "", "", text_of(job.get("content", ""))] if x is not None)
+
+
+def load(n: int = 12, per_board: int = 2, skip: int = 0, timeout: float = 20) -> list[dict]:
+    """[{url, board, text, expected}], spread across boards, preferring jobs that publish a salary.
+    skip: start further down each board's list, to get a fresh set of ads."""
     out: list[dict] = []
     with httpx.Client(timeout=timeout, headers={"User-Agent": "ai-engineering-bootcamp-benchmark"}) as c:
         for board in BOARDS:
@@ -88,9 +99,10 @@ def load(n: int = 12, per_board: int = 2, timeout: float = 20) -> list[dict]:
                 continue
             jobs = sorted(jobs, key=lambda j: j.get("id", 0))
             with_pay = [j for j in jobs if j.get("pay_input_ranges")]
-            picks = (with_pay or jobs)[: per_board]
+            pool = with_pay if len(with_pay) >= skip + per_board else jobs
+            picks = pool[skip: skip + per_board]
             for j in picks:
-                text = text_of(j.get("content", ""))
+                text = page_text(j)
                 if len(text) < 200:
                     continue
                 out.append({"url": j.get("absolute_url"), "board": board, "text": text, "expected": expected_for(j, text)})

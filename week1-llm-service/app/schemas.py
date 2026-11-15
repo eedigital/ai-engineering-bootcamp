@@ -36,6 +36,20 @@ class JobPosting(BaseModel):
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     skills: list[str] = Field(default_factory=list, max_length=25)
 
+    @field_validator("skills", mode="before")
+    @classmethod
+    def cap_skills(cls, v):
+        # Long real ads can name 40+ skills (found by the real-ads benchmark). Keep the first 25, don't reject.
+        if isinstance(v, list):
+            seen, out = set(), []
+            for s in v:
+                k = str(s).strip().lower()
+                if k and k not in seen:
+                    seen.add(k)
+                    out.append(s)
+            return out[:25]
+        return v
+
     @field_validator("skills")
     @classmethod
     def clean_skills(cls, v: list[str]) -> list[str]:
@@ -66,4 +80,5 @@ class ExtractResponse(BaseModel):
     latency_ms: float | None = None
     attempts: int = 0
     redactions: int = 0
-    salary_corrected: bool = False  # True when code fixed a misread salary using the numbers in the post
+    salary_corrected: bool = False
+    trimmed: bool = False  # True when a long ad was shortened to its start plus pay and location lines  # True when code fixed a misread salary using the numbers in the post

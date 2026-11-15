@@ -43,6 +43,16 @@ def _norm(v) -> str:
     return re.sub(r"[^a-z0-9#+]+", "", str(v).lower())
 
 
+_PLACES = {"us": "unitedstates", "usa": "unitedstates", "uk": "unitedkingdom", "uae": "unitedarabemirates", "nyc": "newyork"}
+
+
+def _place(v) -> str:
+    n = _norm(v)
+    for short, full in _PLACES.items():
+        n = re.sub(rf"^{short}(?=$|[a-z]*remote)", full, n)
+    return n
+
+
 def field_ok(field: str, got, want) -> bool | None:
     """True/False, or None when the field isn't scored for this post."""
     if want == "*":
@@ -60,7 +70,7 @@ def field_ok(field: str, got, want) -> bool | None:
             if got == w:
                 return True
         elif field in ("title", "company", "location"):
-            a, b = _norm(got), _norm(w)
+            a, b = (_place(got), _place(w)) if field == "location" else (_norm(got), _norm(w))
             if a and b and (a in b or b in a):
                 return True
         elif _norm(got) == _norm(w):
@@ -78,16 +88,17 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=16)
     ap.add_argument("--sleep", type=float, default=4.0)
     ap.add_argument("--out", help="also write the report to this Markdown file")
-    ap.add_argument("--set", choices=list(SETS) + ["real"], default="dev",
+    ap.add_argument("--set", choices=list(SETS) + ["real", "real2"], default="dev",
                     help="dev: posts used while fixing; heldout*: never-seen posts; real: live ads from public Greenhouse job boards")
     args = ap.parse_args()
 
     urls: list[str] = []
-    if args.set == "real":
+    if args.set in ("real", "real2"):
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from real_ads import load  # noqa: E402
-        ads = load(args.n if args.n > 0 else 12)
+        ads = load(args.n if args.n > 0 else 12, skip=2 if args.set == "real2" else 0)
+        args.sleep = max(args.sleep, 10)  # long ads use more of the free tier's per-minute token allowance
         posts, expected, urls = [a["text"] for a in ads], [a["expected"] for a in ads], [a["url"] for a in ads]
     else:
         posts_file, expected_file = SETS[args.set]
@@ -121,7 +132,7 @@ def main() -> None:
     providers = {p: sum(r["provider"] == p for r in ok) for p in sorted({r["provider"] for r in ok if r["provider"]})}
 
     lines = [f"Run {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC against {args.url}, {n} calls over {len(posts)} posts "
-             f"({ {'dev': 'dev set: the posts used while fixing', 'real': 'real ads from public Greenhouse job boards, scored against the employer data'}.get(args.set, 'held-out: never used to change the code')}).", "",
+             f"({ {'dev': 'dev set: the posts used while fixing', 'real': 'real ads from public Greenhouse job boards, scored against the employer data', 'real2': 'a fresh set of real ads, never used to change the code, scored against the employer data'}.get(args.set, 'held-out: never used to change the code')}).", "",
              "| Metric | Value |", "| --- | --- |",
              f"| Field accuracy | {acc:.0%} ({sum(m for _, m in scored)}/{len(scored)} fields) |",
              f"| Posts with every field right | {perfect}/{len(ok)} |",

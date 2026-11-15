@@ -78,3 +78,14 @@ def test_real_ads_without_a_written_salary_dont_score_salary():
     from real_ads import expected_for
     e = expected_for({"title": "Designer", "location": {"name": "Remote - US"}, "pay_input_ranges": []}, "No pay here.")
     assert e["salary_min"] == "*" and e["location"] == "*"
+
+
+
+def test_real_ad_locations_are_split_and_placeholders_ignored():
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from real_ads import _locations
+    assert _locations("N/A") == "*" and _locations("US - Remote") == ["US"]
+    assert "New York" in _locations("San Francisco, CA • New York, NY • United States")
+    assert bench.field_ok("location", "US - Remote Eligible", ["United States"])
+    assert not bench.field_ok("location", "Uruguay", ["US"])

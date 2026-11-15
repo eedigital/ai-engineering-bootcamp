@@ -83,4 +83,4 @@ def extract_endpoint(req: ExtractRequest, request: Request):
             content=ExtractResponse(ok=False, error=msg, attempts=e.attempts).model_dump(),
         )
 
-    return ExtractResponse(ok=True, data=posting, redactions=guard.redactions, **meta)
+    return ExtractResponse(ok=True, data=posting, redactions=guard.redactions, trimmed=guard.trimmed, **meta)

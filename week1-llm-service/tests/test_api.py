@@ -96,3 +96,10 @@ def test_rate_limit(client, fake_llm, monkeypatch):
     fake_llm(GOOD_JSON, GOOD_JSON, GOOD_JSON)
     codes = [client.post("/extract", json={"text": POST}).status_code for _ in range(3)]
     assert codes == [200, 200, 429]
+
+
+def test_more_than_25_skills_are_kept_not_rejected():
+    # Found by the real-ads benchmark: a long ad produced 41 skills and the answer was rejected
+    from app.schemas import JobPosting
+    p = JobPosting(title="Data Engineer", skills=[f"skill {i}" for i in range(41)] + ["Skill 0"])
+    assert len(p.skills) == 25 and p.skills[0] == "skill 0"

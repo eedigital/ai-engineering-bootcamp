@@ -1,6 +1,6 @@
 import pytest
 
-from app.guardrails import MAX_CHARS, check_input, redact_pii
+from app.guardrails import MAX_CHARS, MAX_INPUT_CHARS, check_input, redact_pii
 
 LONG_ENOUGH = "We are hiring a data engineer for our team. "
 
@@ -16,7 +16,7 @@ def test_too_short_is_blocked(text):
 
 
 def test_too_long_is_blocked():
-    r = check_input("a" * (MAX_CHARS + 1))
+    r = check_input("a" * (MAX_INPUT_CHARS + 1))
     assert not r.ok and "too long" in r.reason
 
 
@@ -58,3 +58,17 @@ def test_salary_ranges_with_thousands_separators_are_kept(salary):
 def test_phone_numbers_with_dashes_are_still_redacted():
     text, n = redact_pii("Call 020-7946-0958 or 415-555-0199")
     assert "[PHONE]" in text and "7946" not in text and "555" not in text
+
+
+
+def test_long_real_ads_are_trimmed_not_refused():
+    # Found by the real-ads benchmark: 5 of 12 real ads were over 8,000 characters and refused
+    body = "Senior Data Engineer at Initech.\n" + "We offer great benefits and a lovely office.\n" * 400
+    ad = body + "Location: Austin, TX\nThe base salary range is $150,000 - $180,000 per year.\nEqual opportunity employer."
+    r = check_input(ad)
+    assert r.ok and r.trimmed and len(r.text) <= MAX_CHARS
+    assert r.text.startswith("Senior Data Engineer") and "$150,000 - $180,000" in r.text and "Austin" in r.text
+
+
+def test_short_ads_are_not_trimmed():
+    assert not check_input("Junior Data Analyst, remote, SQL and Excel, €40k.").trimmed
