@@ -31,15 +31,15 @@ SCOPES = "read,write,comments:create,app:mentionable,app:assignable"
 
 
 def client_id() -> str:
-    return os.getenv("LINEAR_CLIENT_ID", "")
+    return os.getenv("LINEAR_CLIENT_ID", "").strip()
 
 
 def client_secret() -> str:
-    return os.getenv("LINEAR_CLIENT_SECRET", "")
+    return os.getenv("LINEAR_CLIENT_SECRET", "").strip()
 
 
 def webhook_secret() -> str:
-    return os.getenv("LINEAR_WEBHOOK_SECRET", "")
+    return os.getenv("LINEAR_WEBHOOK_SECRET", "").strip()
 
 
 def configured() -> dict:
