@@ -54,3 +54,27 @@ def test_score_a_whole_post():
                          "skills": ["Python", "PostgreSQL", "AWS"]},
                         json.loads((ROOT / "samples" / "expected.jsonl").read_text().splitlines()[0]))
     assert all(marks.values())
+
+
+def test_real_ad_answers_come_from_the_employer_data():
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from real_ads import expected_for, text_of
+    text = text_of("&lt;p&gt;Build things.&lt;/p&gt;&lt;p&gt;The base salary range is $150,000 - $180,000.&lt;/p&gt;")
+    assert "&lt;" not in text and "$150,000" in text
+    job = {"title": "Senior Engineer, Payments", "location": {"name": "San Francisco, CA; New York, NY"},
+           "pay_input_ranges": [{"min_cents": 15000000, "max_cents": 18000000, "currency_type": "USD"},
+                                {"min_cents": 99900000, "max_cents": 99990000, "currency_type": "USD"}]}
+    e = expected_for(job, text)
+    assert e["title"] == ["Senior Engineer, Payments", "Senior Engineer"]
+    assert "San Francisco" in e["location"] and "New York, NY" in e["location"]
+    assert e["salary_min"] == [150000] and e["salary_max"] == [180000]   # the range not written in the ad isn't scored
+    assert e["seniority"] == "*" and e["skills"] == "*"
+
+
+def test_real_ads_without_a_written_salary_dont_score_salary():
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from real_ads import expected_for
+    e = expected_for({"title": "Designer", "location": {"name": "Remote - US"}, "pay_input_ranges": []}, "No pay here.")
+    assert e["salary_min"] == "*" and e["location"] == "*"
