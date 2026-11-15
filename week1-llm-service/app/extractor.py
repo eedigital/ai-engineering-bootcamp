@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from llm import LLMError, complete, parse_json
 
+from .grounding import fix_salary
 from .schemas import JobPosting
 
 SYSTEM_PROMPT = f"""You extract structured data from job posts.
@@ -46,10 +47,15 @@ def extract(text: str, max_repairs: int = 1) -> tuple[JobPosting, dict]:
         provider = result.provider
         try:
             posting = JobPosting.model_validate(parse_json(result.text))
+            # Check the salary against the numbers written in the post; fix a misread end of the range.
+            lo, hi, corrected = fix_salary(posting.salary_min, posting.salary_max, text)
+            if corrected:
+                posting = posting.model_copy(update={"salary_min": lo, "salary_max": hi})
             meta = {
                 "provider": provider,
                 "attempts": attempt,
                 "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                "salary_corrected": corrected,
             }
             return posting, meta
         except (json.JSONDecodeError, ValidationError) as e:

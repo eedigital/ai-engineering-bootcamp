@@ -31,6 +31,8 @@ SETS = {
     "dev": (ROOT / "samples" / "job_posts.jsonl", ROOT / "samples" / "expected.jsonl"),
     # 15 posts kept aside: never used to change the code, so their score is the honest one
     "heldout": (ROOT / "samples" / "heldout_posts.jsonl", ROOT / "samples" / "heldout_expected.jsonl"),
+    # 10 more, written after the long-number fix to check it on numbers it never saw
+    "heldout2": (ROOT / "samples" / "heldout2_posts.jsonl", ROOT / "samples" / "heldout2_expected.jsonl"),
 }
 FIELDS = ["title", "company", "location", "work_mode", "seniority", "salary_min", "salary_max", "currency", "skills"]
 
@@ -108,7 +110,7 @@ def main() -> None:
     providers = {p: sum(r["provider"] == p for r in ok) for p in sorted({r["provider"] for r in ok if r["provider"]})}
 
     lines = [f"Run {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC against {args.url}, {n} calls over {len(posts)} posts "
-             f"({'held-out: never used to change the code' if args.set == 'heldout' else 'dev set: the posts used while fixing'}).", "",
+             f"({'dev set: the posts used while fixing' if args.set == 'dev' else 'held-out: never used to change the code'}).", "",
              "| Metric | Value |", "| --- | --- |",
              f"| Field accuracy | {acc:.0%} ({sum(m for _, m in scored)}/{len(scored)} fields) |",
              f"| Posts with every field right | {perfect}/{len(ok)} |",

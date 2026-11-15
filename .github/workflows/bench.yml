@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       set:
-        description: "dev (the 8 posts used while fixing) or heldout (15 never-seen posts)"
+        description: "dev (8 posts used while fixing), heldout (15) or heldout2 (10)"
         default: "heldout"
       n:
         description: "How many calls (0 = each post once)"
@@ -38,11 +38,13 @@ jobs:
           done
       - name: Run the benchmark
         run: |
-          # On push, the set is read from bench-request.txt ("set: heldout"); default heldout
-          SET="${{ github.event.inputs.set }}"
-          [ -z "$SET" ] && SET=$(grep -oP '^set:\s*\K\w+' week1-llm-service/bench-request.txt || echo heldout)
-          OUT=week1-llm-service/BENCHMARK.md; [ "$SET" = "heldout" ] && OUT=week1-llm-service/BENCHMARK-heldout.md
-          python week1-llm-service/scripts/bench.py --url https://week1-job-extractor.onrender.com --set "$SET" --n "${{ github.event.inputs.n || '0' }}" --out "$OUT"
+          # Sets come from the form, or on push from bench-request.txt ("set: heldout heldout2"); default heldout
+          SETS="${{ github.event.inputs.set }}"
+          [ -z "$SETS" ] && SETS=$(grep -oP '^set:\s*\K.*' week1-llm-service/bench-request.txt || echo heldout)
+          for SET in $SETS; do
+            OUT=week1-llm-service/BENCHMARK.md; [ "$SET" != "dev" ] && OUT=week1-llm-service/BENCHMARK-$SET.md
+            python week1-llm-service/scripts/bench.py --url https://week1-job-extractor.onrender.com --set "$SET" --n "${{ github.event.inputs.n || '0' }}" --out "$OUT"
+          done
       - name: Save the results
         run: |
           git config user.name "benchmark-bot"

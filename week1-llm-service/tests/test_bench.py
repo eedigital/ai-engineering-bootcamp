@@ -17,9 +17,10 @@ def test_every_sample_has_an_expected_answer_for_every_field():
         assert len(posts) == len(expected) and all(set(bench.FIELDS) <= set(e) for e in expected)
 
 
-def test_held_out_posts_are_not_in_the_dev_set():
-    (dev, _), (held, _) = bench.SETS["dev"], bench.SETS["heldout"]
-    assert not set(dev.read_text().splitlines()) & set(held.read_text().splitlines())
+def test_the_sets_share_no_posts():
+    files = [p for p, _ in bench.SETS.values()]
+    lines = [set(f.read_text().splitlines()) for f in files]
+    assert all(not (a & b) for i, a in enumerate(lines) for b in lines[i + 1:])
 
 
 def test_text_fields_match_loosely():

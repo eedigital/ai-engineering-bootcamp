@@ -66,3 +66,4 @@ class ExtractResponse(BaseModel):
     latency_ms: float | None = None
     attempts: int = 0
     redactions: int = 0
+    salary_corrected: bool = False  # True when code fixed a misread salary using the numbers in the post
