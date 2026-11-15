@@ -71,6 +71,22 @@ The benchmark sends the 8 sample posts (twice each) to the live service and scor
 - **A gap in the prompt.** With no rule for skills, the model only listed skills marked "required", so "Java or C#" came back empty. The prompt now asks for every technology the post names.
 - **An unmapped title.** "Staff Platform Engineer" came back as unknown seniority. Staff, Principal and Head of now count as lead.
 
-**What this doesn't prove:** 8 posts is a small set, and the fixes were made by looking at these same posts, so 100% here overstates real accuracy. The next step is a held-out set of new posts the fixes never saw.
+**Why that 100% isn't the real score:** the fixes were made by looking at these same 8 posts, so they fit them. The honest test is posts the fixes never saw.
 
-Full results: [benchmarks/1-baseline.md](benchmarks/1-baseline.md), [benchmarks/2-after-fixes.md](benchmarks/2-after-fixes.md).
+### The held-out test: 15 new posts
+
+15 different posts (`samples/heldout_*.jsonl`), harder on purpose: Spanish, yen, Indian "LPA" salaries, day rates, hourly pay, "up to" salaries, and an ad with almost no detail. They're scored, but never used to change the code.
+
+| | Held-out (never seen) |
+| --- | --- |
+| Field accuracy | **99% (121/122)** |
+| Posts with every field right | 14/15 |
+| Success rate | 100% |
+| Needed a repair re-prompt | 7% (1 call) |
+| Median latency | 522 ms |
+
+The one miss: "¥8,000,000–¥11,000,000" came back with a maximum of 10,000,000, a real mistake reading a long number. It's left unfixed on purpose: fixing it would turn these posts into another set the code is tuned to. A fix would need a new held-out set to prove it.
+
+**Caveats:** I wrote the new posts and their answers myself, and some fields accept more than one answer where the post is genuinely ambiguous. Real job ads from job boards would be a tougher test.
+
+Full results: [benchmarks/1-baseline.md](benchmarks/1-baseline.md), [benchmarks/2-after-fixes.md](benchmarks/2-after-fixes.md), [benchmarks/3-heldout.md](benchmarks/3-heldout.md).
