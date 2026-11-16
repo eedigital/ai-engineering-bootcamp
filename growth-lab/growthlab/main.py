@@ -49,6 +49,37 @@ def home():
     return FileResponse(STATIC / "index.html", media_type="text/html")
 
 
+_HOP = {"host", "content-length", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade",
+        "proxy-authorization", "proxy-authenticate", "cookie", "accept-encoding"}
+_MAX_BODY = 2_000_000
+
+
+@app.api_route(posthog.PROXY_PATH + "/{path:path}", methods=["GET", "POST", "OPTIONS"], include_in_schema=False)
+async def ingest(path: str, request: Request):
+    """First-party proxy to PostHog: same-origin, so blockers don't drop events. Forwards only to PostHog's hosts."""
+    import httpx
+    from fastapi.responses import Response
+
+    if request.method == "OPTIONS":
+        return Response(status_code=204)
+    body = await request.body()
+    if len(body) > _MAX_BODY:
+        return Response(status_code=413)
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in _HOP}
+    client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+    if client_ip:
+        headers["x-forwarded-for"] = client_ip  # keeps PostHog's location data per visitor
+    url = posthog.upstream(path)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.request(request.method, url, params=request.query_params, content=body, headers=headers)
+    except httpx.HTTPError as e:
+        log.warning("posthog_proxy_failed %s", type(e).__name__)
+        return Response(status_code=502)
+    keep = {k: v for k, v in r.headers.items() if k.lower() in {"content-type", "cache-control", "etag", "last-modified"}}
+    return Response(content=r.content, status_code=r.status_code, headers=keep)
+
+
 @app.get("/know-your-cost", include_in_schema=False)
 def know_your_cost():
     html = (STATIC / "know-your-cost.html").read_text().replace("<!--POSTHOG-->", posthog.snippet())

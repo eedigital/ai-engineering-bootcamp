@@ -33,13 +33,36 @@ GROUP BY variant""",
 }
 
 
+PROXY_PATH = "/ingest"
+
+
+def ingest_host() -> str:
+    return os.getenv("POSTHOG_HOST", "https://us.i.posthog.com").rstrip("/")
+
+
+def assets_host() -> str:
+    return ingest_host().replace(".i.posthog.com", "-assets.i.posthog.com")
+
+
+def ui_host() -> str:
+    return "https://eu.posthog.com" if ingest_host().startswith("https://eu.") else "https://us.posthog.com"
+
+
+def upstream(path: str) -> str:
+    """Where /ingest/<path> goes: the SDK and its config come from the assets host, events from the ingest host."""
+    path = path.lstrip("/")
+    base = assets_host() if path.startswith(("static/", "array/")) else ingest_host()
+    return f"{base}/{path}"
+
+
 def snippet() -> str:
     """posthog-js for the prospect page, only when a project key is configured. Autocapture off: only the planned events."""
     key = os.getenv("POSTHOG_KEY", "")
     if not key:
         return ""
-    host = os.getenv("POSTHOG_HOST", "https://us.i.posthog.com")
-    cfg = {"api_host": host, "autocapture": False, "capture_pageview": True, "person_profiles": "identified_only"}
+    # Events go to this app's own /ingest path, which forwards them to PostHog, so ad blockers can't drop them.
+    cfg = {"api_host": PROXY_PATH, "ui_host": ui_host(), "autocapture": False, "capture_pageview": True,
+           "person_profiles": "identified_only"}
     return ("<script>!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split('.');"
             "2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}"
             "(p=t.createElement('script')).type='text/javascript',p.crossOrigin='anonymous',p.async=!0,p.src=s.api_host.replace('.i.posthog.com','-assets.i.posthog.com')+'/static/array.js',"

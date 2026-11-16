@@ -179,7 +179,7 @@ def test_posthog_snippet_only_with_a_key(monkeypatch):
     assert posthog.snippet() == ""
     monkeypatch.setenv("POSTHOG_KEY", "phc_test")
     s = posthog.snippet()
-    assert '"phc_test"' in s and '"autocapture": false' in s
+    assert '"phc_test"' in s and '"autocapture": false' in s and '"api_host": "/ingest"' in s
 
 
 def test_linear_without_a_key_returns_copyable_text():
@@ -201,3 +201,27 @@ def test_pages_and_api(client):
     assert client.get("/api/quote?product=Nope").status_code == 422
     assert client.get("/api/exec?ai=false").json()["source"] == "template"
     assert client.post("/api/linear/T1").json()["created"] is False and client.post("/api/linear/T99").status_code == 404
+
+
+def test_proxy_only_forwards_to_posthog():
+    assert posthog.upstream("static/array.js") == "https://us-assets.i.posthog.com/static/array.js"
+    assert posthog.upstream("array/phc_x/config.js") == "https://us-assets.i.posthog.com/array/phc_x/config.js"
+    assert posthog.upstream("e/") == "https://us.i.posthog.com/e/"
+    assert posthog.upstream("//evil.com/x").startswith("https://us.i.posthog.com/")
+
+
+def test_proxy_forwards_events(client, monkeypatch):
+    import httpx
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def request(self, method, url, params=None, content=None, headers=None):
+            seen.update(method=method, url=url, body=content)
+            return httpx.Response(200, json={"status": 1})
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    r = client.post("/ingest/e/?ip=1", content=b'{"event":"pricing_viewed"}', headers={"content-type": "application/json"})
+    assert r.status_code == 200 and seen["url"] == "https://us.i.posthog.com/e/" and b"pricing_viewed" in seen["body"]
