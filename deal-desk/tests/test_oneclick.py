@@ -83,6 +83,45 @@ def test_reader_route(text, expected):
     assert (r["origin_country"], r["destination_country"]) == expected
 
 
+@pytest.mark.parametrize("text,qty,package", [
+    ("2 x 20ft containers of green coffee beans (Colombia Supremo, 60kg bags), 38,400 kg total at USD 4.10/kg", (38400, "kg"), (60, "bags")),
+    ("We need 38,400 kg of green coffee in 60 kg bags at USD 4.10 per kg", (38400, "kg"), (60, "bags")),
+    ("640 bags of 60 kg each, green coffee", (38400, "kg"), (60, "bags")),
+    ("640 x 60kg jute bags of coffee", (38400, "kg"), (60, "bags")),
+    ("Please quote 640 bags of green coffee, 60 kg per bag", (38400, "kg"), (60, "bags")),
+    ("USD 4.10 per kg, 60 kg bags, 640 bags", (38400, "kg"), (60, "bags")),
+    ("Colombia 60 kg bags, 320 bags", (19200, "kg"), (60, "bags")),
+    ("Total quantity: 38.4 MT green coffee", (38400, "kg"), (None, None)),
+    ("38,4 t de café verde", (38400, "kg"), (None, None)),
+    ("28 toneladas de café verde para Hamburgo", (28000, "kg"), (None, None)),
+    ("400 sacos de 70 kg de café verde", (28000, "kg"), (70, "sacks")),
+    ("two containers, 19,200 kg per container, of cocoa beans", (38400, "kg"), (None, None)),
+    ("Shipment from Colombia: 2 FCL x 19.200 kg", (38400, "kg"), (None, None)),
+    ("2 x 19,200 kg of cocoa beans", (38400, "kg"), (None, None)),
+    ("20 tonnes of avocados at EUR 2,10/kg", (20000, "kg"), (None, None)),
+    ("1,200 cartons of mangoes, 4 kg cartons, at $3 per kg", (4800, "kg"), (4, "cartons")),
+    ("1.200 Kartons, 4 kg each", (4800, "kg"), (4, "cartons")),
+    ("We sell 25 kg sacks of quinoa, 800 sacks for Rotterdam", (20000, "kg"), (25, "sacks")),
+    ("Net weight 38,400 kg, gross weight 38,950 kg", (38400, "kg"), (None, None)),
+    ("Gross weight 19,500 kg", (19500, "kg"), (None, None)),
+    ("10,000 lbs of pecans", (10000, "lb"), (None, None)),
+    ("Order: 500 cartons of t-shirts", (500, "cartons"), (None, None)),
+])
+def test_reader_quantities_however_they_are_written(text, qty, package):
+    """Package sizes, prices per kg and weights per container are never taken as the quantity."""
+    q, unit = extract.quantity(text)
+    assert (round(q, 3), unit) == qty
+    assert extract.package_size(text) == package
+
+
+def test_start_uses_the_buyers_quantity_and_bag_size():
+    r = oneclick.start("Hello, we would like to order 2 x 20ft containers of green coffee beans (Colombia Supremo, 60kg bags), "
+                       "38,400 kg total at USD 4.10/kg, delivered CIF Hamburg. Payment 60 days after arrival. Best, Hamburg Kaffee GmbH")
+    f = r["fields"]
+    assert (f["quantity"]["value"], f["unit_price"]["value"], f["value"]["value"]) == (38400, 4.1, 157440)
+    assert (f["package_kg"]["value"], f["package_kg"]["source"], f["package_type"]["value"]) == (60, "message", "bags")
+
+
 def test_reader_money_formats():
     assert extract.money("total 210.000 EUR")[:2] == (210000, "EUR")
     assert extract.money("USD 1.5 million")[:2] == (1_500_000, "USD")

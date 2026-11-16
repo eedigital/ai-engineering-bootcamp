@@ -18,7 +18,7 @@ The home page works like accounting software for exporting: the rules are public
 
 **The paywall.** The reading, the checks, the advice and the list of documents to prepare are free. The quotation, proforma invoice and packing list unlock with a **deal pass**: one product to one market (coffee to Germany, say), for 90 days, with unlimited edits. A bank, chamber or export agency can pay instead by giving its businesses a code, which is One Click's sponsored "Export Ready" route. Documents are locked on the server, not just blurred: without a valid pass, `/api/pack` returns no documents. A pass is a signed token (`dealdesk/paywall.py`), so no database is needed. The checkout is a demo and charges nothing; in production a payment provider such as Stripe would issue the pass after payment. Settings: `PAYWALL` (on/off), `DEAL_PASS_PRICE`, `DEAL_PASS_CURRENCY`, `DEAL_PASS_DAYS`, `SPONSOR_CODES` (`CODE:Sponsor name,...`; demo codes `CHAMBER-DEMO` and `BANK-DEMO`), `PAYWALL_SECRET`.
 
-It works even when the AI is busy: a plain-code reader (`dealdesk/extract.py`) fills in most of the deal, and the AI only adds what needs judgement. Company details and saved deals stay in the browser. The original step-by-step planner is at `/wizard`.
+It works even when the AI is busy: a plain-code reader (`dealdesk/extract.py`) fills in most of the deal, and the AI only adds what needs judgement. The reader tells the quantity apart from package sizes ("60 kg bags", "sacos de 70 kg"), prices per kg and weights per container, and handles totals, "640 x 60 kg", tonnes, European decimals and gross versus net weight. Company details and saved deals stay in the browser. The original step-by-step planner is at `/wizard`.
 
 ## What the advice covers
 
@@ -52,7 +52,7 @@ The embed only exchanges messages with the page that embedded it. For production
 
 ## Tests
 
-`pytest -q` from the repo root. 40 tests for the planner and 48 for one click and the paywall (product lookup, the plain-code reader, what's asked and assumed, one set of figures across documents, HS search across everyday products, each check, and that documents stay locked without a genuine, unexpired pass for that product and market). Planner tests cover every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
+`pytest -q` from the repo root. 40 tests for the planner and 115 for one click and the paywall (product lookup, the plain-code reader, quantities however the buyer writes them, what's asked and assumed, one set of figures across documents, HS search across everyday products, each check, and that documents stay locked without a genuine, unexpired pass for that product and market). Planner tests cover every Incoterms® choice, that sea-only rules are never recommended for containers or air, payment choices and warnings, documents by deal, placeholder-only terms, the AI reader's quote check and prompt-injection wrapping, the tools endpoint, the embed script and CORS.
 
 ## Run locally
 
