@@ -209,6 +209,11 @@ def start(text: str, profile: dict | None = None, ai_reading: dict | None = None
         if size:
             fields["package_kg"] = _f(size, "assumed", f"A common size for this product. Change it if yours differ.")
             fields["package_type"] = _f(kind, "assumed")
+    if plain.get("package_kg"):
+        # the buyer said how it's packed: that beats our usual size
+        fields["package_kg"] = _f(plain["package_kg"], "message")
+        if plain.get("package_type"):
+            fields["package_type"] = _f(plain["package_type"], "message")
     if (fields.get("mode") or {}).get("value") == "sea_container" and not fields.get("containers") and qty and unit == "kg":
         fields["containers"] = _f(max(1, math.ceil(qty / 21_000)), "worked_out", "Estimated at about 21 tonnes per 20ft container.")
 

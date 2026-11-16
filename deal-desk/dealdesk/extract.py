@@ -53,9 +53,13 @@ COMPANY = r"(?:GmbH|AG|KG|Ltd\.?|Limited|LLC|Inc\.?|Corp\.?|B\.?V\.?|N\.?V\.?|S\
 
 
 def _num(s: str) -> float | None:
-    """'210,000' -> 210000; '210.000' (European) -> 210000; '1.5' -> 1.5."""
-    s = s.strip()
-    if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
+    """'210,000' -> 210000; '210.000' (European) -> 210000; '1.5' -> 1.5; '38,4' and '1.234,5' (European decimals) -> 38.4, 1234.5."""
+    s = s.strip().rstrip(".,")
+    if re.fullmatch(r"\d{1,3}(\.\d{3})+,\d+", s):  # 1.234,5
+        s = s.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d+,\d{1,2}", s):  # 38,4 or 4,10: a decimal comma, not thousands
+        s = s.replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
         s = s.replace(".", "")
     s = s.replace(",", "")
     try:
@@ -98,17 +102,132 @@ def _unit_name(u: str | None) -> str | None:
     return {"kilo": "kg", "ton": "tonne", "mt": "tonne", "pc": "piece"}.get(u, u)
 
 
+PACKAGES = (r"bags?|sacks?|boxes|box|cartons?|cases?|bales?|drums?|pallets?|bottles?|jars?|cans?|tins?|crates?|"
+            r"totes?|bins?|units?|pieces?|pcs|pc|packs?|packets?|pouches|pouch|containers?|"
+            r"sacos?|bolsas?|cajas?|caixas?|cartones|cart[oõ]n|kartons?|s[aä]cke|sack")
+_PACKAGE_PLURAL = {"box": "boxes", "pouch": "pouches", "pc": "pieces", "pcs": "pieces", "piece": "pieces",
+                   "saco": "sacks", "sacos": "sacks", "sack": "sacks", "säcke": "sacks", "sacke": "sacks", "bolsa": "bags", "bolsas": "bags",
+                   "caja": "boxes", "cajas": "boxes", "caixa": "boxes", "caixas": "boxes", "carton": "cartons", "cartón": "cartons",
+                   "cartones": "cartons", "kartons": "cartons", "karton": "cartons"}
+WEIGHT_UNIT = (r"kilograms?|kilogrammes?|kilogramos?|quilos?|kilos?|kgs?|metric\s+tonnes?|metric\s+tons?|toneladas?|tonnes?|tons?|"
+               r"mt|t|lbs?")
+_NUMBER = r"\d[\d,\.]*\d|\d"
+
+
+def _plural(word: str) -> str:
+    w = word.lower()
+    if w in _PACKAGE_PLURAL:
+        return _PACKAGE_PLURAL[w]
+    return w if w.endswith("s") else w + "s"
+
+
+def _to_kg(value: float, unit: str) -> tuple[float, str]:
+    u = re.sub(r"\s+", " ", unit.lower())
+    if u in ("lb", "lbs"):
+        return value, "lb"
+    if u.startswith(("ton", "metric", "mt")) or u == "t":  # includes toneladas
+        return value * 1000, "kg"
+    return value, "kg"
+
+
+def _weights(text: str) -> list[dict]:
+    """Every weight in the text, sorted into what it means:
+    'total' (38,400 kg in total), 'package' (60 kg bags, bags of 60 kg, 60 kg each),
+    'container' (19,200 kg per container), 'times' (640 x 60 kg) or 'plain'."""
+    out = []
+    pattern = rf"(?:({_NUMBER})\s*[x×]\s*)?({_NUMBER})\s*-?\s*({WEIGHT_UNIT})(?![\w])"
+    for m in re.finditer(pattern, text, re.I):
+        value = _num(m.group(2))
+        if not value:
+            continue
+        kg, unit = _to_kg(value, m.group(3))
+        before = text[max(0, m.start() - 40):m.start()].lower()
+        after = text[m.end():m.end() + 40].lower()
+        # a price per weight ("USD 4.10 per kg", "$4/kg") is not a quantity
+        if re.search(r"(\bper|/|\ba)\s*$", before) or re.search(r"[$€£¥]\s*$|\b(usd|eur|gbp|us\$)\s*$", before):
+            continue
+        kind = "plain"
+        package = None
+        pk = re.match(rf"\s*(?:[a-z\-]+\s+){{0,2}}?({PACKAGES})\b", after)
+        if re.match(r"\s*(?:/|per|each|a)\s*(?:20|40)?\s*(?:ft|')?\s*(container|ctr|fcl)\b|\s*in each (container|fcl)\b", after) \
+                or re.search(r"each (container|fcl)\s*(holds|of|with|is|takes|:)?\s*$", before) \
+                or re.search(r"(fcls?|containers?|ctrs?)\s*[x×]\s*$", before):
+            kind = "container"
+        elif re.match(rf"\s*(?:each|apiece|/\s*(?:{PACKAGES})|per\s+(?:{PACKAGES}))\b", after) or (pk and not re.match(r"\s*(?:of|in|de|en|em)\b", after) and not pk.group(1).lower().startswith("container")):
+            kind = "package"
+            if pk:
+                package = _plural(pk.group(1))
+            else:
+                pp = re.search(rf"(?:/|per)\s*({PACKAGES})", after)
+                package = _plural(pp.group(1)) if pp else None
+        elif (bk := re.search(rf"({PACKAGES})\s+(?:of|de|com|weighing|at)\s*$|each\s+({PACKAGES})?\s*(?:is|of|weighs|holds|:)?\s*$", before)):
+            kind = "package"
+            word = bk.group(1) or bk.group(2)
+            package = _plural(word) if word else None
+        elif re.search(r"gross\s+(weight|wt)\W{0,3}(of|:|is|=)?\s*$", before):
+            kind = "gross"
+        elif re.search(r"(total|totalling|totaling|in all|altogether|overall|net weight|gross weight|quantity|qty)\W{0,3}(of|:|is|=)?\s*(about|around|approx\.?|approximately)?\s*$", before) \
+                or re.match(r"\s*(in total|total|altogether|in all|overall|net)\b", after):
+            kind = "total"
+        if kind == "package" and not package:
+            # "640 bags of 60 kg each": the package word comes earlier
+            near = re.findall(rf"\b({PACKAGES})\b", text[max(0, m.start() - 60):m.start()], re.I)
+            near = [w for w in near if not w.lower().startswith("container")]
+            package = _plural(near[-1]) if near else None
+        if m.group(1) and (n := _num(m.group(1))):
+            if kind == "package":
+                out.append({"kind": "times", "kg": n * kg, "unit": unit, "count": n, "size": kg, "package": package})
+                continue
+            if kind != "container":
+                kind, kg = "times", n * kg
+        out.append({"kind": kind, "kg": kg, "unit": unit, "package": package})
+    return out
+
+
+def _package_counts(text: str) -> list[tuple[float, str]]:
+    """'640 bags', '1,200 cartons': counts of packages (not '60 kg bags', which is a size)."""
+    out = []
+    for m in re.finditer(rf"({_NUMBER})\s*(?:[a-z\-]+\s+)?({PACKAGES})\b", text, re.I):
+        if m.group(2).lower().startswith("container"):
+            continue
+        if re.match(rf"\s*(?:{WEIGHT_UNIT})\b", text[m.end(1):m.end(1) + 12], re.I):
+            continue
+        before = text[max(0, m.start() - 12):m.start()].lower()
+        if re.search(r"(per|/|x|×)\s*$", before) or re.search(r"\b(20|40)\s*$", text[m.start():m.end(1)]):
+            continue
+        if (v := _num(m.group(1))):
+            out.append((v, _plural(m.group(2))))
+    return out
+
+
+def package_size(text: str) -> tuple[float | None, str | None]:
+    """The weight of one package, if the buyer says it: '60 kg bags', 'bags of 60 kg', '640 x 60 kg bags'."""
+    for w in _weights(text):
+        if w["kind"] == "package" or (w["kind"] == "times" and w.get("size")):
+            return (w.get("size") or w["kg"]), w.get("package")
+    return None, None
+
+
 def quantity(text: str) -> tuple[float | None, str | None]:
-    """The goods quantity, in kg where possible."""
-    m = re.search(r"(\d[\d,\.]*)\s*(kg|kgs|kilos?|kilograms?)\b", text, re.I)
-    if m and (v := _num(m.group(1))):
-        return v, "kg"
-    m = re.search(r"(\d[\d,\.]*)\s*(metric tons?|metric tonnes?|tonnes?|tons?|mt)\b", text, re.I)
-    if m and (v := _num(m.group(1))):
-        return v * 1000, "kg"
-    m = re.search(r"(\d[\d,\.]*)\s*(bags|boxes|cartons|units|pieces|pcs|bottles|cases|pallets|sacks|bales|drums)\b", text, re.I)
-    if m and (v := _num(m.group(1))):
-        return v, m.group(2).lower().replace("pcs", "pieces")
+    """The goods quantity, in kg where possible. Package sizes ('60 kg bags'), prices ('USD 4.10/kg') and
+    weights per container are not taken as the quantity. A stated total wins; then 'N x weight', the largest
+    plain weight, packages × package size, and weight per container × containers."""
+    ws = _weights(text)
+    def pick(kind: str):
+        found = [w for w in ws if w["kind"] == kind]
+        return max(found, key=lambda w: w["kg"]) if found else None
+    for kind in ("total", "times", "plain", "gross"):
+        if (w := pick(kind)):
+            return w["kg"], w["unit"]
+    counts = _package_counts(text)
+    size, _ = package_size(text)
+    if counts and size:
+        return counts[0][0] * size, "kg"
+    if (w := pick("container")):
+        n, _ = containers(text)
+        return w["kg"] * (n or 1), w["unit"]
+    if counts:
+        return counts[0]
     return None, None
 
 
@@ -342,12 +461,14 @@ def read(text: str, home_country: str | None = None) -> dict:
         if m and (v := _num(m.group(1))):
             qty, qty_unit = v, "pieces"
     n_containers, size = containers(text)
+    pkg_kg, pkg_type = package_size(text)
     pay = payment(text)
     rel = relationship(text)
     return {
         **route(text, home_country),
         "value": total, "currency": currency, "unit_price": unit_price, "price_unit": unit,
         "quantity": qty, "quantity_unit": qty_unit, "containers": n_containers, "container_size": size,
+        "package_kg": pkg_kg, "package_type": pkg_type,
         "mode": mode(text) or ("sea_container" if n_containers or re.search(r"\b(FOB|CFR|CIF|FAS)\b|bill of lading|\bB/L\b", text) else None),
         "incoterm_mentioned": incoterm(text), "payment_kind": pay["kind"], "credit_days": pay["credit_days"],
         "payment_terms_mentioned": pay["mentioned"], "relationship": rel,
