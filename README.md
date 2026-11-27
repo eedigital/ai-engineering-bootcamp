@@ -10,6 +10,7 @@ Deployable AI projects built with free tools: a four-week bootcamp, plus product
 | + | [Deal Desk: get one export deal right (concept for ICC One Click)](deal-desk/) | Live: [try it](https://deal-desk-gzud.onrender.com) |
 | + | [Experiment Designer: a Linear agent that plans A/B tests](experiment-agent/) | Live: [home and setup](https://experiment-agent.onrender.com) |
 | + | [Growth Lab: a growth PM's first 90 days, on invented data](growth-lab/) | Live: [try it](https://growth-lab.onrender.com) |
+| + | [Prompt Lab: test prompt versions on real cases, then ship the best on quality, cost and speed](prompt-lab/) | Live: [try it](https://prompt-lab.onrender.com) |
 | 2 | [RAG pipeline: measured, broken, fixed](week2-rag/) | Not started |
 | 3 | [Agent from the raw loop up, then ADK or LangGraph with MCP](week3-agent/) | Not started |
 | 4 | [TRACE evals and an agent with memory](week4-evals-memory/) | Not started |
@@ -30,6 +31,7 @@ pitch-perfect/       pitch deck review, numbers check, investor practice
 deal-desk/           export deal planner, built to plug into ICC One Click
 experiment-agent/    Linear agent: assign it an issue, get an A/B test plan back
 growth-lab/          a growth PM's first 90 days: funnel, sized roadmap, readouts, launch
+prompt-lab/          prompt versions run on test cases: code-checked scores, held-out cases, cost per call
 week2-rag/ ...       one folder per week
 render.yaml          Render deploy config
 ```
