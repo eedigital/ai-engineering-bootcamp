@@ -2,7 +2,7 @@
 
 Write prompt versions, run them on real test cases, and ship the one that wins on quality, cost and speed. Held-out cases show whether a better score is real or just fitted to the test.
 
-**Live:** https://prompt-lab.onrender.com
+**Live:** https://prompt-lab-osyn.onrender.com
 
 ## What it does
 
