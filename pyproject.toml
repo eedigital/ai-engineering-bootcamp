@@ -4,5 +4,5 @@ version = "0.1.0"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
-pythonpath = [".", "week1-llm-service", "week1-llm-service/tests", "grants-finder", "pitch-perfect", "deal-desk", "experiment-agent", "growth-lab"]
-testpaths = ["week1-llm-service/tests", "grants-finder/tests", "pitch-perfect/tests", "deal-desk/tests", "experiment-agent/tests", "growth-lab/tests"]
+pythonpath = [".", "week1-llm-service", "week1-llm-service/tests", "grants-finder", "pitch-perfect", "deal-desk", "experiment-agent", "growth-lab", "prompt-lab"]
+testpaths = ["week1-llm-service/tests", "grants-finder/tests", "pitch-perfect/tests", "deal-desk/tests", "experiment-agent/tests", "growth-lab/tests", "prompt-lab/tests"]

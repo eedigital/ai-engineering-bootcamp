@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230f6e66%27/%3E%3Cpath d=%27M9 16l5 5 9-10%27 stroke=%27white%27 stroke-width=%273.5%27 fill=%27none%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
+<meta name="description" content="Write prompt versions, run them on real test cases, and ship the one that wins on quality, cost and speed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef3f1; --sheet: #fff; --ink: #17211f; --muted: #5a6763; --line: #d6e0dc; --soft: #f6f9f8;
+    --accent: #0f6e66; --accent-dark: #0a524c; --accent-bg: #e2f1ee;
+    --yes: #17734a; --yes-bg: #e3f4ea; --no: #a3301f; --no-bg: #fbe6e2; --warn: #8a5a00; --warn-bg: #fdf1d8;
+    --r: 12px; --r-small: 8px; --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 "Schibsted Grotesk", system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  [hidden] { display: none !important; }
+  .bar { display: flex; justify-content: space-between; align-items: center; max-width: 60rem; margin: 0 auto; padding: 1.1rem 1.25rem; }
+  .brand { font-weight: 800; font-size: 1.125rem; letter-spacing: -0.01em; }
+  .brand b { color: var(--accent); }
+  main { max-width: 60rem; margin: 0 auto; padding: 0 1.25rem 3rem; }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.875rem; }
+  .err { color: var(--no); font-weight: 500; }
+  .link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.9375rem; }
+  .hero { padding: 2.25rem 0 0.5rem; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.03; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 1rem; max-width: 40rem; }
+  .hero p { margin: 0; color: var(--muted); font-size: 1.1875rem; max-width: 40rem; }
+  h2 { display: flex; align-items: center; gap: 0.6rem; font-size: 1.375rem; font-weight: 800; letter-spacing: -0.015em; margin: 2.25rem 0 0.75rem; }
+  .step { display: inline-grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--ink); color: #fff; font-size: 0.9375rem; }
+  .card { background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); padding: 1rem 1.15rem; }
+  .tabs { display: flex; gap: 0.25rem; background: var(--line); padding: 0.25rem; border-radius: 10px; width: fit-content; max-width: 100%; overflow-x: auto; }
+  .tabs button { border: 0; background: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; cursor: pointer; color: var(--muted); white-space: nowrap; }
+  .tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px rgb(23 33 31 / 0.12); }
+  details summary { cursor: pointer; font-weight: 700; }
+  .cases { margin: 0.75rem 0; padding-left: 1.25rem; display: grid; gap: 0.7rem; }
+  .cases .input { margin: 0.15rem 0; }
+  .tag { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--accent-bg); color: var(--accent-dark); margin-left: 0.35rem; vertical-align: 0.1em; }
+  .tag.warn { background: var(--warn-bg); color: var(--warn); }
+  textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.75rem; background: var(--soft); resize: vertical; line-height: 1.5; }
+  textarea.code, pre { font-family: var(--mono); font-size: 0.8125rem; }
+  select, input[type="text"], input:not([type]) { border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.4rem 0.6rem; background: var(--sheet); }
+  .versions { display: grid; gap: 1rem; }
+  .version-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+  .vname { font-weight: 800; font-size: 1.125rem; }
+  .version-foot { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.35rem; }
+  .btn { border: 0; border-radius: var(--r-small); padding: 0.8rem 1.4rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-dark); }
+  .btn.primary[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.secondary { background: var(--sheet); border: 1.5px solid var(--ink); padding: 0.6rem 1.1rem; }
+  .runbar { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+  .gridwrap { overflow-x: auto; margin-top: 1rem; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; }
+  tr:last-child td { border-bottom: 0; }
+  .grid td.case { font-weight: 500; white-space: nowrap; }
+  .cell { width: 2.4rem; height: 2.4rem; border-radius: var(--r-small); border: 1px solid var(--line); background: var(--soft); cursor: pointer; font-weight: 800; }
+  .cell.pass { background: var(--yes-bg); color: var(--yes); border-color: transparent; }
+  .cell.fail { background: var(--no-bg); color: var(--no); border-color: transparent; }
+  .cell.error { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .cell.busy { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .detail { margin-top: 1rem; }
+  .detail h3 { margin: 0 0 0.4rem; font-size: 1.0625rem; }
+  pre { white-space: pre-wrap; word-break: break-word; background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-small); padding: 0.75rem; margin: 0.4rem 0; }
+  .verdict { background: var(--accent-bg); border-radius: var(--r); padding: 1rem 1.15rem; margin-bottom: 1rem; }
+  .verdict strong { display: block; font-size: 1.25rem; margin-bottom: 0.2rem; }
+  .comparewrap { overflow-x: auto; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--r); }
+  .compare td.num, .compare th.num { text-align: right; white-space: nowrap; }
+  .compare tr.win td { background: #f1faf8; }
+  .badge { font-size: 0.75rem; font-weight: 800; color: #fff; background: var(--accent); border-radius: 999px; padding: 0.1rem 0.5rem; margin-left: 0.4rem; }
+  .prices { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 1rem 0; font-size: 0.9375rem; }
+  .prices input { width: 5.5rem; }
+  .improve { margin-top: 1rem; display: grid; gap: 0.75rem; }
+  .improve ul { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+  .note { background: var(--warn-bg); color: var(--warn); border-radius: var(--r-small); padding: 0.7rem 0.9rem; font-weight: 500; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.6rem; }
+  @media (max-width: 36rem) {
+    th, td { padding: 0.45rem 0.5rem; }
+    .grid td.case { white-space: normal; font-size: 0.9375rem; word-break: break-word; }
+    .grid .tag { display: block; width: fit-content; margin: 0.15rem 0 0; }
+    .cell { width: 2.1rem; height: 2.1rem; }
+    .compare th, .compare td { font-size: 0.875rem; }
+  }
+  footer { max-width: 60rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; color: var(--muted); font-size: 0.9375rem; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header class="bar">
+  <span class="brand">Prompt <b>Lab</b></span>
+  <a class="link" href="https://github.com/eedigital/ai-engineering-bootcamp/tree/main/prompt-lab">Code on GitHub</a>
+</header>
+<main>
+  <section class="hero">
+    <h1>Test your prompts before your customers do.</h1>
+    <p>Write prompt versions, run them on real cases and ship the one that wins on quality, cost and speed. Held-out cases show whether a better score is real or just fitted to the test.</p>
+  </section>
+
+  <section>
+    <h2><span class="step">1</span> Pick a task</h2>
+    <div class="tabs" role="tablist" id="taskTabs"></div>
+    <p id="taskDesc" class="muted"></p>
+    <details class="card" id="casesBox">
+      <summary id="casesSummary">Test cases</summary>
+      <ol class="cases" id="caseList"></ol>
+      <button class="link" id="editCases" type="button">Edit the cases as JSON</button>
+      <div id="casesEditor" hidden>
+        <p class="muted small">Each case has an <code>id</code>, an <code>input</code> and an <code>expect</code> with any of: <code>fields</code> (JSON keys and values), <code>equals</code>, <code>max_chars</code>, <code>contains</code>, <code>not_contains</code>. Set <code>"heldout": true</code> to keep a case away from the AI improver.</p>
+        <label class="small">Answer format
+          <select id="outputFormat"><option value="json">JSON</option><option value="text">Plain text</option></select>
+        </label>
+        <textarea id="casesJson" class="code" rows="14" spellcheck="false"></textarea>
+        <div class="row"><button class="btn secondary" id="applyCases" type="button">Use these cases</button><span id="casesErr" class="err"></span></div>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2><span class="step">2</span> Write prompt versions</h2>
+    <div class="versions" id="versions"></div>
+    <div class="row"><button class="link" id="addVersion" type="button">Add a version</button></div>
+  </section>
+
+  <section>
+    <h2><span class="step">3</span> Run the test</h2>
+    <div class="runbar">
+      <button class="btn primary" id="run" type="button">Run the test</button>
+      <span id="runStatus" class="muted" aria-live="polite"></span>
+    </div>
+    <div class="gridwrap" id="gridWrap" hidden><table class="grid" id="grid"></table></div>
+    <div class="card detail" id="detail" hidden></div>
+  </section>
+
+  <section id="resultsSec" hidden>
+    <h2><span class="step">4</span> Compare and ship</h2>
+    <div class="verdict" id="verdict"></div>
+    <div class="comparewrap"><table class="compare" id="compare"></table></div>
+    <div class="prices">
+      <span>Prices in US dollars per million tokens:</span>
+      <label>input <input id="priceIn" inputmode="decimal" placeholder="0.00"></label>
+      <label>output <input id="priceOut" inputmode="decimal" placeholder="0.00"></label>
+      <span class="muted small">Copy them from your provider's pricing page to see the cost of 1,000 calls.</span>
+    </div>
+    <div id="improveButtons" class="row"></div>
+    <div id="improveBox" class="improve"></div>
+  </section>
+</main>
+<footer>Part of the <a href="https://github.com/eedigital/ai-engineering-bootcamp">AI Engineering Bootcamp</a>. Every pass or fail comes from a code check you can read, never from the AI grading itself.</footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const MAX_VERSIONS = 4;
+const state = { tasks: [], task: null, providers: [], versions: [], results: {}, running: false, summary: null };
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  let data = {};
+  try { data = await r.json(); } catch (e) { /* not JSON */ }
+  if (!r.ok) {
+    const err = new Error(data.error || (data.detail ? "Something in the cases or prompt isn't valid." : `Error ${r.status}`));
+    err.status = r.status;
+    throw err;
+  }
+  return data;
+}
+
+const tokens = (s) => Math.max(1, Math.round(String(s).length / 4));
+const pct = (r) => (r === null || r === undefined ? "n/a" : Math.round(r * 100) + "%");
+const show = (v) => JSON.stringify(v);
+
+function describe(e) {
+  const parts = [];
+  if (e.fields) parts.push("JSON " + Object.entries(e.fields).map(([k, v]) => `${k} = ${show(v)}`).join(", "));
+  if (e.equals != null) parts.push(`exactly ${show(e.equals)}`);
+  if (e.max_chars != null) parts.push(`at most ${e.max_chars} characters`);
+  if (e.contains && e.contains.length) parts.push("includes " + e.contains.map(show).join(", "));
+  if (e.not_contains && e.not_contains.length) parts.push("never " + e.not_contains.map(show).join(", "));
+  return parts.join("; ") || "any answer";
+}
+
+// --- task --------------------------------------------------------------------------------
+function renderTabs() {
+  $("#taskTabs").innerHTML = state.tasks.map((t) =>
+    `<button role="tab" type="button" data-id="${esc(t.id)}" aria-selected="${state.task && state.task.id === t.id}">${esc(t.name)}</button>`).join("");
+  document.querySelectorAll("#taskTabs button").forEach((b) => b.addEventListener("click", () => selectTask(b.dataset.id)));
+}
+
+function selectTask(id) {
+  if (state.running) return;
+  const t = state.tasks.find((x) => x.id === id);
+  state.task = JSON.parse(JSON.stringify(t));
+  const first = state.providers.length ? state.providers[0].name : null;
+  state.versions = state.task.versions.map((p) => ({ prompt: p, provider: first }));
+  resetResults();
+  renderTabs();
+  renderTask();
+  renderVersions();
+}
+
+function renderTask() {
+  const t = state.task;
+  const held = t.cases.filter((c) => c.heldout).length;
+  $("#taskDesc").textContent = t.description;
+  $("#casesSummary").textContent = `${t.cases.length} test cases, ${held} held out`;
+  $("#caseList").innerHTML = t.cases.map((c) => `<li>
+      <strong>${esc(c.id)}</strong>${c.heldout ? '<span class="tag">held out</span>' : ""}${c.note ? `<span class="tag warn">${esc(c.note)}</span>` : ""}
+      <div class="input">${esc(c.input)}</div>
+      <div class="muted small">Expects ${esc(describe(c.expect))}</div></li>`).join("");
+  $("#outputFormat").value = t.output;
+  $("#casesJson").value = JSON.stringify(t.cases, null, 2);
+}
+
+$("#editCases").addEventListener("click", () => { $("#casesEditor").hidden = !$("#casesEditor").hidden; });
+$("#applyCases").addEventListener("click", () => {
+  $("#casesErr").textContent = "";
+  try {
+    const cases = JSON.parse($("#casesJson").value);
+    if (!Array.isArray(cases) || !cases.length || cases.length > 20) throw new Error("Use a list of 1 to 20 cases.");
+    const ids = new Set();
+    for (const c of cases) {
+      if (!c || typeof c.id !== "string" || typeof c.input !== "string" || typeof c.expect !== "object") throw new Error("Every case needs an id, an input and an expect.");
+      if (ids.has(c.id)) throw new Error(`The id "${c.id}" is used twice.`);
+      ids.add(c.id);
+    }
+    state.task.cases = cases;
+    state.task.output = $("#outputFormat").value;
+    resetResults();
+    renderTask();
+    $("#casesEditor").hidden = true;
+  } catch (e) {
+    $("#casesErr").textContent = e instanceof SyntaxError ? "That isn't valid JSON." : e.message;
+  }
+});
+
+// --- versions ----------------------------------------------------------------------------
+function providerOptions(selected) {
+  return state.providers.map((p) => `<option value="${esc(p.name)}" ${p.name === selected ? "selected" : ""}>${esc(p.name)} · ${esc(p.model)}</option>`).join("");
+}
+
+function renderVersions() {
+  $("#versions").innerHTML = state.versions.map((v, i) => `
+    <div class="card">
+      <div class="version-head">
+        <span class="vname">V${i + 1}</span>
+        <span class="row" style="margin:0">
+          <label class="small">Model <select data-provider="${i}">${providerOptions(v.provider)}</select></label>
+          ${state.versions.length > 1 ? `<button class="link" type="button" data-remove="${i}">Remove</button>` : ""}
+        </span>
+      </div>
+      <textarea rows="${Math.min(14, Math.max(4, v.prompt.split("\n").length + 1))}" data-prompt="${i}" aria-label="Prompt for V${i + 1}">${esc(v.prompt)}</textarea>
+      <div class="version-foot muted small"><span data-size="${i}">About ${tokens(v.prompt)} tokens, paid on every call</span></div>
+    </div>`).join("");
+  document.querySelectorAll("[data-prompt]").forEach((el) => el.addEventListener("input", () => {
+    const i = +el.dataset.prompt;
+    state.versions[i].prompt = el.value;
+    document.querySelector(`[data-size="${i}"]`).textContent = `About ${tokens(el.value)} tokens, paid on every call`;
+    markStale();
+  }));
+  document.querySelectorAll("[data-provider]").forEach((el) => el.addEventListener("change", () => {
+    state.versions[+el.dataset.provider].provider = el.value;
+    markStale();
+  }));
+  document.querySelectorAll("[data-remove]").forEach((el) => el.addEventListener("click", () => {
+    state.versions.splice(+el.dataset.remove, 1);
+    resetResults();
+    renderVersions();
+  }));
+  $("#addVersion").hidden = state.versions.length >= MAX_VERSIONS;
+  updateRunLabel();
+}
+
+$("#addVersion").addEventListener("click", () => {
+  const last = state.versions[state.versions.length - 1];
+  state.versions.push({ prompt: last ? last.prompt : "", provider: last ? last.provider : (state.providers[0] || {}).name });
+  resetResults();
+  renderVersions();
+});
+
+function updateRunLabel() {
+  const n = state.versions.length * (state.task ? state.task.cases.length : 0);
+  $("#run").textContent = `Run ${n} tests`;
+  $("#run").disabled = state.running || !state.providers.length;
+}
+
+function markStale() {
+  if (Object.keys(state.results).length && !state.running) $("#runStatus").textContent = "You changed a prompt since the last run. Run again to compare.";
+}
+
+// --- run ---------------------------------------------------------------------------------
+function resetResults() {
+  state.results = {};
+  state.summary = null;
+  $("#gridWrap").hidden = true;
+  $("#detail").hidden = true;
+  $("#resultsSec").hidden = true;
+  $("#improveBox").innerHTML = "";
+  $("#runStatus").textContent = state.providers.length ? "" : "No AI provider is set up on this server, so tests can't run.";
+  updateRunLabel();
+}
+
+function renderGrid() {
+  const t = state.task;
+  const head = `<tr><th>Case</th>${state.versions.map((_, i) => `<th>V${i + 1}</th>`).join("")}</tr>`;
+  const rows = t.cases.map((c) => `<tr><td class="case">${esc(c.id)}${c.heldout ? '<span class="tag">held out</span>' : ""}</td>${
+    state.versions.map((_, i) => `<td><button type="button" class="cell" data-cell="${i}|${esc(c.id)}" aria-label="V${i + 1} on ${esc(c.id)}">·</button></td>`).join("")}</tr>`).join("");
+  $("#grid").innerHTML = head + rows;
+  $("#gridWrap").hidden = false;
+  cells.clear();
+  document.querySelectorAll("[data-cell]").forEach((b) => {
+    cells.set(b.dataset.cell, b);
+    b.addEventListener("click", () => showDetail(b.dataset.cell));
+  });
+}
+
+const cells = new Map();
+
+function paintCell(key) {
+  const b = cells.get(key);
+  const r = state.results[key];
+  if (!b) return;
+  b.className = "cell";
+  if (!r) { b.textContent = "·"; return; }
+  if (r.busy) { b.classList.add("busy"); b.textContent = "…"; return; }
+  if (r.error) { b.classList.add("error"); b.textContent = "!"; return; }
+  b.classList.add(r.passed ? "pass" : "fail");
+  b.textContent = r.passed ? "✓" : "✗";
+}
+
+function showDetail(key) {
+  const r = state.results[key];
+  const [vi, caseId] = key.split("|");
+  const c = state.task.cases.find((x) => x.id === caseId);
+  if (!r || r.busy || !c) return;
+  const facts = r.error ? "" : `<p class="muted small">${esc(r.provider)} · ${esc(r.model)} · ${r.latency_ms} ms · ${r.input_tokens} tokens in, ${r.output_tokens} out${r.tokens_estimated ? " (estimated)" : ""}</p>`;
+  $("#detail").innerHTML = `<h3>V${+vi + 1} on ${esc(c.id)}: ${r.error ? "the call failed" : r.passed ? "passed" : "failed"}</h3>
+    <p class="small"><strong>Input</strong></p><pre>${esc(c.input)}</pre>
+    <p class="small"><strong>Expected</strong> ${esc(describe(c.expect))}</p>
+    ${r.error ? `<p class="err">${esc(r.error)}</p>` : `<p class="small"><strong>Answer</strong></p><pre>${esc(r.answer)}</pre>`}
+    ${r.reasons && r.reasons.length ? `<ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    ${facts}`;
+  $("#detail").hidden = false;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function runOne(vi, c) {
+  const key = `${vi}|${c.id}`;
+  state.results[key] = { busy: true };
+  paintCell(key);
+  const v = state.versions[vi];
+  const body = { prompt: v.prompt, case: c, output: state.task.output, provider: v.provider };
+  let res;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      res = await api("/api/run", body);
+      break;
+    } catch (e) {
+      if (e.status === 429 && attempt === 0) {
+        $("#runStatus").textContent = "Busy for a moment, waiting 20 seconds…";
+        await sleep(20000);
+        continue;
+      }
+      res = { case_id: c.id, heldout: !!c.heldout, passed: null, error: e.message, answer: "", reasons: [] };
+      break;
+    }
+  }
+  state.results[key] = res;
+  paintCell(key);
+}
+
+$("#run").addEventListener("click", async () => {
+  if (state.running || !state.task) return;
+  if (state.versions.some((v) => !v.prompt.trim())) { $("#runStatus").textContent = "Every version needs a prompt."; return; }
+  state.running = true;
+  state.results = {};
+  updateRunLabel();
+  $("#resultsSec").hidden = true;
+  $("#detail").hidden = true;
+  $("#improveBox").innerHTML = "";
+  renderGrid();
+  const jobs = [];
+  for (const c of state.task.cases) state.versions.forEach((_, vi) => jobs.push([vi, c]));
+  const total = jobs.length;
+  let done = 0;
+  $("#runStatus").textContent = `0 of ${total} done`;
+  const worker = async () => {
+    while (jobs.length) {
+      const [vi, c] = jobs.shift();
+      await runOne(vi, c);
+      done++;
+      $("#runStatus").textContent = `${done} of ${total} done`;
+    }
+  };
+  try {
+    await Promise.all([worker(), worker()]);  // two at a time keeps free-tier rate limits happy
+    $("#runStatus").textContent = "Done. Tap any cell to see the answer.";
+    await refreshCompare();
+  } finally {
+    state.running = false;
+    updateRunLabel();
+  }
+});
+
+// --- compare and improve -----------------------------------------------------------------
+function prices() {
+  const i = parseFloat($("#priceIn").value), o = parseFloat($("#priceOut").value);
+  return Number.isFinite(i) && Number.isFinite(o) && i >= 0 && o >= 0 ? { input: i, output: o } : null;
+}
+
+async function refreshCompare() {
+  const results = Object.entries(state.results).filter(([, r]) => !r.busy).map(([key, r]) => ({
+    version: +key.split("|")[0] + 1, case_id: r.case_id, heldout: !!r.heldout, passed: r.passed,
+    latency_ms: r.latency_ms ?? null, input_tokens: r.input_tokens ?? null, output_tokens: r.output_tokens ?? null,
+  }));
+  if (!results.length) return;
+  try {
+    state.summary = await api("/api/compare", { results, prices: prices() });
+  } catch (e) {
+    $("#runStatus").textContent = e.message;
+    return;
+  }
+  renderCompare();
+}
+
+function renderCompare() {
+  const s = state.summary;
+  $("#verdict").innerHTML = s.winner ? `<strong>Ship V${s.winner}</strong>${esc(s.why)}` : `<strong>Nothing to compare yet</strong>${esc(s.why)}`;
+  const cost = (r) => (r.cost_per_1000 == null ? "add prices" : "$" + r.cost_per_1000.toFixed(r.cost_per_1000 < 1 ? 4 : 2));
+  $("#compare").innerHTML = `<tr><th>Version</th><th class="num">Passed</th><th class="num">Open cases</th><th class="num">Held out</th><th class="num">Avg time</th><th class="num">Tokens per call</th><th class="num">Cost of 1,000 calls</th></tr>` +
+    s.versions.map((r) => `<tr class="${r.version === s.winner ? "win" : ""}">
+      <td>V${r.version}${r.version === s.winner ? '<span class="badge">ship</span>' : ""}${r.overfit ? '<span class="tag warn">may be fitted to the test</span>' : ""}${r.errors ? `<span class="tag warn">${r.errors} failed ${r.errors === 1 ? "call" : "calls"}</span>` : ""}</td>
+      <td class="num">${r.passed} of ${r.scored} (${pct(r.pass_rate)})</td>
+      <td class="num">${pct(r.open_pass_rate)}</td>
+      <td class="num">${pct(r.heldout_pass_rate)}</td>
+      <td class="num">${r.avg_latency_ms == null ? "n/a" : r.avg_latency_ms + " ms"}</td>
+      <td class="num">${r.avg_tokens ?? "n/a"}</td>
+      <td class="num">${cost(r)}</td></tr>`).join("");
+  $("#improveButtons").innerHTML = state.versions.map((_, i) => {
+    const fails = openFailures(i).length;
+    return fails ? `<button class="btn secondary" type="button" data-improve="${i}">Improve V${i + 1} with AI (${fails} open failures)</button>` : "";
+  }).join("");
+  document.querySelectorAll("[data-improve]").forEach((b) => b.addEventListener("click", () => improveVersion(+b.dataset.improve, b)));
+  $("#resultsSec").hidden = false;
+}
+
+let priceTimer;
+["#priceIn", "#priceOut"].forEach((sel) => $(sel).addEventListener("input", () => {
+  clearTimeout(priceTimer);
+  priceTimer = setTimeout(() => { if (state.summary) refreshCompare(); }, 400);
+}));
+
+function openFailures(vi) {
+  return state.task.cases.filter((c) => {
+    const r = state.results[`${vi}|${c.id}`];
+    return !c.heldout && r && !r.busy && r.passed === false;
+  });
+}
+
+async function improveVersion(vi, button) {
+  const fails = openFailures(vi);
+  const passing = state.task.cases.filter((c) => { const r = state.results[`${vi}|${c.id}`]; return !c.heldout && r && r.passed === true; }).length;
+  button.disabled = true;
+  const label = button.textContent;
+  button.textContent = "Rewriting…";
+  try {
+    const out = await api("/api/improve", {
+      task: state.task.description, output: state.task.output, prompt: state.versions[vi].prompt, passing,
+      failures: fails.map((c) => {
+        const r = state.results[`${vi}|${c.id}`];
+        return { case_id: c.id, input: c.input, expected: describe(c.expect), answer: r.answer || "", reasons: r.reasons || [], heldout: false };
+      }),
+    });
+    renderSuggestion(vi, out);
+  } catch (e) {
+    $("#improveBox").innerHTML = `<p class="err">${esc(e.message)}</p>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+function renderSuggestion(vi, out) {
+  const s = out.suggestion;
+  const held = state.task.cases.filter((c) => c.heldout).length;
+  const canAdd = state.versions.length < MAX_VERSIONS;
+  $("#improveBox").innerHTML = `<div class="card">
+      <h3>A rewrite of V${vi + 1}</h3>
+      ${out.copied.length ? `<p class="note">This rewrite copies text from ${out.copied.map(esc).join(", ")}. It would pass those cases without really getting better, so edit that part out before you test it.</p>` : ""}
+      <p><strong>What was wrong</strong></p><ul>${s.diagnosis.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <p><strong>What changed</strong></p><ul>${s.changes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <p><strong>New prompt</strong> <span class="muted small">about ${tokens(s.prompt)} tokens, against ${tokens(state.versions[vi].prompt)} now</span></p>
+      <pre>${esc(s.prompt)}</pre>
+      <p class="muted small">${held ? `The AI only saw the open cases, so your ${held} held-out cases still test the new version fairly.` : "Add a few held-out cases to check the new version isn't just fitted to these ones."}</p>
+      <div class="row">${canAdd ? `<button class="btn primary" type="button" id="addSuggestion">Add as V${state.versions.length + 1}</button>` : `<span class="muted">You have ${MAX_VERSIONS} versions. Remove one to add this.</span>`}</div>
+    </div>`;
+  if (canAdd) $("#addSuggestion").addEventListener("click", () => {
+    state.versions.push({ prompt: s.prompt, provider: state.versions[vi].provider });
+    resetResults();
+    renderVersions();
+    $("#runStatus").textContent = `Added V${state.versions.length}. Run the test to compare it.`;
+    $("#versions").lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
+// --- start -------------------------------------------------------------------------------
+(async function init() {
+  try {
+    const [s, p] = await Promise.all([api("/api/samples"), api("/api/providers")]);
+    state.tasks = s.tasks;
+    state.providers = p.providers;
+    selectTask(state.tasks[0].id);
+  } catch (e) {
+    $("#runStatus").textContent = "Couldn't load the tasks. Refresh the page to try again.";
+  }
+})();
+</script>
+</body>
+</html>

@@ -141,3 +141,25 @@ services:
           type: web
           name: grant-finder
           envVarKey: GEMINI_API_KEY
+
+  # Prompt Lab: run prompt versions on test cases and compare quality, cost and speed.
+  - type: web
+    name: prompt-lab
+    runtime: docker
+    plan: free
+    dockerfilePath: ./prompt-lab/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDERS
+        value: groq,gemini   # free tiers only: visitors run their own prompts on these keys
+      - key: GROQ_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GROQ_API_KEY
+      - key: GEMINI_API_KEY
+        fromService:
+          type: web
+          name: grant-finder
+          envVarKey: GEMINI_API_KEY
